@@ -169,6 +169,10 @@ export abstract class BaseComponent extends HTMLElement {
 
   // -------- Rendering --------
 
+  public update(): void {
+    this.updateView();
+  }
+
   /**
    * Re-renders the component template with styles.
    * @protected
