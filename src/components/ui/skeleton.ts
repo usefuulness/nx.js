@@ -1,3 +1,5 @@
+import { BaseComponent } from "@/components/abstracts/base";
+
 export interface SkeletonConfig {
   variant?: 'text' | 'circular' | 'rectangular' | 'rounded';
   width?: string | number;
@@ -31,11 +33,11 @@ export class NXSkeleton extends BaseComponent {
   }
 
   protected render(): string {
-    const variant = this.getProp('variant', 'text');
+    const variant = this.getProp('variant', 'text') || 'text';
     const width = this.getProp('width');
     const height = this.getProp('height');
-    const animation = this.getProp('animation', 'pulse');
-    const count = parseInt(this.getProp('count', '1'));
+    const animation: string = this.getProp('animation', 'pulse') || 'pulse';
+    const count = parseInt(this.getProp('count', '1')  || '1', 10);
 
     const style = this.buildStyle(variant, width, height);
 

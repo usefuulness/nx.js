@@ -1,304 +1,856 @@
 /**
- * @file @/components/base.ts
+ * @file @/components/abstracts/base.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
 
+import { Core } from '@/core/core';
 
-// Symbols for private state and props storage
-declare const DEBUG: boolean;
+/**
+ * Symbol for accessing component's internal state management.
+ * @internal
+ */
 export const ComponentState = Symbol('ComponentState');
+
+/**
+ * Symbol for accessing component's property definitions.
+ * @internal
+ */
 export const ComponentProps = Symbol('ComponentProps');
 
 /**
- * BaseComponent
- * A foundational Web Component class with built-in state/props management,
- * lifecycle hooks, and templating support using a shadow DOM.
- * @abstract
+ * Component lifecycle interface defining standard Web Component lifecycle methods.
  */
-export abstract class BaseComponent extends HTMLElement {
-  /** Shadow root for encapsulated markup and styles */
-  protected shadow: ShadowRoot;
-  /** Internal state storage */
-  private [ComponentState]: Map<string, any> = new Map();
-  /** Internal props storage */
-  private [ComponentProps]: Map<string, any> = new Map();
-  /** Active subscription cleanup functions */
-  private subscriptions: Set<() => void> = new Set();
-  /** Registered event listeners for cleanup */
-  private eventListeners: Map<EventTarget, Array<{ type: string; handler: EventListenerOrEventListenerObject }>> = new Map();
+export interface ComponentLifecycle {
+  connectedCallback?(): void;
+  disconnectedCallback?(): void;
+  attributeChangedCallback?(name: string, oldValue: string | null, newValue: string | null): void;
+  adoptedCallback?(): void;
+}
+
+/**
+ * Type for state manager - using Map for efficient key-value storage.
+ */
+export type StateManager = Map<string, any>;
+
+/**
+ * Base configuration interface that all component configs should extend.
+ */
+export interface ComponentConfig {
+  id?: string;
+  className?: string;
+  style?: Partial<CSSStyleDeclaration>;
+  [key: string]: any;
+}
+
+/**
+ * Abstract base class for all Nexaro components.
+ * Provides core functionality including state management, lifecycle hooks,
+ * property handling, and DOM utilities.
+ * 
+ * @abstract
+ * @extends {HTMLElement}
+ * @implements {ComponentLifecycle}
+ * 
+ * @example
+ * ```typescript
+ * class MyComponent extends BaseComponent {
+ *   static get observedAttributes() {
+ *     return ['value', 'disabled'];
+ *   }
+ *   
+ *   protected initializeState(): void {
+ *     this.setState('internalValue', '');
+ *   }
+ *   
+ *   protected render(): string {
+ *     return `
+ *       <div class="my-component">
+ *         ${this.getProp('value', 'default')}
+ *       </div>
+ *     `;
+ *   }
+ *   
+ *   protected styles(): string {
+ *     return `
+ *       .my-component {
+ *         padding: 1rem;
+ *         background: var(--surface-color);
+ *       }
+ *     `;
+ *   }
+ * }
+ * ```
+ */
+export abstract class BaseComponent extends HTMLElement implements ComponentLifecycle {
+  /**
+   * Internal state management instance.
+   * @private
+   */
+  protected [ComponentState]: StateManager;
+  
+  /**
+   * Property definitions cache for non-attribute properties.
+   * @private
+   */
+  protected [ComponentProps]: Map<string, any>;
+  
+  /**
+   * Reference to the component's shadow DOM root.
+   * Will be null if shadow DOM is not used.
+   * @protected
+   */
+  protected shadow: ShadowRoot | null = null;
 
   /**
-   * Automatically called when element is constructed.
-   * Attaches an open shadow root and initializes fields.
+   * List of cleanup functions to be called on disconnect.
+   * Used for removing event listeners, clearing timers, etc.
+   * @private
+   */
+  private cleanupFunctions: Array<() => void> = [];
+
+  /**
+   * Flag indicating if the component has been initialized.
+   * @private
+   */
+  private initialized = false;
+
+  /**
+   * Animation frame ID for scheduled updates.
+   * @private
+   */
+  private updateFrameId = 0;
+
+  /**
+   * Creates a new component instance.
+   * Initializes state and property management.
    */
   constructor() {
     super();
-    this.shadow = this.attachShadow({ mode: 'open' });
+    this[ComponentState] = new Map();
+    this[ComponentProps] = new Map();
+    this.initializeState();
   }
 
   /**
-   * Attributes to observe for changes. Override in subclasses.
+   * Defines which attributes should be observed for changes.
+   * Override in subclasses to specify observed attributes.
+   * 
+   * @returns {string[]} Array of attribute names to observe
+   * @static
+   * 
+   * @example
+   * ```typescript
+   * static get observedAttributes() {
+   *   return ['disabled', 'value', 'label'];
+   * }
+   * ```
    */
   static get observedAttributes(): string[] {
     return [];
   }
 
   /**
-   * Called when the element is connected into the DOM.
-   * Initializes state, parses attributes, runs user init, renders view, and attaches events.
+   * Called when the component is added to the DOM.
+   * Registers with Core, initializes the component, and triggers lifecycle hooks.
    */
   connectedCallback(): void {
-    if (DEBUG) console.info(`${this.constructor.name} connected`);
-    this.initializeState();
-    this.parseAttributes();
-    this.initialize();
-    this.updateView();
-    this.attachEventListeners();
+    Core.getInstance().registerComponent(this);
+    
+    if (!this.initialized) {
+      this.initialize();
+      this.initialized = true;
+    }
+    
+    this.afterConnect();
+    this.scheduleUpdate();
   }
 
   /**
-   * Hook for subclasses to set up initial state before rendering.
-   * @protected
-   */
-  protected initializeState(): void {
-    // Override in subclass
-  }
-
-  /**
-   * Called when the element is disconnected from the DOM.
-   * Cleans up subscriptions and event listeners.
+   * Called when the component is removed from the DOM.
+   * Performs cleanup, cancels pending updates, and unregisters from Core.
    */
   disconnectedCallback(): void {
+    this.beforeDisconnect();
+    
+    // Cancel any pending updates
+    if (this.updateFrameId) {
+      cancelAnimationFrame(this.updateFrameId);
+      this.updateFrameId = 0;
+    }
+    
+    // Run all cleanup functions
+    this.cleanupFunctions.forEach(fn => {
+      try {
+        fn();
+      } catch (error) {
+        console.error('Error during cleanup:', error);
+      }
+    });
+    this.cleanupFunctions = [];
+    
+    // Custom cleanup
     this.cleanup();
-
-    for (const unsubscribe of this.subscriptions) {
-      unsubscribe?.();
-    }
-    this.subscriptions.clear();
-
-    for (const [target, listeners] of this.eventListeners) {
-      listeners.forEach(({ type, handler }) => target.removeEventListener(type, handler));
-    }
-    this.eventListeners.clear();
+    
+    // Unregister from core
+    Core.getInstance().unregisterComponent(this);
   }
 
   /**
-   * Called when one of the observed attributes changes.
-   * @param name Name of the attribute
-   * @param oldValue Previous value
-   * @param newValue New value
+   * Called when an observed attribute changes.
+   * Triggers update if the value actually changed.
+   * 
+   * @param {string} name - Name of the changed attribute
+   * @param {string | null} oldValue - Previous value
+   * @param {string | null} newValue - New value
    */
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
-    if (oldValue === newValue || newValue == null) return;
-    let parsed: any = newValue;
-    try {
-      if (/^[\[{].*[\]}]$/.test(newValue)) {
-        parsed = JSON.parse(newValue);
+    if (oldValue !== newValue) {
+      this.onAttributeChange(name, oldValue, newValue);
+      if (this.initialized) {
+        this.scheduleUpdate();
       }
-    } catch {
-      // leave as string
-    }
-    this.setProp(name, parsed);
-    if (this.isConnected) {
-      this.updateView();
     }
   }
 
-  // -------- State & Props Management --------
-
   /**
-   * Updates internal state and triggers re-render + dispatches a statechange event.
-   * @param key State key
-   * @param value New value
+   * Called when the component is moved to a new document.
+   * Useful for handling components in iframes or when using document.adoptNode().
    */
-  protected setState(key: string, value: any): void {
-    this[ComponentState].set(key, value);
-    if (this.isConnected) this.updateView();
-    this.dispatchEvent(new CustomEvent('statechange', {
-      detail: { key, value },
-      bubbles: true,
-      composed: true
-    }));
+  adoptedCallback(): void {
+    this.onAdopted();
   }
 
   /**
-   * Retrieves state value or default.
-   * @param key State key
-   * @param defaultValue Optional default if not set
+   * Initialize component state.
+   * Must be implemented by subclasses to set up initial state.
+   * 
+   * @protected
+   * @abstract
+   * 
+   * @example
+   * ```typescript
+   * protected initializeState(): void {
+   *   this.setState('isOpen', false);
+   *   this.setState('items', []);
+   * }
+   * ```
    */
-  protected getState<T = any>(key: string, defaultValue?: T): T | undefined {
-    return this[ComponentState].has(key)
-      ? (this[ComponentState].get(key) as T)
-      : defaultValue;
-  }
+  protected abstract initializeState(): void;
 
   /**
-   * Sets a prop (attribute-synced) value.
-   * @param key Prop key
-   * @param value Value to set
+   * Render component template.
+   * Must be implemented by subclasses to return HTML template.
+   * 
+   * @returns {string} HTML template string
+   * @protected
+   * @abstract
+   * 
+   * @example
+   * ```typescript
+   * protected render(): string {
+   *   return `
+   *     <div class="container">
+   *       <slot></slot>
+   *     </div>
+   *   `;
+   * }
+   * ```
    */
-  protected setProp(key: string, value: any): void {
-    this[ComponentProps].set(key, value);
-  }
-
-  /**
-   * Gets a prop value or default.
-   * @param key Prop key
-   * @param defaultValue Optional default
-   */
-  protected getProp<T = any>(key: string, defaultValue?: T): T | undefined {
-    return this[ComponentProps].has(key)
-      ? (this[ComponentProps].get(key) as T)
-      : defaultValue;
-  }
-
-  // -------- Subclass Hooks (Override) --------
-
-  /** Perform custom initialization logic. */
-  protected initialize(): void {}
-  /** Perform custom cleanup logic. */
-  protected cleanup(): void {}
-  /** Return HTML string for rendering. */
   protected abstract render(): string;
-  /** Return CSS string for component-specific styles. */
-  protected styles(): string { return ''; }
-  /** Attach events in the rendered DOM. */
-  protected attachEventListeners(): void {}
-  /** Called after the view has been rendered into the shadow DOM. */
-  protected afterRender(): void {}
 
-  // -------- Rendering --------
-
-  public update(): void {
-    this.updateView();
+  /**
+   * Define component-specific styles.
+   * Override in subclasses to provide custom styles.
+   * 
+   * @returns {string} CSS styles string
+   * @protected
+   * 
+   * @example
+   * ```typescript
+   * protected styles(): string {
+   *   return `
+   *     :host {
+   *       display: block;
+   *       padding: 1rem;
+   *     }
+   *     
+   *     .container {
+   *       background: var(--bg-color);
+   *     }
+   *   `;
+   * }
+   * ```
+   */
+  protected styles(): string {
+    return '';
   }
 
   /**
-   * Re-renders the component template with styles.
+   * Initialize the component.
+   * Called once when the component is first connected.
+   * Sets up shadow DOM if needed and performs initial render.
+   * 
    * @protected
    */
-  protected updateView(): void {
-    this.shadow.innerHTML = `
+  protected initialize(): void {
+    // Set up shadow DOM if attachShadow was called in constructor
+    if (this.shadowRoot) {
+      this.shadow = this.shadowRoot;
+    }
+    
+    // Perform initial update if shadow DOM exists
+    if (this.shadow) {
+      this.update();
+    }
+  }
+
+  /**
+   * Update the component's DOM.
+   * Renders template and styles to shadow DOM.
+   * 
+   * @protected
+   */
+  protected update(): void {
+    if (!this.shadow) return;
+    
+    // Create template
+    const template = document.createElement('template');
+    template.innerHTML = `
       <style>
-        :host { display: block; box-sizing: border-box; }
-        *, *::before, *::after { box-sizing: border-box; }
         ${this.globalStyles()}
         ${this.styles()}
       </style>
       ${this.render()}
     `;
+    
+    // Clear and append
+    this.shadow.innerHTML = '';
+    this.shadow.appendChild(template.content.cloneNode(true));
+    
+    // Trigger after render hook
     requestAnimationFrame(() => {
-      if (DEBUG) console.info(`${this.constructor.name} afterRender`);
       this.afterRender();
     });
   }
 
-  /** Parses all current attributes into props. */
-  private parseAttributes(): void {
-    for (const { name, value } of Array.from(this.attributes)) {
-      let parsed: any = value;
-      try {
-        if (/^[\[{].*[\]}]$/.test(value)) parsed = JSON.parse(value);
-      } catch {
-        console.warn(`Failed to parse attribute ${name}`);
-      }
-      this.setProp(name, parsed);
-    }
-  }
-
-  // -------- DOM Helpers --------
-
   /**
-   * Query a single element within shadow DOM.
-   * @param selector CSS selector
+   * Global styles applied to all components.
+   * Provides base styling and CSS reset for shadow DOM.
+   * 
+   * @returns {string} Global CSS styles
+   * @private
    */
-  protected $(selector: string): Element | null {
-    return this.shadow.querySelector(selector);
-  }
-
-  /**
-   * Query multiple elements within shadow DOM.
-   * @param selector CSS selector
-   */
-  protected $$(selector: string): NodeListOf<Element> {
-    return this.shadow.querySelectorAll(selector);
-  }
-
-  /**
-   * Attach an event listener to an element found by selector.
-   * @param selector CSS selector
-   * @param event Event type
-   * @param handler Event handler
-   * @returns True if attached, false otherwise
-   */
-  protected on(
-    selector: string,
-    event: string,
-    handler: EventListenerOrEventListenerObject
-  ): boolean {
-    const el = this.$(selector);
-    if (!el) {
-      if (DEBUG) console.warn(`Selector not found: ${selector}`);
-      return false;
-    }
-    el.addEventListener(event, handler);
-    if (!this.eventListeners.has(el)) {
-      this.eventListeners.set(el, []);
-    }
-    this.eventListeners.get(el)?.push({ type: event, handler });
-    return true;
-  }
-
-  /**
-   * Global utility styles (Tailwind-like).
-   */
-  protected globalStyles(): string {
+  private globalStyles(): string {
     return `
-        /* Import Tailwind-like utilities */
-        .flex { display: flex; }
-        .flex-col { flex-direction: column; }
-        .flex-row { flex-direction: row; }
-        .items-center { align-items: center; }
-        .justify-between { justify-content: space-between; }
-        .justify-center { justify-content: center; }
-        .gap-2 { gap: 0.5rem; }
-        .gap-4 { gap: 1rem; }
-        .p-2 { padding: 0.5rem; }
-        .p-4 { padding: 1rem; }
-        .px-4 { padding-left: 1rem; padding-right: 1rem; }
-        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-        .m-2 { margin: 0.5rem; }
-        .m-4 { margin: 1rem; }
-        .rounded { border-radius: var(--radius-md); }
-        .rounded-lg { border-radius: var(--radius-lg); }
-        .shadow { box-shadow: var(--shadow-md); }
-        .shadow-lg { box-shadow: var(--shadow-lg); }
-        .bg-primary { background-color: var(--color-primary); }
-        .bg-surface { background-color: var(--color-surface); }
-        .text-white { color: white; }
-        .text-sm { font-size: 0.875rem; }
-        .font-medium { font-weight: 500; }
-        .font-bold { font-weight: 700; }
-        .border { border: 1px solid var(--color-border); }
-        .w-full { width: 100%; }
-        .h-full { height: 100%; }
-        .grid { display: grid; }
-        .hidden { display: none; }
-        .block { display: block; }
-        .relative { position: relative; }
-        .absolute { position: absolute; }
-        .fixed { position: fixed; }
-        .top-0 { top: 0; }
-        .right-0 { right: 0; }
-        .bottom-0 { bottom: 0; }
-        .left-0 { left: 0; }
-        .z-10 { z-index: 10; }
-        .z-50 { z-index: 50; }
-        .overflow-hidden { overflow: hidden; }
-        .overflow-auto { overflow: auto; }
-        .transition { transition: all 0.2s; }
-        .cursor-pointer { cursor: pointer; }
-        .hover\\:bg-opacity-80:hover { opacity: 0.8; }
+      /* Base styles */
+      :host {
+        box-sizing: border-box;
+        display: block;
+      }
+      
+      :host([hidden]) {
+        display: none !important;
+      }
+      
+      :host([disabled]) {
+        pointer-events: none;
+        opacity: 0.6;
+      }
+      
+      /* Box sizing reset */
+      *, *::before, *::after {
+        box-sizing: inherit;
+      }
+      
+      /* Focus styles */
+      :focus {
+        outline: 2px solid var(--focus-color, #0066cc);
+        outline-offset: 2px;
+      }
+      
+      /* Smooth transitions */
+      * {
+        transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 150ms;
+      }
     `;
+  }
+
+  /**
+   * Called after component is connected to DOM.
+   * Override to perform post-connection setup.
+   * 
+   * @protected
+   */
+  protected afterConnect(): void {}
+
+  /**
+   * Called before component is disconnected from DOM.
+   * Override to perform pre-disconnection cleanup.
+   * 
+   * @protected
+   */
+  protected beforeDisconnect(): void {}
+
+  /**
+   * Called after render is complete.
+   * Override to perform post-render DOM manipulation.
+   * 
+   * @protected
+   */
+  protected afterRender(): void {}
+
+  /**
+   * Called when an attribute changes.
+   * Override to handle specific attribute changes.
+   * 
+   * @param {string} name - Attribute name
+   * @param {string | null} oldValue - Previous value
+   * @param {string | null} newValue - New value
+   * @protected
+   */
+  protected onAttributeChange(name: string, oldValue: string | null, newValue: string | null): void {}
+
+  /**
+   * Called when component is adopted into a new document.
+   * Override to handle document adoption.
+   * 
+   * @protected
+   */
+  protected onAdopted(): void {}
+
+  /**
+   * Cleanup method for removing listeners, timers, etc.
+   * Override to perform custom cleanup.
+   * 
+   * @protected
+   */
+  protected cleanup(): void {}
+
+  /**
+   * Get state value by key with optional default.
+   * 
+   * @template T - Type of the state value
+   * @param {string} key - State key
+   * @param {T} [defaultValue] - Default value if key doesn't exist
+   * @returns {T} State value
+   * @protected
+   * 
+   * @example
+   * ```typescript
+   * const isOpen = this.getState<boolean>('isOpen', false);
+   * const items = this.getState<string[]>('items', []);
+   * ```
+   */
+  protected getState<T = any>(key: string, defaultValue?: T): T {
+    return this[ComponentState].has(key) 
+      ? this[ComponentState].get(key) as T
+      : (defaultValue as unknown as T);
+  }
+
+  /**
+   * Set state value by key and trigger update if changed.
+   * 
+   * @param {string} key - State key
+   * @param {any} value - Value to set
+   * @protected
+   * 
+   * @example
+   * ```typescript
+   * this.setState('isOpen', true);
+   * this.setState('items', ['item1', 'item2']);
+   * ```
+   */
+  protected setState(key: string, value: any): void {
+    const oldValue = this[ComponentState].get(key);
+    this[ComponentState].set(key, value);
+    
+    if (oldValue !== value) {
+      this.onStateChange(key, oldValue, value);
+      this.scheduleUpdate();
+    }
+  }
+
+  /**
+   * Batch update multiple state values.
+   * More efficient than multiple setState calls.
+   * 
+   * @param {Record<string, any>} updates - Object with state updates
+   * @protected
+   * 
+   * @example
+   * ```typescript
+   * this.updateState({
+   *   isOpen: true,
+   *   selectedIndex: 2,
+   *   items: newItems
+   * });
+   * ```
+   */
+  protected updateState(updates: Record<string, any>): void {
+    let hasChanges = false;
+    
+    Object.entries(updates).forEach(([key, value]) => {
+      const oldValue = this[ComponentState].get(key);
+      if (oldValue !== value) {
+        this[ComponentState].set(key, value);
+        this.onStateChange(key, oldValue, value);
+        hasChanges = true;
+      }
+    });
+    
+    if (hasChanges) {
+      this.scheduleUpdate();
+    }
+  }
+
+  /**
+   * Called when state changes.
+   * Override to react to specific state changes.
+   * 
+   * @param {string} key - State key that changed
+   * @param {any} oldValue - Previous value
+   * @param {any} newValue - New value
+   * @protected
+   */
+  protected onStateChange(key: string, oldValue: any, newValue: any): void {}
+
+  /**
+   * Get property value from attributes or internal props.
+   * Attributes take precedence over internal props.
+   * 
+   * @template T - Type of the property value
+   * @param {string} name - Property name
+   * @param {T} [defaultValue] - Default value
+   * @returns {T} Property value
+   * @protected
+   * 
+   * @example
+   * ```typescript
+   * const label = this.getProp<string>('label', 'Default Label');
+   * const max = this.getProp<number>('max', 100);
+   * const disabled = this.getProp<boolean>('disabled', false);
+   * ```
+   */
+  protected getProp<T = any>(name: string, defaultValue?: T): T {
+    // Check attribute first
+    const attrValue = this.getAttribute(name);
+    if (attrValue !== null) {
+      return this.parseAttributeValue(attrValue, defaultValue) as T;
+    }
+    
+    // Check internal props
+    if (this[ComponentProps].has(name)) {
+      return this[ComponentProps].get(name);
+    }
+    
+    return defaultValue as T;
+  }
+
+  /**
+   * Set property value and update corresponding attribute.
+   * 
+   * @param {string} name - Property name
+   * @param {any} value - Value to set
+   * @protected
+   * 
+   * @example
+   * ```typescript
+   * this.setProp('label', 'New Label');
+   * this.setProp('disabled', true);
+   * this.setProp('items', ['a', 'b', 'c']);
+   * ```
+   */
+  protected setProp(name: string, value: any): void {
+    const oldValue = this.getProp(name);
+    this[ComponentProps].set(name, value);
+    
+    // Update attribute
+    if (typeof value === 'boolean') {
+      this.toggleAttribute(name, value);
+    } else if (value == null) {
+      this.removeAttribute(name);
+    } else if (typeof value === 'object') {
+      this.setAttribute(name, JSON.stringify(value));
+    } else {
+      this.setAttribute(name, String(value));
+    }
+    
+    if (oldValue !== value) {
+      this.onPropChange(name, oldValue, value);
+    }
+  }
+
+  /**
+   * Called when a property changes.
+   * Override to react to specific property changes.
+   * 
+   * @param {string} name - Property name
+   * @param {any} oldValue - Previous value
+   * @param {any} newValue - New value
+   * @protected
+   */
+  protected onPropChange(name: string, oldValue: any, newValue: any): void {}
+
+  /**
+   * Parse attribute string value to appropriate type.
+   * Handles booleans, numbers, null/undefined, and JSON.
+   * 
+   * @param {string} value - String value to parse
+   * @param {any} [defaultValue] - Default value for type inference
+   * @returns {any} Parsed value
+   * @private
+   */
+  private parseAttributeValue(value: string, defaultValue?: any): any {
+    // Handle boolean values
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    
+    // Handle null/undefined
+    if (value === 'null') return null;
+    if (value === 'undefined') return undefined;
+    
+    // Handle empty string
+    if (value === '') {
+      // For boolean attributes, empty string means true
+      if (typeof defaultValue === 'boolean') return true;
+      return value;
+    }
+    
+    // Try to parse as number
+    if (typeof defaultValue === 'number' || /^-?\d+(\.\d+)?$/.test(value)) {
+      const num = Number(value);
+      if (!isNaN(num)) return num;
+    }
+    
+    // Try to parse as JSON
+    if (value.startsWith('{') || value.startsWith('[')) {
+      try {
+        return JSON.parse(value);
+      } catch {
+        // Not valid JSON, return as string
+      }
+    }
+    
+    // Return as string
+    return value;
+  }
+
+  /**
+   * Query selector within shadow DOM.
+   * Returns null if shadow DOM doesn't exist.
+   * 
+   * @template E - Element type
+   * @param {string} selector - CSS selector
+   * @returns {E | null} Found element or null
+   * @protected
+   * 
+   * @example
+   * ```typescript
+   * const button = this.$<HTMLButtonElement>('.submit-btn');
+   * const input = this.$<HTMLInputElement>('input[name="email"]');
+   * ```
+   */
+  protected $<E extends Element = Element>(selector: string): E | null {
+    return this.shadow?.querySelector<E>(selector) ?? null;
+  }
+
+  /**
+   * Query selector all within shadow DOM.
+   * Returns empty array if shadow DOM doesn't exist.
+   * 
+   * @template E - Element type
+   * @param {string} selector - CSS selector
+   * @returns {E[]} Array of found elements
+   * @protected
+   * 
+   * @example
+   * ```typescript
+   * const buttons = this.$$<HTMLButtonElement>('button');
+   * const items = this.$$('.list-item');
+   * ```
+   */
+  protected $$<E extends Element = Element>(selector: string): E[] {
+    return Array.from(this.shadow?.querySelectorAll<E>(selector) ?? []);
+  }
+
+  /**
+   * Add event listener with automatic cleanup.
+   * Listener will be automatically removed when component disconnects.
+   * 
+   * @param {EventTarget} target - Event target
+   * @param {string} event - Event name
+   * @param {EventListener} handler - Event handler
+   * @param {AddEventListenerOptions} [options] - Event options
+   * @protected
+   * 
+   * @example
+   * ```typescript
+   * this.addListener(window, 'resize', this.handleResize);
+   * this.addListener(button, 'click', (e) => this.handleClick(e), { once: true });
+   * ```
+   */
+  protected addListener(
+    target: EventTarget,
+    event: string,
+    handler: EventListener,
+    options?: AddEventListenerOptions
+  ): void {
+    target.addEventListener(event, handler, options);
+    this.cleanupFunctions.push(() => {
+      target.removeEventListener(event, handler, options);
+    });
+  }
+
+  /**
+   * Add cleanup function to be called on disconnect.
+   * Useful for cleaning up external resources.
+   * 
+   * @param {() => void} fn - Cleanup function
+   * @protected
+   * 
+   * @example
+   * ```typescript
+   * const timer = setInterval(() => this.tick(), 1000);
+   * this.addCleanup(() => clearInterval(timer));
+   * ```
+   */
+  protected addCleanup(fn: () => void): void {
+    this.cleanupFunctions.push(fn);
+  }
+
+  /**
+   * Emit custom event with detail data.
+   * Events are composed and bubble by default.
+   * 
+   * @param {string} eventName - Event name
+   * @param {any} [detail] - Event detail data
+   * @param {CustomEventInit} [options] - Additional event options
+   * @returns {boolean} False if event was cancelled
+   * @protected
+   * 
+   * @example
+   * ```typescript
+   * this.emit('change', { value: newValue });
+   * this.emit('submit', formData, { cancelable: true });
+   * ```
+   */
+  protected emit(eventName: string, detail?: any, options?: CustomEventInit): boolean {
+    const event = new CustomEvent(eventName, {
+      bubbles: true,
+      composed: true,
+      cancelable: false,
+      ...options,
+      detail
+    });
+    
+    return this.dispatchEvent(event);
+  }
+
+  /**
+   * Schedule update on next animation frame.
+   * Multiple calls are batched into a single update.
+   * 
+   * @protected
+   */
+  protected scheduleUpdate(): void {
+    if (this.updateFrameId) return;
+    
+    this.updateFrameId = requestAnimationFrame(() => {
+      this.updateFrameId = 0;
+      this.update();
+    });
+  }
+
+  /**
+   * Force immediate update without scheduling.
+   * Use sparingly as it bypasses update batching.
+   * 
+   * @protected
+   */
+  protected forceUpdate(): void {
+    if (this.updateFrameId) {
+      cancelAnimationFrame(this.updateFrameId);
+      this.updateFrameId = 0;
+    }
+    this.update();
+  }
+
+  /**
+   * Check if component has a specific state key.
+   * 
+   * @param {string} key - State key to check
+   * @returns {boolean} True if state exists
+   * @protected
+   */
+  protected hasState(key: string): boolean {
+    return this[ComponentState].has(key);
+  }
+
+  /**
+   * Clear all component state.
+   * Triggers update if any state existed.
+   * 
+   * @protected
+   */
+  protected clearState(): void {
+    const hadState = this[ComponentState].size > 0;
+    this[ComponentState].clear();
+    if (hadState) {
+      this.scheduleUpdate();
+    }
+  }
+
+  /**
+   * Get all state as a plain object.
+   * Useful for debugging or serialization.
+   * 
+   * @returns {Record<string, any>} State object
+   * @protected
+   */
+  protected getStateObject(): Record<string, any> {
+    const state: Record<string, any> = {};
+    this[ComponentState].forEach((value, key) => {
+      state[key] = value;
+    });
+    return state;
+  }
+
+  /**
+   * Check if component is connected to DOM.
+   * 
+   * @returns {boolean} True if connected
+   * @protected
+   */
+  public get isConnected(): boolean {
+    return this.initialized && super.isConnected;
+  }
+
+  /**
+   * Get computed styles for the component.
+   * 
+   * @returns {CSSStyleDeclaration} Computed styles
+   * @protected
+   */
+  protected get computedStyle(): CSSStyleDeclaration {
+    return window.getComputedStyle(this);
+  }
+
+  /**
+   * Safely parse JSON with fallback.
+   * 
+   * @template T - Expected type
+   * @param {string} json - JSON string
+   * @param {T} fallback - Fallback value
+   * @returns {T} Parsed value or fallback
+   * @protected
+   */
+  protected parseJSON<T>(json: string, fallback: T): T {
+    try {
+      return JSON.parse(json);
+    } catch {
+      return fallback;
+    }
   }
 }

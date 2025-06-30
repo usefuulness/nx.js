@@ -116,7 +116,6 @@ export class Store<T extends Record<string, any> = any> extends EventBus<StoreEv
   private lastOptions: any = {};
   private proxy: Proxy<T> | null = null;
   private model: Model<T> | null = null;
-  private snapshot: StoreRecord<T>[] | null = null;
 
   constructor(config: StoreConfig<T> = {}) {
     super();

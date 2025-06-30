@@ -1,3 +1,6 @@
+import { ComponentState, BaseComponent } from "@/components/abstracts/base";
+import { NXTextField } from "./textfield";
+
 export interface SelectOption {
   value: string | number;
   text: string;

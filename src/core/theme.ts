@@ -398,9 +398,15 @@ export class ThemeManager {
       ...baseTheme,
       name,
       colors: { ...baseTheme.colors, ...(overrides.colors || {}) },
-      spacing: { ...baseTheme.spacing, ...(overrides.spacing || {}) },
-      radius: { ...baseTheme.radius, ...(overrides.radius || {}) },
-      shadow: { ...baseTheme.shadow, ...(overrides.shadow || {}) },
+      spacing: baseTheme.spacing || overrides.spacing
+        ? { ...(baseTheme.spacing || {}), ...(overrides.spacing || {}) } as ThemeSpacing
+        : undefined,
+      radius: baseTheme.radius || overrides.radius
+        ? { ...(baseTheme.radius || {}), ...(overrides.radius || {}) } as ThemeRadius
+        : undefined,
+      shadow: baseTheme.shadow || overrides.shadow
+        ? { ...(baseTheme.shadow || {}), ...(overrides.shadow || {}) } as ThemeShadow
+        : undefined,
       fontFamily: overrides.fontFamily || baseTheme.fontFamily,
       customProperties: { ...baseTheme.customProperties, ...(overrides.customProperties || {}) }
     };

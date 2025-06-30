@@ -69,7 +69,7 @@ export class NXTextField extends BaseComponent {
   }
 
   protected render(): string {
-    const type = this.getProp('type', 'text');
+    const type = this.getProp<string>('type', 'text');
     const label = this.getProp('label');
     const placeholder = this.getProp('placeholder', '');
     const helperText = this.getProp('helper-text');
@@ -85,7 +85,7 @@ export class NXTextField extends BaseComponent {
     const variant = this.getProp('variant', 'outlined');
     const size = this.getProp('size', 'md');
     
-    const value = this.getState('value', this.getProp('value', ''));
+    const value = this.getState<string>('value', this.getProp('value', ''));
     const focused = this.getState('focused', false);
     const showPassword = this.getState('showPassword', false);
     const hasValue = value && value.length > 0;

@@ -1,3 +1,5 @@
+import { BaseComponent, ComponentState } from "@/components/abstracts/base";
+
 export interface CheckboxConfig {
   name?: string;
   value?: string;

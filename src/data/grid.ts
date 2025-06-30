@@ -741,7 +741,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
           if (target.classList.contains('nx-grid-checkbox')) return;
           
           const rowIndex = parseInt((row as HTMLElement).dataset.rowIndex!);
-          this.handleRowSelection(rowIndex, e.ctrlKey || e.metaKey);
+          const mouseEvent = e as MouseEvent;
+          this.handleRowSelection(rowIndex, mouseEvent.ctrlKey || mouseEvent.metaKey);
         });
       });
     }
