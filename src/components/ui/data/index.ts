@@ -1,318 +1,295 @@
-// nx-data-table.ts
-
 import { NXDataComponent } from '@/components/abstracts/data';
 import { ComponentState } from '@/components/abstracts/base';
 
 export interface ColumnDef<T> {
-  /** Key of the field in each row object */
-  key: keyof T;
-  /** Display label for the column header */
-  label: string;
+  field: keyof T;
+  header: string;
+  width?: string;
+  sortable?: boolean;
+  filterable?: boolean;
+  renderer?: (value: any, row: T) => string;
 }
 
-/**
- * A feature-rich data table with sorting, selection, and pagination.
- *
- * @template T Type of each data row.
- */
-export class NXDataTable<T extends Record<string, any> = Record<string, any>> extends NXDataComponent<{
+export interface DataTableConfig<T> {
+  columns: ColumnDef<T>[];
+  data: T[];
+  selectable?: boolean;
+  sortable?: boolean;
+  filterable?: boolean;
+  pageable?: boolean;
+  pageSize?: number;
+}
+
+export class NXDataTable<T = any> extends NXDataComponent<{
   columns: ColumnDef<T>[];
   data: T[];
 }> {
-  /** Which attributes to watch on the host element */
   static get observedAttributes(): string[] {
-    return ['columns', 'data', 'sortable', 'selectable'];
+    return ['selectable', 'sortable', 'filterable', 'pageable', 'page-size'];
   }
 
-  /**
-   * Initialize internal state: sort, selection, and pagination.
-   * Bypass normal update triggers for these defaults.
-   */
   protected initializeState(): void {
-    this[ComponentState].set('sortColumn', null as keyof T | null);
-    this[ComponentState].set('sortDirection', 'asc' as 'asc' | 'desc');
-    this[ComponentState].set('selectedRows', new Set<number>());
+    this[ComponentState].set('selectedRows', new Set());
+    this[ComponentState].set('sortField', null);
+    this[ComponentState].set('sortDirection', 'asc');
     this[ComponentState].set('currentPage', 1);
-    this[ComponentState].set('pageSize', 10);
+    this[ComponentState].set('filterValue', '');
   }
 
-  constructor(initial: {
-    columns?: ColumnDef<T>[];
-    data?: T[];
-  } = {}) {
+  constructor(config?: DataTableConfig<T>) {
     super({
-      columns: initial.columns ?? [],
-      data: initial.data ?? []
+      columns: config?.columns || [],
+      data: config?.data || []
     });
     this.attachShadow({ mode: 'open' });
   }
 
-  private update(): void {
-    // Render the table HTML and styles
-    this.update()
+  setColumns(columns: ColumnDef<T>[]): void {
+    this.setData({ columns });
   }
 
-  /**
-   * Re-render on attribute changes.
-   */
-  attributeChangedCallback(name: string, oldVal: string | null, newVal: string | null): void {
-    if (oldVal !== newVal) this.update();
+  setRows(data: T[]): void {
+    this.setData({ data });
   }
 
-  connectedCallback(): void {
-    this.initializeState();
-    this.update();
-    this.afterRender();
-  }
-
-  /**
-   * Build table HTML: headers, rows, empty state, pagination.
-   */
   protected render(): string {
-    const cols = this.getData().columns;
-    const rows = this.getData().data;
-    const sortable = this.getProp('sortable') === 'true';
-    const selectable = this.getProp('selectable') === 'true';
-
-    const sortColumn = this.getState('sortColumn', null);
-    const sortDirection = this.getState('sortDirection', 'asc');
+    const { columns, data } = this.getData();
+    const filterable = this.getProp('filterable', false);
+    const pageable = this.getProp('pageable', false);
+    const pageSize = this.getProp('page-size', 10);
     const currentPage = this.getState('currentPage', 1);
-    const pageSize = this.getState('pageSize', 10);
-    const selectedRows = this.getState('selectedRows', new Set<number>()) ?? new Set<number>();
+    const filterValue = this.getState<string>('filterValue', '');
 
-    // Sort
-    let sorted = [...rows];
-    if (sortable && sortColumn != null) {
-      sorted.sort((a, b) => {
-        const aVal = a[sortColumn], bVal = b[sortColumn];
-        const modifier = sortDirection === 'asc' ? 1 : -1;
-        if (aVal < bVal) return -1 * modifier;
-        if (aVal > bVal) return 1 * modifier;
-        return 0;
+    // Filter data
+    let filteredData = data;
+    if (filterable && filterValue) {
+      filteredData = data.filter(row => 
+        Object.values(row as any).some(value => 
+          String(value).toLowerCase().includes(filterValue.toLowerCase())
+        )
+      );
+    }
+
+    // Sort data
+    const sortField = this.getState('sortField');
+    const sortDirection = this.getState('sortDirection', 'asc');
+    if (sortField) {
+      filteredData = [...filteredData].sort((a, b) => {
+        const aVal = (a as any)[sortField];
+        const bVal = (b as any)[sortField];
+        const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        return sortDirection === 'asc' ? comparison : -comparison;
       });
     }
 
-    // Paginate
-    const safePageSize = pageSize ?? 10;
-    const totalPages = Math.max(1, Math.ceil(sorted.length / safePageSize));
-    const safeCurrentPage = currentPage ?? 1;
-    const start = (safeCurrentPage - 1) * safePageSize;
-    const pageData = sorted.slice(start, start + safePageSize);
-
-    if (cols.length === 0 || rows.length === 0) {
-      return `<div class="empty-state">No data available</div>`;
+    // Paginate data
+    let displayData = filteredData;
+    let totalPages = 1;
+    if (pageable) {
+      totalPages = Math.ceil(filteredData.length / pageSize);
+      const start = (currentPage - 1) * pageSize;
+      displayData = filteredData.slice(start, start + pageSize);
     }
 
     return `
-      <div class="table-container">
-        <table class="data-table">
+      ${filterable ? `
+        <div class="nx-data-table-toolbar" part="toolbar">
+          <input type="text" 
+                 class="nx-data-table-filter" 
+                 part="filter"
+                 placeholder="Filter..."
+                 value="${filterValue}">
+        </div>
+      ` : ''}
+      
+      <div class="nx-data-table-wrapper" part="wrapper">
+        <table class="nx-data-table" part="table">
           <thead>
             <tr>
-              ${selectable
-                ? `<th class="checkbox-cell"><input type="checkbox" id="select-all"></th>`
-                : ''}
-              ${cols.map(col => `
-                <th class="${sortable ? 'sortable' : ''}"
-                    data-column="${String(col.key)}">
-                  <div class="th-content">
-                    <span>${col.label}</span>
-                    ${sortable && sortColumn != null && sortColumn === col.key ? `
-                      <svg class="sort-icon ${sortDirection}" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              ${columns.map(col => `
+                <th class="${col.sortable ? 'sortable' : ''}" 
+                    data-field="${String(col.field)}"
+                    style="${col.width ? `width: ${col.width}` : ''}">
+                  <div class="nx-data-table-header">
+                    <span>${col.header}</span>
+                    ${col.sortable && sortField === col.field ? `
+                      <svg class="sort-icon ${sortDirection}" viewBox="0 0 24 24">
                         <path d="M7 10l5 5 5-5z"/>
-                      </svg>`
-                      : ''}
+                      </svg>
+                    ` : ''}
                   </div>
                 </th>
               `).join('')}
             </tr>
           </thead>
           <tbody>
-            ${pageData.map((row, i) => {
-              const idx = start + i;
-              const isSel = selectedRows.has(idx);
-              return `
-                <tr data-row-index="${idx}" class="${isSel ? 'selected' : ''}">
-                  ${selectable
-                    ? `<td class="checkbox-cell">
-                         <input type="checkbox" class="row-checkbox"
-                                data-index="${idx}" ${isSel ? 'checked' : ''}>
-                       </td>`
-                    : ''}
-                  ${cols.map(col => `<td>${row[col.key] ?? ''}</td>`).join('')}
-                </tr>
-              `;
-            }).join('')}
+            ${displayData.map((row, index) => `
+              <tr data-row-index="${index}">
+                ${columns.map(col => `
+                  <td>
+                    ${col.renderer ? 
+                      col.renderer((row as any)[col.field], row) : 
+                      (row as any)[col.field]
+                    }
+                  </td>
+                `).join('')}
+              </tr>
+            `).join('')}
           </tbody>
         </table>
-        ${totalPages > 1 ? `
-          <div class="pagination">
-            <button class="pagination-btn" id="prev-page" ${currentPage === 1 ? 'disabled' : ''}>
-              Previous
-            </button>
-            <span class="pagination-info">Page ${currentPage} of ${totalPages}</span>
-            <button class="pagination-btn" id="next-page" ${currentPage === totalPages ? 'disabled' : ''}>
-              Next
-            </button>
-          </div>`
-          : ''}
       </div>
+      
+      ${pageable ? `
+        <div class="nx-data-table-pagination" part="pagination">
+          <button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>
+            Previous
+          </button>
+          <span class="pagination-info">
+            Page ${currentPage} of ${totalPages}
+          </span>
+          <button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>
+            Next
+          </button>
+        </div>
+      ` : ''}
     `;
   }
 
-  /**
-   * Table and control styling.
-   */
   protected styles(): string {
     return `
-      .table-container {
-        background-color: var(--color-surface);
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-        box-shadow: var(--shadow-md);
+      :host {
+        display: block;
       }
-      .data-table {
+
+      .nx-data-table-toolbar {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .nx-data-table-filter {
+        width: 100%;
+        max-width: 300px;
+        padding: 0.5rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.25rem;
+        font-family: inherit;
+      }
+
+      .nx-data-table-wrapper {
+        overflow-x: auto;
+      }
+
+      .nx-data-table {
         width: 100%;
         border-collapse: collapse;
       }
-      .data-table th {
-        background-color: var(--color-background);
-        padding: 1rem;
+
+      .nx-data-table th,
+      .nx-data-table td {
+        padding: 0.75rem;
         text-align: left;
-        font-weight: 600;
-        color: var(--color-text);
-        border-bottom: 1px solid var(--color-border);
+        border-bottom: 1px solid var(--border-color);
       }
-      .data-table th.sortable {
+
+      .nx-data-table th {
+        background: var(--surface-color);
+        font-weight: 600;
+      }
+
+      .nx-data-table th.sortable {
         cursor: pointer;
         user-select: none;
       }
-      .th-content {
+
+      .nx-data-table th.sortable:hover {
+        background: var(--hover-bg);
+      }
+
+      .nx-data-table-header {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        justify-content: space-between;
       }
+
       .sort-icon {
+        width: 1rem;
+        height: 1rem;
+        fill: currentColor;
         transition: transform 0.2s;
       }
+
       .sort-icon.desc {
         transform: rotate(180deg);
       }
-      .data-table td {
-        padding: 1rem;
-        border-bottom: 1px solid var(--color-border);
+
+      .nx-data-table tbody tr:hover {
+        background: var(--hover-bg);
       }
-      .data-table tr:hover {
-        background-color: var(--color-background);
-      }
-      .data-table tr.selected {
-        background-color: rgba(59, 130, 246, 0.1);
-      }
-      .checkbox-cell {
-        width: 40px;
-        text-align: center;
-      }
-      .pagination {
+
+      .nx-data-table-pagination {
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 1rem;
         padding: 1rem;
-        border-top: 1px solid var(--color-border);
       }
+
       .pagination-btn {
         padding: 0.5rem 1rem;
-        background-color: var(--color-primary);
-        color: white;
-        border: none;
-        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+        background: var(--surface-color);
+        border-radius: 0.25rem;
         cursor: pointer;
-        transition: all 0.2s;
+        font-family: inherit;
       }
+
       .pagination-btn:hover:not(:disabled) {
-        background-color: var(--color-primary-dark);
+        background: var(--hover-bg);
       }
+
       .pagination-btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
-      .pagination-info {
-        color: var(--color-text-secondary);
-      }
-      .empty-state {
-        padding: 3rem;
-        text-align: center;
-        color: var(--color-text-secondary);
-      }
     `;
   }
 
-  /**
-   * Wire up sorting, selection, pagination, and row-click events.
-   */
   protected afterRender(): void {
-    // Sorting
-    if (this.getProp('sortable') === 'true') {
-      this.$$('th.sortable').forEach(th => {
-        th.addEventListener('click', () => {
-          const col = (th as HTMLElement).dataset.column as keyof T;
-          const cur = this.getState('sortColumn', null as keyof T | null);
-          const dir = this.getState('sortDirection', 'asc' as 'asc' | 'desc');
-          if (col === cur) {
-            this.setState('sortDirection', dir === 'asc' ? 'desc' : 'asc');
-          } else {
-            this.setState('sortColumn', col);
-            this.setState('sortDirection', 'asc');
-          }
-        });
+    // Filter input
+    const filterInput = this.$('.nx-data-table-filter') as HTMLInputElement;
+    if (filterInput) {
+      this.on(filterInput, 'input', () => {
+        this.setState('filterValue', filterInput.value);
+        this.setState('currentPage', 1);
       });
     }
 
-    // Selection
-    if (this.getProp('selectable') === 'true') {
-      this.on('#select-all', 'change', (e: Event) => {
-        const checked = (e.target as HTMLInputElement).checked;
-        const sel = new Set<number>();
-        if (checked) this.getData().data.forEach((_, i) => sel.add(i));
-        this.setState('selectedRows', sel);
-        this.$$('.row-checkbox').forEach(cb => {
-          (cb as HTMLInputElement).checked = checked;
-        });
+    // Sort headers
+    this.$$('th.sortable').forEach(th => {
+      this.on(th, 'click', () => {
+        const field = th.getAttribute('data-field');
+        const currentSort = this.getState('sortField');
+        const currentDirection = this.getState('sortDirection', 'asc');
+        
+        if (field === currentSort) {
+          this.setState('sortDirection', currentDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+          this.setState('sortField', field);
+          this.setState('sortDirection', 'asc');
+        }
       });
-
-      this.$$('.row-checkbox').forEach(cb => {
-        const idx = Number((cb as HTMLElement).dataset.index);
-        (cb as HTMLInputElement).checked = (this.getState('selectedRows', new Set()) ?? new Set<number>()).has(idx);
-        cb.addEventListener('change', (e: Event) => {
-          const target = e.target as HTMLInputElement;
-          const sel = new Set(this.getState('selectedRows', new Set<number>()));
-          if (target.checked) sel.add(idx);
-          else sel.delete(idx);
-          this.setState('selectedRows', sel);
-        });
-      });
-    }
+    });
 
     // Pagination
-    this.on('#prev-page', 'click', () => {
-      const cur = this.getState('currentPage', 1) ?? 1;
-      if (cur > 1) this.setState('currentPage', cur - 1);
-    });
-    this.on('#next-page', 'click', () => {
-      const cur = this.getState('currentPage', 1) ?? 1;
-      const dataArr = Array.isArray(this.getData().data) ? this.getData().data : ([] as T[]);
-      const pageSize = this.getState('pageSize', 10) ?? 10;
-      const total = Math.ceil(((dataArr && dataArr.length) ? dataArr.length : 0) / pageSize);
-      if (cur < total) this.setState('currentPage', cur + 1);
-    });
-
-    // Row clicks
-    this.$$('tbody tr').forEach(tr => {
-      tr.addEventListener('click', e => {
-        if ((e.target as HTMLElement).tagName !== 'INPUT') {
-          const idx = Number((tr as HTMLElement).dataset.rowIndex);
-          this.dispatchEvent(new CustomEvent('rowclick', {
-            detail: { row: this.getData().data[idx], index: idx }
-          }));
+    this.$$('.pagination-btn').forEach(btn => {
+      this.on(btn, 'click', () => {
+        const action = btn.getAttribute('data-page');
+        const currentPage = this.getState('currentPage', 1);
+        
+        if (action === 'prev' && currentPage > 1) {
+          this.setState('currentPage', currentPage - 1);
+        } else if (action === 'next') {
+          this.setState('currentPage', currentPage + 1);
         }
       });
     });

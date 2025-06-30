@@ -5,9 +5,20 @@
 
 import { BaseComponent } from '@/components/abstracts/base';
 import { ComponentRegistry } from '@/core/registry';
-import { Router } from '@/core/router';
+import { Router, type RouterConfig as CoreRouterConfig, type RouteConfig as CoreRouteConfig } from '@/core/router';
 import { ThemeManager } from '@/core/theme';
-import { Store } from '@/core/stores/store';
+import { Store, type StoreConfig as CoreStoreConfig } from '@/data/store';
+
+// Re-export compatible interfaces
+export interface RouteConfig extends CoreRouteConfig {
+  component?: string | typeof BaseComponent;
+}
+
+export interface RouterConfig extends CoreRouterConfig {
+  routes?: RouteConfig[];
+}
+
+export interface StoreConfig extends CoreStoreConfig<any> {}
 
 export interface ApplicationConfig {
   el?: string | HTMLElement;
@@ -30,29 +41,6 @@ export interface LayoutConfig {
 export interface ComponentConfig {
   xtype: string;
   [key: string]: any;
-}
-
-export interface RouterConfig {
-  mode?: 'hash' | 'history';
-  base?: string;
-  routes?: RouteConfig[];
-}
-
-export interface RouteConfig {
-  path: string;
-  component?: string | typeof BaseComponent;
-  layout?: LayoutConfig;
-  beforeEnter?: (route: Route) => boolean | Promise<boolean>;
-  children?: RouteConfig[];
-}
-
-export interface StoreConfig {
-  model?: string;
-  data?: any[];
-  proxy?: ProxyConfig;
-  autoLoad?: boolean;
-  sorters?: any[];
-  filters?: any[];
 }
 
 export interface ProxyConfig {
@@ -142,7 +130,16 @@ export class NXApplication extends EventTarget {
 
     // Set up router
     if (config.router) {
-      this.router = new Router(config.router);
+      // Convert to core router config
+      const coreConfig: CoreRouterConfig = {
+        mode: config.router.mode,
+        base: config.router.base,
+        routes: config.router.routes?.map(route => ({
+          ...route,
+          component: typeof route.component === 'string' ? route.component : undefined
+        }))
+      };
+      this.router = new Router(coreConfig);
       this.router.on('navigate', (route: Route) => {
         this.handleRouteChange(route);
       });
@@ -313,7 +310,7 @@ export class NXApplication extends EventTarget {
     this.dispatchEvent(new CustomEvent('route', { detail: route }));
 
     // Update viewport based on route
-    const routeConfig = this.router?.getRouteConfig(route.path);
+    const routeConfig = this.router?.getRouteConfig?.(route.path);
     if (routeConfig?.layout) {
       this.updateLayout(routeConfig.layout);
     }
@@ -444,19 +441,26 @@ export const NX = {
         }
       }
 
-      render() {
+      protected initializeState(): void {
+        if (config.initializeState) {
+          config.initializeState.call(this);
+        }
+      }
+
+      protected render() {
         return config.render?.call(this) || '';
       }
 
-      styles() {
+      protected styles() {
         return config.styles?.call(this) || '';
       }
 
-      initialize() {
+      protected initialize() {
+        super.initialize();
         config.initialize?.call(this);
       }
 
-      afterRender() {
+      protected afterRender() {
         config.afterRender?.call(this);
       }
     };
@@ -479,7 +483,7 @@ export const NX = {
     /**
      * Deep merge objects
      */
-    merge: (target: any, ...sources: any[]) => {
+    merge: function merge(target: any, ...sources: any[]): any {
       if (!sources.length) return target;
       const source = sources.shift();
 
@@ -487,14 +491,14 @@ export const NX = {
         for (const key in source) {
           if (isObject(source[key])) {
             if (!target[key]) Object.assign(target, { [key]: {} });
-            NX.utils.merge(target[key], source[key]);
+            merge(target[key], source[key]);
           } else {
             Object.assign(target, { [key]: source[key] });
           }
         }
       }
 
-      return NX.utils.merge(target, ...sources);
+      return merge(target, ...sources);
     },
 
     /**

@@ -1,19 +1,17 @@
-// src/data/store.ts
-import { EventBus } from '@/core/zustand/event-bus';
+import { EventEmitter } from '@/core/zustand/event-emitter';
 
 export interface StoreConfig<T = any> {
   data?: T[];
-  model?: string | Model<T>;
+  model?: any;
   proxy?: ProxyConfig;
-  sorters?: Sorter<T>[];
-  filters?: Filter<T>[];
-  groupField?: keyof T;
-  pageSize?: number;
   autoLoad?: boolean;
   autoSync?: boolean;
+  sorters?: Sorter[];
+  filters?: Filter[];
+  pageSize?: number;
   remoteSort?: boolean;
   remoteFilter?: boolean;
-  remotePaging?: boolean;
+  headers?: Record<string, string>;
 }
 
 export interface ProxyConfig {
@@ -25,112 +23,95 @@ export interface ProxyConfig {
     update?: string;
     destroy?: string;
   };
-  reader?: ReaderConfig;
-  writer?: WriterConfig;
+  reader?: {
+    rootProperty?: string;
+    totalProperty?: string;
+    successProperty?: string;
+    messageProperty?: string;
+  };
+  writer?: {
+    writeAllFields?: boolean;
+    rootProperty?: string;
+  };
   headers?: Record<string, string>;
-  extraParams?: Record<string, any>;
 }
 
-export interface ReaderConfig {
-  rootProperty?: string;
-  totalProperty?: string;
-  successProperty?: string;
-  messageProperty?: string;
-  idProperty?: string;
+export interface Sorter {
+  property: string;
+  direction?: 'ASC' | 'DESC';
+  transform?: (value: any) => any;
 }
 
-export interface WriterConfig {
-  rootProperty?: string;
-  writeAllFields?: boolean;
-  dateFormat?: string;
-}
-
-export interface Sorter<T = any> {
-  field: keyof T;
-  direction: 'asc' | 'desc';
-  compareFn?: (a: T, b: T) => number;
-}
-
-export interface Filter<T = any> {
-  field?: keyof T;
+export interface Filter {
+  property: string;
   value?: any;
-  operator?: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'like' | 'in' | 'between';
-  filterFn?: (record: T) => boolean;
+  operator?: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'like' | 'in';
+  filterFn?: (record: any) => boolean;
 }
 
-export interface Model<T = any> {
-  fields: ModelField[];
-  idProperty?: keyof T;
-  validations?: ModelValidation[];
-}
-
-export interface ModelField {
-  name: string;
-  type?: 'string' | 'number' | 'boolean' | 'date' | 'object' | 'array';
-  defaultValue?: any;
-  convert?: (value: any, record: any) => any;
-  serialize?: (value: any, record: any) => any;
-}
-
-export interface ModelValidation {
-  field: string;
-  type: 'required' | 'length' | 'format' | 'custom';
-  config?: any;
-  message?: string;
-}
-
-export interface StoreRecord<T = any> {
-  id: string | number;
+export interface StoreRecord<T> {
   data: T;
+  modified: Partial<T>;
+  id: string | number;
   dirty: boolean;
   phantom: boolean;
-  modified: Partial<T>;
   errors: Record<string, string[]>;
 }
 
-export type StoreEvent = 
-  | 'load'
-  | 'beforeload'
-  | 'add'
-  | 'remove'
-  | 'update'
-  | 'clear'
-  | 'sort'
-  | 'filter'
-  | 'datachanged'
-  | 'sync'
-  | 'beforesync'
-  | 'write'
-  | 'exception';
+interface LoadOptions {
+  page?: number;
+  start?: number;
+  limit?: number;
+  sorters?: Sorter[];
+  filters?: Filter[];
+  params?: Record<string, any>;
+  callback?: (records: any[], success: boolean) => void;
+}
 
 /**
  * Data store for managing collections of records
  */
-export class Store<T extends Record<string, any> = any> extends EventBus<StoreEvent, any> {
+export class Store<T extends Record<string, any> = any> extends EventEmitter {
   private config: StoreConfig<T>;
   private records: StoreRecord<T>[] = [];
   private removedRecords: StoreRecord<T>[] = [];
-  private currentPage = 1;
-  private totalCount = 0;
-  private loading = false;
-  private lastOptions: any = {};
   private proxy: Proxy<T> | null = null;
-  private model: Model<T> | null = null;
+  private Model: any = null;
+  private loading = false;
+  private totalCount = 0;
+  private currentPage = 1;
+  private pageSize: number;
+  private lastOptions: LoadOptions = {};
+  
+  // State
+  private sorters: Sorter[] = [];
+  private filters: Filter[] = [];
+  private snapshot: StoreRecord<T>[] | null = null;
 
   constructor(config: StoreConfig<T> = {}) {
     super();
     this.config = config;
+    this.pageSize = config.pageSize || 25;
     
-    // Initialize proxy
+    // Set up proxy
     if (config.proxy) {
       this.proxy = this.createProxy(config.proxy);
     }
     
-    // Initialize model
+    // Set up model
     if (config.model) {
-      this.model = typeof config.model === 'string' ? 
+      this.Model = typeof config.model === 'string' ? 
         this.lookupModel(config.model) : 
         config.model;
+    }
+    
+    // Apply initial sorters and filters
+    if (config.sorters) {
+      this.sorters = [...config.sorters];
+    }
+    
+    if (config.filters) {
+      this.filters = [...config.filters];
     }
     
     // Load initial data
@@ -160,8 +141,12 @@ export class Store<T extends Record<string, any> = any> extends EventBus<StoreEv
   /**
    * Load data from remote source
    */
-  async load(options: any = {}): Promise<void> {
+  async load(options: LoadOptions = {}): Promise<void> {
     if (!this.proxy) {
+      if (this.config.data) {
+        this.loadData(this.config.data);
+        return;
+      }
       throw new Error('No proxy configured');
     }
     
@@ -228,55 +213,28 @@ export class Store<T extends Record<string, any> = any> extends EventBus<StoreEv
     const recordsArray = Array.isArray(records) ? records : [records];
     const toRemove: StoreRecord<T>[] = [];
     
-    recordsArray.forEach(item => {
-      let record: StoreRecord<T> | undefined;
-      
-      if (this.isRecord(item)) {
-        record = item;
-      } else {
-        record = this.findRecord(item);
+    recordsArray.forEach(record => {
+      const storeRecord = this.isStoreRecord(record) ? 
+        record : 
+        this.findRecord('id', (record as any).id);
+        
+      if (storeRecord) {
+        toRemove.push(storeRecord);
       }
-      
-      if (record) {
-        const index = this.records.indexOf(record);
-        if (index >= 0) {
-          this.records.splice(index, 1);
-          toRemove.push(record);
-          
-          if (!record.phantom) {
-            this.removedRecords.push(record);
-          }
+    });
+    
+    toRemove.forEach(record => {
+      const index = this.records.indexOf(record);
+      if (index > -1) {
+        this.records.splice(index, 1);
+        if (!record.phantom) {
+          this.removedRecords.push(record);
         }
       }
     });
     
-    if (toRemove.length > 0) {
-      this.applyState();
-      this.emit('remove', { records: toRemove });
-      this.emit('datachanged', { records: this.records });
-      
-      if (this.config.autoSync) {
-        this.sync();
-      }
-    }
-  }
-
-  /**
-   * Update a record
-   */
-  update(record: StoreRecord<T>, data: Partial<T>): void {
-    const oldData = { ...record.data };
-    
-    Object.entries(data).forEach(([key, value]) => {
-      if (record.data[key] !== value) {
-        record.data[key] = value;
-        record.modified[key] = oldData[key];
-        record.dirty = true;
-      }
-    });
-    
-    this.validateRecord(record);
-    this.emit('update', { record, changes: data });
+    this.applyState();
+    this.emit('remove', { records: toRemove });
     this.emit('datachanged', { records: this.records });
     
     if (this.config.autoSync) {
@@ -285,145 +243,31 @@ export class Store<T extends Record<string, any> = any> extends EventBus<StoreEv
   }
 
   /**
-   * Find a record by id or data
+   * Update a record
    */
-  findRecord(idOrData: string | number | T): StoreRecord<T> | undefined {
-    if (typeof idOrData === 'object') {
-      const id = this.getRecordId(idOrData);
-      return this.records.find(r => r.id === id);
-    }
+  update(record: StoreRecord<T>, data: Partial<T>): void {
+    Object.keys(data).forEach(key => {
+      if (key in record.data) {
+        if (record.data[key] !== data[key]) {
+          if (!record.modified[key]) {
+            record.modified[key] = record.data[key];
+          }
+          record.data[key] = data[key] as any;
+          record.dirty = true;
+        }
+      }
+    });
     
-    return this.records.find(r => r.id === idOrData);
-  }
-
-  /**
-   * Find records by field value
-   */
-  findBy(field: keyof T, value: any): StoreRecord<T>[] {
-    return this.records.filter(record => record.data[field] === value);
-  }
-
-  /**
-   * Get record at index
-   */
-  getAt(index: number): StoreRecord<T> | undefined {
-    return this.records[index];
-  }
-
-  /**
-   * Get record count
-   */
-  getCount(): number {
-    return this.records.length;
-  }
-
-  /**
-   * Get total count (for paging)
-   */
-  getTotalCount(): number {
-    return this.totalCount || this.records.length;
-  }
-
-  /**
-   * Get all records
-   */
-  getRange(start = 0, end?: number): StoreRecord<T>[] {
-    return this.records.slice(start, end);
-  }
-
-  /**
-   * Get all data
-   */
-  getData(): T[] {
-    return this.records.map(r => r.data);
-  }
-
-  /**
-   * Clear the store
-   */
-  clear(): void {
-    this.records = [];
-    this.removedRecords = [];
-    this.currentPage = 1;
-    this.totalCount = 0;
-    
-    this.emit('clear');
+    this.emit('update', { record, data });
     this.emit('datachanged', { records: this.records });
-  }
-
-  /**
-   * Sort the store
-   */
-  sort(sorters?: Sorter<T> | Sorter<T>[]): void {
-    if (sorters) {
-      this.config.sorters = Array.isArray(sorters) ? sorters : [sorters];
-    }
     
-    if (this.config.remoteSort && this.proxy) {
-      this.load();
-    } else {
-      this.doSort();
-      this.emit('sort', { sorters: this.config.sorters });
-      this.emit('datachanged', { records: this.records });
+    if (this.config.autoSync) {
+      this.sync();
     }
   }
 
   /**
-   * Filter the store
-   */
-  filter(filters?: Filter<T> | Filter<T>[]): void {
-    if (filters) {
-      this.config.filters = Array.isArray(filters) ? filters : [filters];
-    }
-    
-    if (this.config.remoteFilter && this.proxy) {
-      this.load();
-    } else {
-      this.doFilter();
-      this.emit('filter', { filters: this.config.filters });
-      this.emit('datachanged', { records: this.records });
-    }
-  }
-
-  /**
-   * Clear filters
-   */
-  clearFilter(): void {
-    this.config.filters = [];
-    this.filter();
-  }
-
-  /**
-   * Load a specific page
-   */
-  loadPage(page: number): Promise<void> {
-    this.currentPage = page;
-    return this.load();
-  }
-
-  /**
-   * Next page
-   */
-  nextPage(): Promise<void> {
-    const totalPages = Math.ceil(this.getTotalCount() / (this.config.pageSize || 25));
-    if (this.currentPage < totalPages) {
-      return this.loadPage(this.currentPage + 1);
-    }
-    return Promise.resolve();
-  }
-
-  /**
-   * Previous page
-   */
-  previousPage(): Promise<void> {
-    if (this.currentPage > 1) {
-      return this.loadPage(this.currentPage - 1);
-    }
-    return Promise.resolve();
-  }
-
-  /**
-   * Sync changes with server
+   * Sync changes with remote source
    */
   async sync(): Promise<void> {
     if (!this.proxy) {
@@ -432,11 +276,7 @@ export class Store<T extends Record<string, any> = any> extends EventBus<StoreEv
     
     const toCreate = this.getNewRecords();
     const toUpdate = this.getUpdatedRecords();
-    const toDestroy = this.getRemovedRecords();
-    
-    if (toCreate.length === 0 && toUpdate.length === 0 && toDestroy.length === 0) {
-      return;
-    }
+    const toDestroy = this.removedRecords;
     
     this.emit('beforesync', { create: toCreate, update: toUpdate, destroy: toDestroy });
     
@@ -444,28 +284,37 @@ export class Store<T extends Record<string, any> = any> extends EventBus<StoreEv
       // Create new records
       if (toCreate.length > 0) {
         const created = await this.proxy.create(toCreate.map(r => r.data));
-        this.emit('write', { action: 'create', records: created });
+        toCreate.forEach((record, index) => {
+          if (created[index]) {
+            record.data = { ...record.data, ...created[index] };
+            record.phantom = false;
+          }
+        });
       }
       
       // Update existing records
       if (toUpdate.length > 0) {
         const updated = await this.proxy.update(toUpdate.map(r => ({
-          id: r.id,
-          ...r.data
+          ...r.data,
+          id: r.id
         })));
-        this.emit('write', { action: 'update', records: updated });
+        toUpdate.forEach((record, index) => {
+          if (updated?.[index]) {
+            record.data = { ...record.data, ...updated[index] };
+            record.dirty = false;
+            record.modified = {};
+          }
+        });
       }
       
-      // Delete removed records
+      // Destroy removed records
       if (toDestroy.length > 0) {
         await this.proxy.destroy(toDestroy.map(r => r.id));
-        this.emit('write', { action: 'destroy', records: toDestroy });
+        this.removedRecords = [];
       }
       
-      // Clear dirty flags and removed records
-      this.commitChanges();
-      
       this.emit('sync', { success: true });
+      this.emit('datachanged', { records: this.records });
     } catch (error) {
       this.emit('exception', { error, operation: 'sync' });
       throw error;
@@ -473,44 +322,58 @@ export class Store<T extends Record<string, any> = any> extends EventBus<StoreEv
   }
 
   /**
-   * Commit all changes
+   * Find record by property value
    */
-  commitChanges(): void {
-    this.records.forEach(record => {
-      record.dirty = false;
-      record.phantom = false;
-      record.modified = {};
-    });
-    this.removedRecords = [];
+  findRecord(property: string, value: any): StoreRecord<T> | null {
+    return this.records.find(record => record.data[property] === value) || null;
   }
 
   /**
-   * Reject all changes
+   * Find records by function
    */
-  rejectChanges(): void {
-    // Restore modified records
-    this.records.forEach(record => {
-      if (record.dirty) {
-        Object.assign(record.data, record.modified);
-        record.dirty = false;
-        record.modified = {};
-      }
-    });
-    
-    // Remove phantom records
-    this.records = this.records.filter(r => !r.phantom);
-    
-    // Clear removed records
-    this.removedRecords = [];
-    
-    this.applyState();
-    this.emit('datachanged', { records: this.records });
+  findBy(fn: (record: StoreRecord<T>) => boolean): StoreRecord<T>[] {
+    return this.records.filter(fn);
+  }
+
+  /**
+   * Get record by index
+   */
+  getAt(index: number): StoreRecord<T> | null {
+    return this.records[index] || null;
+  }
+
+  /**
+   * Get record by id
+   */
+  getById(id: string | number): StoreRecord<T> | null {
+    return this.findRecord('id', id);
+  }
+
+  /**
+   * Get all records
+   */
+  getRange(start?: number, end?: number): StoreRecord<T>[] {
+    return this.records.slice(start, end);
+  }
+
+  /**
+   * Get count of records
+   */
+  getCount(): number {
+    return this.records.length;
+  }
+
+  /**
+   * Get total count (including records not loaded)
+   */
+  getTotalCount(): number {
+    return this.totalCount || this.records.length;
   }
 
   /**
    * Check if store has changes
    */
-  hasChanges(): boolean {
+  isDirty(): boolean {
     return this.getModifiedRecords().length > 0 || this.removedRecords.length > 0;
   }
 
@@ -543,14 +406,140 @@ export class Store<T extends Record<string, any> = any> extends EventBus<StoreEv
   }
 
   /**
-   * Create a snapshot of current state
+   * Reject changes on a record
    */
-  snapshot(): void {
+  rejectChanges(record?: StoreRecord<T>): void {
+    if (record) {
+      // Reject single record
+      Object.keys(record.modified).forEach(key => {
+        record.data[key] = record.modified[key];
+      });
+      record.modified = {};
+      record.dirty = false;
+    } else {
+      // Reject all changes
+      this.records.forEach(r => {
+        Object.keys(r.modified).forEach(key => {
+          r.data[key] = r.modified[key];
+        });
+        r.modified = {};
+        r.dirty = false;
+      });
+      
+      // Remove phantom records
+      this.records = this.records.filter(r => !r.phantom);
+      
+      // Clear removed records
+      this.removedRecords = [];
+    }
+    
+    this.emit('datachanged', { records: this.records });
+  }
+
+  /**
+   * Commit changes on a record
+   */
+  commitChanges(record?: StoreRecord<T>): void {
+    if (record) {
+      record.modified = {};
+      record.dirty = false;
+      record.phantom = false;
+    } else {
+      this.records.forEach(r => {
+        r.modified = {};
+        r.dirty = false;
+        r.phantom = false;
+      });
+      this.removedRecords = [];
+    }
+    
+    this.emit('datachanged', { records: this.records });
+  }
+
+  /**
+   * Sort the store
+   */
+  sort(sorters?: Sorter | Sorter[], direction?: 'ASC' | 'DESC'): void {
+    if (sorters) {
+      if (Array.isArray(sorters)) {
+        this.sorters = sorters;
+      } else {
+        this.sorters = [{
+          ...sorters,
+          direction: direction || sorters.direction || 'ASC'
+        }];
+      }
+    }
+    
+    if (this.config.remoteSort && this.proxy) {
+      this.load();
+    } else {
+      this.doSort();
+      this.emit('datachanged', { records: this.records });
+    }
+  }
+
+  /**
+   * Filter the store
+   */
+  filter(filters?: Filter | Filter[]): void {
+    if (filters !== undefined) {
+      if (Array.isArray(filters)) {
+        this.filters = filters;
+      } else {
+        this.filters = [filters];
+      }
+    }
+    
+    if (this.config.remoteFilter && this.proxy) {
+      this.load();
+    } else {
+      this.doFilter();
+      this.emit('datachanged', { records: this.records });
+    }
+  }
+
+  /**
+   * Clear filters
+   */
+  clearFilter(): void {
+    this.filters = [];
+    this.filter();
+  }
+
+  /**
+   * Query the store
+   */
+  query(property: string, value: any): StoreRecord<T>[] {
+    return this.records.filter(record => record.data[property] === value);
+  }
+
+  /**
+   * Query by function
+   */
+  queryBy(fn: (record: StoreRecord<T>) => boolean): StoreRecord<T>[] {
+    return this.records.filter(fn);
+  }
+
+  /**
+   * Each iterator
+   */
+  each(fn: (record: StoreRecord<T>, index: number) => void | boolean): void {
+    for (let i = 0; i < this.records.length; i++) {
+      if (fn(this.records[i], i) === false) break;
+    }
+  }
+
+  /**
+   * Get snapshot of current records
+   */
+  snapshot(): StoreRecord<T>[] {
     this.snapshot = this.records.map(r => ({
       ...r,
       data: { ...r.data },
       modified: { ...r.modified }
     }));
+    return this.snapshot;
   }
 
   /**
@@ -558,208 +547,189 @@ export class Store<T extends Record<string, any> = any> extends EventBus<StoreEv
    */
   restore(): void {
     if (this.snapshot) {
-      this.records = this.snapshot.map(r => ({
-        ...r,
-        data: { ...r.data },
-        modified: { ...r.modified }
-      }));
+      this.records = this.snapshot;
       this.snapshot = null;
-      this.applyState();
       this.emit('datachanged', { records: this.records });
     }
+  }
+
+  /**
+   * Clear all data
+   */
+  removeAll(): void {
+    const removed = [...this.records];
+    this.records = [];
+    this.removedRecords.push(...removed.filter(r => !r.phantom));
+    
+    this.emit('clear', { records: removed });
+    this.emit('datachanged', { records: this.records });
+    
+    if (this.config.autoSync) {
+      this.sync();
+    }
+  }
+
+  /**
+   * Check if store is loading
+   */
+  isLoading(): boolean {
+    return this.loading;
+  }
+
+  /**
+   * Get current page
+   */
+  getCurrentPage(): number {
+    return this.currentPage;
+  }
+
+  /**
+   * Load page
+   */
+  loadPage(page: number): Promise<void> {
+    this.currentPage = page;
+    return this.load({
+      page,
+      start: (page - 1) * this.pageSize,
+      limit: this.pageSize
+    });
+  }
+
+  /**
+   * Next page
+   */
+  nextPage(): Promise<void> {
+    return this.loadPage(this.currentPage + 1);
+  }
+
+  /**
+   * Previous page
+   */
+  previousPage(): Promise<void> {
+    return this.loadPage(Math.max(1, this.currentPage - 1));
+  }
+
+  /**
+   * Get page count
+   */
+  getPageCount(): number {
+    return Math.ceil(this.getTotalCount() / this.pageSize);
   }
 
   // Private methods
 
   private createRecord(data: T, phantom = false): StoreRecord<T> {
-    const id = this.getRecordId(data) || this.generateId();
-    
-    const record: StoreRecord<T> = {
+    const id = data.id || this.generateId();
+    return {
+      data: { ...data, id },
+      modified: {},
       id,
-      data: this.processData(data),
       dirty: false,
       phantom,
-      modified: {},
       errors: {}
     };
-    
-    this.validateRecord(record);
-    return record;
-  }
-
-  private processData(data: T): T {
-    if (!this.model) return { ...data };
-    
-    const processed: any = {};
-    
-    this.model.fields.forEach(field => {
-      let value = data[field.name as keyof T];
-      
-      // Apply default value
-      if (value === undefined && field.defaultValue !== undefined) {
-        value = typeof field.defaultValue === 'function' ? 
-          field.defaultValue() : 
-          field.defaultValue;
-      }
-      
-      // Apply converter
-      if (field.convert) {
-        value = field.convert(value, data);
-      }
-      
-      processed[field.name] = value;
-    });
-    
-    return processed;
-  }
-
-  private validateRecord(record: StoreRecord<T>): void {
-    if (!this.model?.validations) return;
-    
-    record.errors = {};
-    
-    this.model.validations.forEach(validation => {
-      const value = record.data[validation.field as keyof T];
-      const errors: string[] = [];
-      
-      switch (validation.type) {
-        case 'required':
-          if (!value && value !== 0 && value !== false) {
-            errors.push(validation.message || `${validation.field} is required`);
-          }
-          break;
-          
-        case 'length':
-          if (typeof value === 'string') {
-            const { min, max } = validation.config || {};
-            if (min && value.length < min) {
-              errors.push(validation.message || `Minimum length is ${min}`);
-            }
-            if (max && value.length > max) {
-              errors.push(validation.message || `Maximum length is ${max}`);
-            }
-          }
-          break;
-          
-        case 'format':
-          if (value && validation.config?.pattern) {
-            const regex = new RegExp(validation.config.pattern);
-            if (!regex.test(String(value))) {
-              errors.push(validation.message || 'Invalid format');
-            }
-          }
-          break;
-          
-        case 'custom':
-          if (validation.config?.validator) {
-            const error = validation.config.validator(value, record);
-            if (error) {
-              errors.push(error);
-            }
-          }
-          break;
-      }
-      
-      if (errors.length > 0) {
-        record.errors[validation.field] = errors;
-      }
-    });
-  }
-
-  private getRecordId(data: T): string | number | undefined {
-    const idProperty = this.model?.idProperty || 'id';
-    return data[idProperty as keyof T] as any;
   }
 
   private generateId(): string {
-    return `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `record-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  private isRecord(item: any): item is StoreRecord<T> {
-    return item && typeof item === 'object' && 'id' in item && 'data' in item;
+  private isStoreRecord(obj: any): obj is StoreRecord<T> {
+    return obj && 
+      typeof obj === 'object' && 
+      'data' in obj && 
+      'modified' in obj &&
+      'id' in obj;
   }
 
   private applyState(): void {
-    this.doFilter();
-    this.doSort();
-    this.doGroup();
+    if (!this.config.remoteSort) {
+      this.doSort();
+    }
+    if (!this.config.remoteFilter) {
+      this.doFilter();
+    }
   }
 
   private doSort(): void {
-    if (!this.config.sorters || this.config.sorters.length === 0) return;
+    if (this.sorters.length === 0) return;
     
     this.records.sort((a, b) => {
-      for (const sorter of this.config.sorters!) {
-        let result = 0;
+      for (const sorter of this.sorters) {
+        let aVal = a.data[sorter.property];
+        let bVal = b.data[sorter.property];
         
-        if (sorter.compareFn) {
-          result = sorter.compareFn(a.data, b.data);
-        } else {
-          const aVal = a.data[sorter.field];
-          const bVal = b.data[sorter.field];
-          
-          if (aVal < bVal) result = -1;
-          else if (aVal > bVal) result = 1;
+        if (sorter.transform) {
+          aVal = sorter.transform(aVal);
+          bVal = sorter.transform(bVal);
         }
         
-        if (result !== 0) {
-          return sorter.direction === 'asc' ? result : -result;
-        }
+        if (aVal < bVal) return sorter.direction === 'ASC' ? -1 : 1;
+        if (aVal > bVal) return sorter.direction === 'ASC' ? 1 : -1;
       }
-      
       return 0;
     });
   }
 
   private doFilter(): void {
-    // In a real implementation, you'd maintain separate filtered/unfiltered arrays
-    // For simplicity, we'll skip this here
+    // Implementation would filter records based on this.filters
+    // For now, we'll keep all records visible
   }
 
-  private doGroup(): void {
-    // Group implementation would go here
-  }
-
-  private buildParams(options: any): any {
+  private buildParams(options: LoadOptions): any {
     const params: any = {
-      ...this.config.proxy?.extraParams,
+      page: options.page || this.currentPage,
+      start: options.start || 0,
+      limit: options.limit || this.pageSize,
       ...options.params
     };
     
-    // Add paging params
-    if (this.config.pageSize) {
-      params.page = this.currentPage;
-      params.limit = this.config.pageSize;
-      params.start = (this.currentPage - 1) * this.config.pageSize;
+    if (this.config.remoteSort && this.sorters.length > 0) {
+      params.sort = JSON.stringify(this.sorters);
     }
     
-    // Add sort params
-    if (this.config.sorters && this.config.remoteSort) {
-      params.sort = JSON.stringify(this.config.sorters);
-    }
-    
-    // Add filter params
-    if (this.config.filters && this.config.remoteFilter) {
-      params.filter = JSON.stringify(this.config.filters);
+    if (this.config.remoteFilter && this.filters.length > 0) {
+      params.filter = JSON.stringify(this.filters);
     }
     
     return params;
   }
 
-  private parseResponse(response: any): { data: T[], total?: number, success: boolean, message?: string } {
-    const reader = this.config.proxy?.reader || {};
+  private parseResponse(response: any): {
+    data: T[];
+    total?: number;
+    success: boolean;
+    message?: string;
+  } {
+    const reader = this.config.proxy?.reader;
     
-    const rootProperty = reader.rootProperty || 'data';
-    const totalProperty = reader.totalProperty || 'total';
-    const successProperty = reader.successProperty || 'success';
-    const messageProperty = reader.messageProperty || 'message';
+    const data = reader?.rootProperty ? 
+      response[reader.rootProperty] : 
+      (response.data || response);
+      
+    const total = reader?.totalProperty ? 
+      response[reader.totalProperty] : 
+      response.total;
+      
+    const success = reader?.successProperty ? 
+      response[reader.successProperty] : 
+      (response.success !== undefined ? response.success : true);
+      
+    const message = reader?.messageProperty ? 
+      response[reader.messageProperty] : 
+      response.message;
     
-    const data = rootProperty ? response[rootProperty] : response;
-    const total = totalProperty ? response[totalProperty] : undefined;
-    const success = successProperty ? response[successProperty] !== false : true;
-    const message = messageProperty ? response[messageProperty] : undefined;
-    
-    return { data: data || [], total, success, message };
+    return {
+      data: Array.isArray(data) ? data : [],
+      total,
+      success,
+      message
+    };
+  }
+
+  private lookupModel(name: string): any {
+    // Model registry would be implemented here
+    return null;
   }
 
   private createProxy(config: ProxyConfig): Proxy<T> {
@@ -776,19 +746,18 @@ export class Store<T extends Record<string, any> = any> extends EventBus<StoreEv
         throw new Error(`Unknown proxy type: ${config.type}`);
     }
   }
-
-  private lookupModel(name: string): Model<T> | null {
-    // In a real implementation, this would look up registered models
-    return null;
-  }
 }
 
 /**
  * Base proxy class
  */
 abstract class Proxy<T> {
-  constructor(protected config: ProxyConfig) {}
-  
+  protected config: ProxyConfig;
+
+  constructor(config: ProxyConfig) {
+    this.config = config;
+  }
+
   abstract read(params: any): Promise<any>;
   abstract create(records: T[]): Promise<T[]>;
   abstract update(records: any[]): Promise<any[]>;
@@ -796,11 +765,11 @@ abstract class Proxy<T> {
 }
 
 /**
- * REST proxy implementation
+ * REST proxy for server communication
  */
 class RestProxy<T> extends Proxy<T> {
   async read(params: any): Promise<any> {
-    const url = new URL(this.config.url!);
+    const url = new URL(this.config.api?.read || this.config.url!);
     Object.entries(params).forEach(([key, value]) => {
       url.searchParams.append(key, String(value));
     });
@@ -864,7 +833,7 @@ class AjaxProxy<T> extends RestProxy<T> {
 class MemoryProxy<T> extends Proxy<T> {
   private data: T[] = [];
   
-  async read(params: any): Promise<any> {
+  async read(_params: any): Promise<any> {
     return { data: [...this.data], success: true };
   }
   
@@ -878,7 +847,7 @@ class MemoryProxy<T> extends Proxy<T> {
     return records;
   }
   
-  async destroy(ids: (string | number)[]): Promise<void> {
+  async destroy(_ids: (string | number)[]): Promise<void> {
     // Remove logic
   }
 }
@@ -894,7 +863,7 @@ class LocalStorageProxy<T> extends Proxy<T> {
     this.key = config.url || 'nx-store-data';
   }
   
-  async read(params: any): Promise<any> {
+  async read(_params: any): Promise<any> {
     const data = localStorage.getItem(this.key);
     return { 
       data: data ? JSON.parse(data) : [], 

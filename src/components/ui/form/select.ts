@@ -1,5 +1,4 @@
-import { ComponentState, BaseComponent } from "@/components/abstracts/base";
-import { NXTextField } from "./textfield";
+import { BaseComponent, ComponentState } from "@/components/abstracts/base";
 
 export interface SelectOption {
   value: string | number;
@@ -27,9 +26,6 @@ export interface SelectConfig {
   onChange?: (value: string | number | (string | number)[]) => void;
 }
 
-/**
- * Select dropdown component
- */
 export class NXSelect extends BaseComponent {
   static get observedAttributes(): string[] {
     return [
@@ -52,47 +48,21 @@ export class NXSelect extends BaseComponent {
   constructor(config?: SelectConfig) {
     super();
     this.attachShadow({ mode: 'open' });
-    
-    if (config) {
-      this.configure(config);
-    }
-  }
-
-  configure(config: SelectConfig): void {
-    if (config.options) {
+    if (config?.options) {
       this.setOptions(config.options);
     }
-    
-    Object.entries(config).forEach(([key, value]) => {
-      if (key === 'onChange') {
-        this[ComponentState].set(key, value);
-      } else if (key !== 'options') {
-        const attrName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-        this.setAttribute(attrName, String(value));
-      }
-    });
   }
 
   setOptions(options: SelectOption[]): void {
     this.options = options;
-    
-    // Set initial value from options if any are selected
-    const selected = options.filter(opt => opt.selected);
-    if (selected.length > 0) {
-      const multiple = this.getProp('multiple', false);
-      if (multiple) {
-        this.setState('value', selected.map(opt => opt.value));
-      } else {
-        this.setState('value', selected[0].value);
-      }
-    }
-    
-    this.update();
+    this.scheduleUpdate();
   }
 
   protected render(): string {
-    const label = this.getProp('label');
+    const name = this.getProp('name', '');
+    const value = this.getState('value');
     const placeholder = this.getProp('placeholder', 'Select...');
+    const label = this.getProp('label');
     const helperText = this.getProp('helper-text');
     const errorText = this.getProp('error-text');
     const required = this.getProp('required', false);
@@ -102,81 +72,94 @@ export class NXSelect extends BaseComponent {
     const clearable = this.getProp('clearable', false);
     const variant = this.getProp('variant', 'outlined');
     const size = this.getProp('size', 'md');
-    
-    const value = this.getState('value');
     const open = this.getState('open', false);
-    const searchQuery = this.getState('searchQuery', '');
-    const hasError = !!errorText;
-    
+    const searchQuery = this.getState<string>('searchQuery', '');
+    const focused = this.getState('focused', false);
+
     const selectedOptions = this.getSelectedOptions();
-    const displayText = this.getDisplayText(selectedOptions);
-    const filteredOptions = this.getFilteredOptions();
+    const displayText = selectedOptions.length > 0 
+      ? selectedOptions.map(opt => opt.text).join(', ')
+      : '';
+
+    const filteredOptions = searchable && searchQuery
+      ? this.options.filter(opt => 
+          opt.text.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : this.options;
+
+    const selectClasses = [
+      'nx-select',
+      `variant-${variant}`,
+      `size-${size}`,
+      open ? 'open' : '',
+      focused ? 'focused' : '',
+      errorText ? 'has-error' : '',
+      disabled ? 'disabled' : ''
+    ].filter(Boolean).join(' ');
 
     return `
-      <div class="nx-select nx-select-${variant} nx-select-${size}
-                  ${open ? 'open' : ''}
-                  ${hasError ? 'has-error' : ''}
-                  ${disabled ? 'disabled' : ''}"
-           part="select">
+      <div class="${selectClasses}" part="container">
         ${label ? `
           <label class="nx-select-label" part="label">
             ${label}
-            ${required ? '<span class="nx-select-required">*</span>' : ''}
+            ${required ? '<span class="required">*</span>' : ''}
           </label>
         ` : ''}
         
-        <div class="nx-select-wrapper" part="wrapper">
-          <div class="nx-select-trigger" 
-               role="combobox"
-               aria-expanded="${open}"
-               aria-haspopup="listbox"
-               tabindex="${disabled ? -1 : 0}">
-            ${searchable && open ? `
-              <input class="nx-select-search"
-                     type="text"
-                     value="${searchQuery}"
-                     placeholder="${placeholder}"
-                     aria-label="Search options">
-            ` : `
-              <span class="nx-select-value ${!displayText ? 'placeholder' : ''}">
-                ${displayText || placeholder}
-              </span>
-            `}
-            
-            <div class="nx-select-actions">
-              ${clearable && value && !disabled ? `
-                <button class="nx-select-clear" 
-                        type="button"
-                        aria-label="Clear selection"
-                        tabindex="-1">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M15 9l-6 6M9 9l6 6"/>
-                  </svg>
-                </button>
-              ` : ''}
-              
-              <span class="nx-select-arrow ${open ? 'open' : ''}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M6 9l6 6 6-6"/>
-                </svg>
-              </span>
-            </div>
-          </div>
+        <div class="nx-select-control" part="control" tabindex="${disabled ? -1 : 0}">
+          <input type="hidden" name="${name}" value="${value || ''}">
           
-          <div class="nx-select-dropdown ${open ? 'open' : ''}" 
-               role="listbox"
-               aria-multiselectable="${multiple}">
-            ${filteredOptions.length > 0 ? 
-              this.renderOptions(filteredOptions) : 
-              '<div class="nx-select-empty">No options available</div>'
-            }
+          ${searchable && open ? `
+            <input
+              type="text"
+              class="nx-select-search"
+              part="search"
+              placeholder="${placeholder}"
+              value="${searchQuery}"
+            >
+          ` : `
+            <div class="nx-select-value" part="value">
+              ${displayText || `<span class="placeholder">${placeholder}</span>`}
+            </div>
+          `}
+          
+          <div class="nx-select-icons">
+            ${clearable && selectedOptions.length > 0 && !disabled ? `
+              <button type="button" class="nx-select-clear" part="clear" tabindex="-1">
+                <svg viewBox="0 0 24 24">
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+              </button>
+            ` : ''}
+            
+            <svg class="nx-select-arrow" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5z"/>
+            </svg>
+          </div>
+        </div>
+        
+        <div class="nx-select-dropdown ${open ? 'open' : ''}" part="dropdown">
+          <div class="nx-select-options" part="options">
+            ${filteredOptions.map((option, index) => `
+              <div class="nx-select-option ${this.isSelected(option) ? 'selected' : ''} ${option.disabled ? 'disabled' : ''}"
+                   part="option"
+                   data-value="${option.value}"
+                   data-index="${index}">
+                ${multiple ? `
+                  <input type="checkbox" ${this.isSelected(option) ? 'checked' : ''} tabindex="-1">
+                ` : ''}
+                <span>${option.text}</span>
+              </div>
+            `).join('')}
+            
+            ${filteredOptions.length === 0 ? `
+              <div class="nx-select-empty" part="empty">No options found</div>
+            ` : ''}
           </div>
         </div>
         
         ${helperText || errorText ? `
-          <div class="nx-select-helper ${hasError ? 'error' : ''}" 
-               part="helper-text">
+          <div class="nx-select-helper ${errorText ? 'error' : ''}" part="helper">
             ${errorText || helperText}
           </div>
         ` : ''}
@@ -184,94 +167,53 @@ export class NXSelect extends BaseComponent {
     `;
   }
 
-  private renderOptions(options: SelectOption[]): string {
-    const value = this.getState('value');
-    const multiple = this.getProp('multiple', false);
-    const highlightedIndex = this.getState('highlightedIndex', -1);
-    
-    // Group options if needed
-    const groups = new Map<string | null, SelectOption[]>();
-    options.forEach(opt => {
-      const group = opt.group || null;
-      if (!groups.has(group)) {
-        groups.set(group, []);
-      }
-      groups.get(group)!.push(opt);
-    });
-    
-    let html = '';
-    let index = 0;
-    
-    groups.forEach((groupOptions, groupName) => {
-      if (groupName) {
-        html += `<div class="nx-select-group-label">${groupName}</div>`;
-      }
-      
-      groupOptions.forEach(opt => {
-        const isSelected = multiple ? 
-          (Array.isArray(value) && value.includes(opt.value)) :
-          value === opt.value;
-        
-        html += `
-          <div class="nx-select-option 
-                      ${isSelected ? 'selected' : ''} 
-                      ${opt.disabled ? 'disabled' : ''}
-                      ${index === highlightedIndex ? 'highlighted' : ''}"
-               role="option"
-               aria-selected="${isSelected}"
-               data-value="${opt.value}"
-               data-index="${index}">
-            ${multiple ? `
-              <input type="checkbox" 
-                     class="nx-select-checkbox"
-                     ${isSelected ? 'checked' : ''}
-                     ${opt.disabled ? 'disabled' : ''}
-                     tabindex="-1">
-            ` : ''}
-            <span class="nx-select-option-text">${opt.text}</span>
-          </div>
-        `;
-        index++;
-      });
-    });
-    
-    return html;
-  }
-
   protected styles(): string {
     return `
-      ${NXTextField.prototype.styles.call(this)}
-      
-      /* Select specific styles */
+      :host {
+        display: block;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
       .nx-select {
         position: relative;
       }
 
-      .nx-select-wrapper {
-        position: relative;
+      .nx-select-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-color);
       }
 
-      .nx-select-trigger {
+      .required {
+        color: var(--color-danger);
+        margin-left: 0.25rem;
+      }
+
+      .nx-select-control {
+        position: relative;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        height: var(--field-height);
-        padding: var(--field-padding);
-        background: var(--field-bg);
-        border: var(--field-border-width) solid var(--field-border-color);
-        border-radius: var(--field-radius);
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.25rem;
+        background: var(--bg-color);
         cursor: pointer;
         transition: all 0.2s;
       }
 
-      .nx-select.open .nx-select-trigger {
-        border-color: var(--field-border-focus);
+      .nx-select-control:focus {
+        outline: none;
+        border-color: var(--color-primary);
       }
 
-      .nx-select.disabled .nx-select-trigger {
-        opacity: 0.6;
+      .disabled .nx-select-control {
+        opacity: 0.5;
         cursor: not-allowed;
-        background: var(--color-background);
       }
 
       .nx-select-value {
@@ -281,105 +223,100 @@ export class NXSelect extends BaseComponent {
         white-space: nowrap;
       }
 
-      .nx-select-value.placeholder {
-        color: var(--color-text-secondary);
-        opacity: 0.8;
+      .placeholder {
+        color: var(--text-color-secondary);
       }
 
       .nx-select-search {
         flex: 1;
-        background: none;
         border: none;
-        outline: none;
-        font-size: var(--field-font-size);
+        background: transparent;
         font-family: inherit;
-        color: var(--color-text);
+        font-size: inherit;
+        outline: none;
       }
 
-      .nx-select-actions {
+      .nx-select-icons {
         display: flex;
         align-items: center;
         gap: 0.25rem;
+        margin-left: 0.5rem;
       }
 
       .nx-select-clear {
-        width: 1.25rem;
-        height: 1.25rem;
-        padding: 0.125rem;
-        background: none;
+        padding: 0.25rem;
         border: none;
+        background: transparent;
         cursor: pointer;
-        color: var(--color-text-secondary);
-        border-radius: var(--radius-sm);
-        transition: all 0.2s;
+        color: var(--text-color-secondary);
       }
 
       .nx-select-clear:hover {
-        background: var(--color-background);
-        color: var(--color-text);
+        color: var(--text-color);
+      }
+
+      .nx-select-clear svg,
+      .nx-select-arrow {
+        width: 1rem;
+        height: 1rem;
+        fill: currentColor;
       }
 
       .nx-select-arrow {
-        width: 1.25rem;
-        height: 1.25rem;
-        color: var(--color-text-secondary);
         transition: transform 0.2s;
+        color: var(--text-color-secondary);
       }
 
-      .nx-select-arrow.open {
+      .open .nx-select-arrow {
         transform: rotate(180deg);
       }
 
-      .nx-select-arrow svg {
-        width: 100%;
-        height: 100%;
-      }
-
-      /* Dropdown */
       .nx-select-dropdown {
         position: absolute;
-        top: calc(100% + 0.25rem);
+        top: 100%;
         left: 0;
         right: 0;
-        max-height: 300px;
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-lg);
-        overflow-y: auto;
+        margin-top: 0.25rem;
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 0.25rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         z-index: 1000;
         opacity: 0;
-        visibility: hidden;
         transform: translateY(-0.5rem);
         transition: all 0.2s;
+        pointer-events: none;
       }
 
       .nx-select-dropdown.open {
         opacity: 1;
-        visibility: visible;
         transform: translateY(0);
+        pointer-events: auto;
+      }
+
+      .nx-select-options {
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 0.25rem;
       }
 
       .nx-select-option {
-        padding: 0.5rem 0.75rem;
-        cursor: pointer;
-        transition: background-color 0.15s;
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
       }
 
       .nx-select-option:hover:not(.disabled) {
-        background: var(--color-background);
-      }
-
-      .nx-select-option.highlighted {
-        background: var(--color-background);
+        background: var(--hover-bg);
       }
 
       .nx-select-option.selected {
+        background: var(--selected-bg);
         color: var(--color-primary);
-        font-weight: 500;
       }
 
       .nx-select-option.disabled {
@@ -387,240 +324,224 @@ export class NXSelect extends BaseComponent {
         cursor: not-allowed;
       }
 
-      .nx-select-checkbox {
-        width: 1rem;
-        height: 1rem;
-      }
-
-      .nx-select-group-label {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--color-text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
       .nx-select-empty {
         padding: 1rem;
         text-align: center;
-        color: var(--color-text-secondary);
+        color: var(--text-color-secondary);
+      }
+
+      .nx-select-helper {
+        margin-top: 0.25rem;
+        font-size: 0.75rem;
+        color: var(--text-color-secondary);
+      }
+
+      .nx-select-helper.error {
+        color: var(--color-danger);
       }
     `;
   }
 
-  private getSelectedOptions(): SelectOption[] {
-    const value = this.getState('value');
-    if (!value) return [];
-    
-    const multiple = this.getProp('multiple', false);
-    const values = multiple ? (value as (string | number)[]) : [value];
-    
-    return this.options.filter(opt => values.includes(opt.value));
-  }
-
-  private getDisplayText(selectedOptions: SelectOption[]): string {
-    if (selectedOptions.length === 0) return '';
-    
-    const multiple = this.getProp('multiple', false);
-    if (multiple) {
-      return `${selectedOptions.length} selected`;
-    }
-    
-    return selectedOptions[0].text;
-  }
-
-  private getFilteredOptions(): SelectOption[] {
-    const searchQuery = this.getState('searchQuery', '').toLowerCase();
-    if (!searchQuery) return this.options;
-    
-    return this.options.filter(opt => 
-      opt.text.toLowerCase().includes(searchQuery)
-    );
-  }
-
   protected afterRender(): void {
-    const trigger = this.$('.nx-select-trigger') as HTMLElement;
+    const control = this.$('.nx-select-control') as HTMLElement;
     const searchInput = this.$('.nx-select-search') as HTMLInputElement;
-    
-    // Trigger clicks
-    trigger?.addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).closest('.nx-select-clear')) return;
-      if (this.getProp('disabled')) return;
-      
-      this.toggleDropdown();
-    });
 
-    // Keyboard navigation
-    trigger?.addEventListener('keydown', (e) => {
-      this.handleKeyboard(e);
-    });
+    // Control click
+    if (control) {
+      this.on(control, 'click', (e: Event) => {
+        if (!(e.target as Element).closest('.nx-select-clear')) {
+          this.toggle();
+        }
+      });
+
+      this.on(control, 'keydown', (e: Event) => {
+        this.handleKeyboard(e as KeyboardEvent);
+      });
+
+      this.on(control, 'focus', () => {
+        this.setState('focused', true);
+      });
+
+      this.on(control, 'blur', () => {
+        this.setState('focused', false);
+      });
+    }
 
     // Search input
-    searchInput?.addEventListener('input', (e) => {
-      const query = (e.target as HTMLInputElement).value;
-      this.setState('searchQuery', query);
-      this.setState('highlightedIndex', 0);
-    });
-
-    searchInput?.addEventListener('keydown', (e) => {
-      this.handleKeyboard(e);
-    });
-
-    // Option clicks
-    this.$$('.nx-select-option').forEach((option, index) => {
-      option.addEventListener('click', () => {
-        const value = (option as HTMLElement).dataset.value;
-        if (!value || option.classList.contains('disabled')) return;
-        
-        this.selectOption(value);
+    if (searchInput) {
+      this.on(searchInput, 'input', () => {
+        this.setState('searchQuery', searchInput.value);
       });
 
-      option.addEventListener('mouseenter', () => {
-        this.setState('highlightedIndex', index);
+      this.on(searchInput, 'click', (e: Event) => {
+        e.stopPropagation();
       });
-    });
+    }
 
     // Clear button
-    this.on('.nx-select-clear', 'click', (e: Event) => {
-      e.stopPropagation();
-      this.clear();
+    const clearBtn = this.$('.nx-select-clear');
+    if (clearBtn) {
+      this.on(clearBtn, 'click', (e: Event) => {
+        e.stopPropagation();
+        this.clear();
+      });
+    }
+
+    // Options
+    this.$$('.nx-select-option:not(.disabled)').forEach(option => {
+      this.on(option, 'click', () => {
+        const value = option.getAttribute('data-value');
+        if (value !== null) {
+          this.selectOption(value);
+        }
+      });
     });
 
-    // Close on outside click
-    document.addEventListener('click', (e) => {
+    // Click outside
+    this.on(document, 'click', (e: Event) => {
       if (!this.contains(e.target as Node)) {
-        this.closeDropdown();
+        this.close();
       }
     });
   }
 
   private handleKeyboard(e: KeyboardEvent): void {
     const open = this.getState('open', false);
-    const filteredOptions = this.getFilteredOptions();
-    const highlightedIndex = this.getState('highlightedIndex', -1);
 
     switch (e.key) {
       case 'Enter':
       case ' ':
         e.preventDefault();
-        if (open && highlightedIndex >= 0) {
-          const option = filteredOptions[highlightedIndex];
-          if (option && !option.disabled) {
-            this.selectOption(option.value);
+        if (open) {
+          const highlightedIndex = this.getState('highlightedIndex', -1);
+          if (highlightedIndex >= 0) {
+            const option = this.options[highlightedIndex];
+            if (option && !option.disabled) {
+              this.selectOption(option.value);
+            }
           }
-        } else if (!open) {
-          this.openDropdown();
+        } else {
+          this.open();
         }
         break;
-        
+
       case 'Escape':
         e.preventDefault();
-        this.closeDropdown();
+        this.close();
         break;
-        
+
       case 'ArrowDown':
         e.preventDefault();
         if (!open) {
-          this.openDropdown();
+          this.open();
         } else {
-          const newIndex = Math.min(highlightedIndex + 1, filteredOptions.length - 1);
-          this.setState('highlightedIndex', newIndex);
+          this.highlightNext();
         }
         break;
-        
+
       case 'ArrowUp':
         e.preventDefault();
         if (open) {
-          const newIndex = Math.max(highlightedIndex - 1, 0);
-          this.setState('highlightedIndex', newIndex);
-        }
-        break;
-        
-      case 'Home':
-        if (open) {
-          e.preventDefault();
-          this.setState('highlightedIndex', 0);
-        }
-        break;
-        
-      case 'End':
-        if (open) {
-          e.preventDefault();
-          this.setState('highlightedIndex', filteredOptions.length - 1);
+          this.highlightPrevious();
         }
         break;
     }
   }
 
-  private selectOption(value: string | number): void {
+  private highlightNext(): void {
+    const current = this.getState('highlightedIndex', -1);
+    const next = Math.min(current + 1, this.options.length - 1);
+    this.setState('highlightedIndex', next);
+  }
+
+  private highlightPrevious(): void {
+    const current = this.getState('highlightedIndex', -1);
+    const prev = Math.max(current - 1, 0);
+    this.setState('highlightedIndex', prev);
+  }
+
+  private getSelectedOptions(): SelectOption[] {
+    const value = this.getState('value');
     const multiple = this.getProp('multiple', false);
-    
+
+    if (!value) return [];
+
+    if (multiple && Array.isArray(value)) {
+      return this.options.filter(opt => value.includes(opt.value));
+    }
+
+    const option = this.options.find(opt => opt.value === value);
+    return option ? [option] : [];
+  }
+
+  private isSelected(option: SelectOption): boolean {
+    const value = this.getState('value');
+    const multiple = this.getProp('multiple', false);
+
+    if (!value) return false;
+
+    if (multiple && Array.isArray(value)) {
+      return value.includes(option.value);
+    }
+
+    return option.value === value;
+  }
+
+  private selectOption(optionValue: string | number): void {
+    const multiple = this.getProp('multiple', false);
+    const currentValue = this.getState('value');
+
+    let newValue: string | number | (string | number)[];
+
     if (multiple) {
-      const currentValue = this.getState('value', []) as (string | number)[];
-      const newValue = [...currentValue];
-      const index = newValue.indexOf(value);
-      
-      if (index >= 0) {
-        newValue.splice(index, 1);
+      const values = Array.isArray(currentValue) ? currentValue : [];
+      if (values.includes(optionValue)) {
+        newValue = values.filter(v => v !== optionValue);
       } else {
-        newValue.push(value);
+        newValue = [...values, optionValue];
       }
-      
-      this.setState('value', newValue);
     } else {
-      this.setState('value', value);
-      this.closeDropdown();
+      newValue = optionValue;
+      this.close();
     }
-    
-    const onChange = this.getState('onChange');
-    if (onChange) onChange(this.getState('value'));
-    
-    this.dispatchEvent(new CustomEvent('change', { 
-      detail: { value: this.getState('value') } 
-    }));
+
+    this.setState('value', newValue);
+    this.emit('change', { value: newValue });
   }
 
-  private toggleDropdown(): void {
-    const open = this.getState('open', false);
-    if (open) {
-      this.closeDropdown();
-    } else {
-      this.openDropdown();
+  open(): void {
+    if (!this.getProp('disabled')) {
+      this.setState('open', true);
+      const searchInput = this.$('.nx-select-search') as HTMLInputElement;
+      searchInput?.focus();
     }
   }
 
-  private openDropdown(): void {
-    this.setState('open', true);
-    this.setState('highlightedIndex', 0);
-    
-    const searchInput = this.$('.nx-select-search') as HTMLInputElement;
-    searchInput?.focus();
-  }
-
-  private closeDropdown(): void {
+  close(): void {
     this.setState('open', false);
     this.setState('searchQuery', '');
     this.setState('highlightedIndex', -1);
   }
 
-  // Public API
+  toggle(): void {
+    if (this.getState('open', false)) {
+      this.close();
+    } else {
+      this.open();
+    }
+  }
+
+  clear(): void {
+    this.setState('value', null);
+    this.emit('change', { value: null });
+  }
+
   getValue(): string | number | (string | number)[] | null {
     return this.getState('value', null);
   }
 
-  setValue(value: string | number | (string | number)[]): void {
+  setValue(value: string | number | (string | number)[] | null): void {
     this.setState('value', value);
-  }
-
-  clear(): void {
-    const multiple = this.getProp('multiple', false);
-    this.setState('value', multiple ? [] : null);
-    
-    const onChange = this.getState('onChange');
-    if (onChange) onChange(this.getState('value'));
-    
-    this.dispatchEvent(new CustomEvent('clear'));
   }
 }
 

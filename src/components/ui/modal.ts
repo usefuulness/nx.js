@@ -1,4 +1,3 @@
-// src/components/ui/modal.ts
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
 
 export interface ModalConfig {
@@ -6,137 +5,82 @@ export interface ModalConfig {
   content?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   closable?: boolean;
-  backdrop?: boolean | 'static';
-  keyboard?: boolean;
+  closeOnBackdrop?: boolean;
+  closeOnEscape?: boolean;
+  showHeader?: boolean;
+  showFooter?: boolean;
   animation?: 'fade' | 'slide' | 'scale' | 'none';
-  buttons?: ModalButton[];
-  autoFocus?: boolean;
-  centered?: boolean;
 }
 
-export interface ModalButton {
-  text: string;
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
-  handler?: (modal: NXModal) => void | Promise<void>;
-  disabled?: boolean;
-  loading?: boolean;
-}
-
-/**
- * Modern modal dialog component with animations and accessibility
- */
 export class NXModal extends BaseComponent {
   static get observedAttributes(): string[] {
-    return ['open', 'title', 'size', 'closable', 'backdrop', 'keyboard', 'animation', 'centered'];
+    return [
+      'open', 'title', 'size', 'closable', 'close-on-backdrop',
+      'close-on-escape', 'show-header', 'show-footer', 'animation'
+    ];
   }
-
-  private previousFocus: HTMLElement | null = null;
-  private focusTrap: FocusTrap | null = null;
 
   protected initializeState(): void {
     this[ComponentState].set('open', false);
-    this[ComponentState].set('loading', false);
     this[ComponentState].set('animating', false);
   }
 
-  constructor(config?: ModalConfig) {
+  constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    
-    if (config) {
-      Object.entries(config).forEach(([key, value]) => {
-        if (key === 'buttons') {
-          this[ComponentState].set('buttons', value);
-        } else if (key === 'content') {
-          this[ComponentState].set('content', value);
-        } else {
-          this.setAttribute(key, String(value));
-        }
-      });
-    }
-  }
-
-  connectedCallback(): void {
-    super.connectedCallback();
-    this.setAttribute('role', 'dialog');
-    this.setAttribute('aria-modal', 'true');
-    
-    if (this.getProp('open', false)) {
-      this.open();
-    }
-  }
-
-  disconnectedCallback(): void {
-    super.disconnectedCallback();
-    this.cleanup();
   }
 
   protected render(): string {
     const open = this.getState('open', false);
-    const animating = this.getState('animating', false);
     const title = this.getProp('title', '');
     const size = this.getProp('size', 'md');
     const closable = this.getProp('closable', true);
-    const centered = this.getProp('centered', false);
+    const showHeader = this.getProp('show-header', true);
+    const showFooter = this.getProp('show-footer', true);
     const animation = this.getProp('animation', 'fade');
-    const content = this.getState('content', '');
-    const buttons = this.getState('buttons', []) as ModalButton[];
+    const animating = this.getState('animating', false);
+
+    const modalClasses = [
+      'nx-modal',
+      open ? 'open' : '',
+      animating ? 'animating' : '',
+      `animation-${animation}`
+    ].filter(Boolean).join(' ');
 
     return `
-      <div class="modal-wrapper ${open ? 'open' : ''} ${animating ? 'animating' : ''} ${animation}" 
-           part="wrapper">
-        <div class="modal-backdrop" part="backdrop"></div>
-        <div class="modal-container ${centered ? 'centered' : ''}" part="container">
-          <div class="modal modal-${size}" part="modal" role="document">
-            ${this.renderHeader(title, closable)}
-            <div class="modal-body" part="body">
-              ${content ? `<div class="modal-content">${content}</div>` : ''}
-              <slot></slot>
+      <div class="${modalClasses}" part="container" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="nx-modal-backdrop" part="backdrop"></div>
+        <div class="nx-modal-dialog size-${size}" part="dialog">
+          ${showHeader ? `
+            <div class="nx-modal-header" part="header">
+              <h2 id="modal-title" class="nx-modal-title" part="title">${title}</h2>
+              ${closable ? `
+                <button type="button" class="nx-modal-close" part="close" aria-label="Close">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  </svg>
+                </button>
+              ` : ''}
             </div>
-            ${buttons.length > 0 || this.hasFooterSlot() ? this.renderFooter(buttons) : ''}
+          ` : ''}
+          
+          <div class="nx-modal-body" part="body">
+            <slot></slot>
           </div>
+          
+          ${showFooter ? `
+            <div class="nx-modal-footer" part="footer">
+              <slot name="footer">
+                <button type="button" class="nx-modal-button secondary" data-action="cancel">
+                  Cancel
+                </button>
+                <button type="button" class="nx-modal-button primary" data-action="confirm">
+                  OK
+                </button>
+              </slot>
+            </div>
+          ` : ''}
         </div>
-      </div>
-    `;
-  }
-
-  private renderHeader(title: string, closable: boolean): string {
-    if (!title && !closable && !this.hasHeaderSlot()) return '';
-
-    return `
-      <div class="modal-header" part="header">
-        <h2 class="modal-title" id="modal-title">
-          <slot name="header">${title}</slot>
-        </h2>
-        ${closable ? `
-          <button class="modal-close" 
-                  aria-label="Close dialog" 
-                  type="button"
-                  data-action="close">
-            <svg class="modal-close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
-        ` : ''}
-      </div>
-    `;
-  }
-
-  private renderFooter(buttons: ModalButton[]): string {
-    return `
-      <div class="modal-footer" part="footer">
-        <slot name="footer">
-          ${buttons.map((btn, index) => `
-            <button class="modal-button button-${btn.variant || 'secondary'} ${btn.loading ? 'loading' : ''}"
-                    type="button"
-                    data-action="${btn.text.toLowerCase().replace(/\s+/g, '-')}"
-                    data-index="${index}"
-                    ${btn.disabled ? 'disabled' : ''}>
-              ${btn.loading ? '<span class="button-spinner"></span>' : ''}
-              <span>${btn.text}</span>
-            </button>
-          `).join('')}
-        </slot>
       </div>
     `;
   }
@@ -144,582 +88,295 @@ export class NXModal extends BaseComponent {
   protected styles(): string {
     return `
       :host {
-        --modal-bg: var(--color-surface);
-        --modal-border: var(--color-border);
+        --modal-bg: var(--surface-color);
         --modal-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-        --modal-radius: var(--radius-lg);
         --backdrop-bg: rgba(0, 0, 0, 0.5);
-        --animation-duration: 0.3s;
       }
 
-      .modal-wrapper {
+      .nx-modal {
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        z-index: 9999;
+        z-index: 1000;
         display: none;
-        opacity: 0;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
       }
 
-      .modal-wrapper.open {
-        display: block;
+      .nx-modal.open {
+        display: flex;
       }
 
-      .modal-wrapper.open.animating {
-        opacity: 1;
-      }
-
-      /* Backdrop */
-      .modal-backdrop {
+      .nx-modal-backdrop {
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
         background: var(--backdrop-bg);
-        transition: opacity var(--animation-duration) ease-out;
         opacity: 0;
+        transition: opacity 0.3s;
       }
 
-      .modal-wrapper.animating .modal-backdrop {
+      .nx-modal.open .nx-modal-backdrop {
         opacity: 1;
       }
 
-      /* Container */
-      .modal-container {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
-        padding: 2rem;
-        overflow-y: auto;
-      }
-
-      .modal-container.centered {
-        align-items: center;
-      }
-
-      /* Modal */
-      .modal {
+      .nx-modal-dialog {
         position: relative;
         background: var(--modal-bg);
-        border-radius: var(--modal-radius);
+        border-radius: 0.5rem;
         box-shadow: var(--modal-shadow);
-        width: 100%;
-        max-width: 500px;
-        margin: 2rem auto;
+        max-height: 90vh;
         display: flex;
         flex-direction: column;
-        max-height: calc(100vh - 4rem);
+        opacity: 0;
+        transform: scale(0.9);
+        transition: all 0.3s;
+      }
+
+      .nx-modal.open .nx-modal-dialog {
+        opacity: 1;
+        transform: scale(1);
       }
 
       /* Sizes */
-      .modal-sm { max-width: 300px; }
-      .modal-md { max-width: 500px; }
-      .modal-lg { max-width: 800px; }
-      .modal-xl { max-width: 1140px; }
-      .modal-full { 
-        max-width: calc(100vw - 4rem); 
-        max-height: calc(100vh - 4rem);
-        margin: 2rem;
-      }
-
-      /* Animations */
-      .modal-wrapper.fade .modal {
-        transition: all var(--animation-duration) ease-out;
-        opacity: 0;
-        transform: scale(0.95);
-      }
-
-      .modal-wrapper.fade.animating .modal {
-        opacity: 1;
-        transform: scale(1);
-      }
-
-      .modal-wrapper.slide .modal {
-        transition: all var(--animation-duration) ease-out;
-        transform: translateY(-50px);
-        opacity: 0;
-      }
-
-      .modal-wrapper.slide.animating .modal {
-        transform: translateY(0);
-        opacity: 1;
-      }
-
-      .modal-wrapper.scale .modal {
-        transition: all var(--animation-duration) cubic-bezier(0.34, 1.56, 0.64, 1);
-        transform: scale(0);
-        opacity: 0;
-      }
-
-      .modal-wrapper.scale.animating .modal {
-        transform: scale(1);
-        opacity: 1;
-      }
-
-      .modal-wrapper.none .modal {
-        transition: none;
-      }
+      .size-sm { width: 90%; max-width: 400px; }
+      .size-md { width: 90%; max-width: 600px; }
+      .size-lg { width: 90%; max-width: 800px; }
+      .size-xl { width: 90%; max-width: 1200px; }
+      .size-full { width: 95%; height: 95%; max-width: none; }
 
       /* Header */
-      .modal-header {
+      .nx-modal-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 1.5rem;
-        border-bottom: 1px solid var(--modal-border);
-        flex-shrink: 0;
+        border-bottom: 1px solid var(--border-color);
       }
 
-      .modal-title {
+      .nx-modal-title {
         margin: 0;
         font-size: 1.25rem;
         font-weight: 600;
-        color: var(--color-text);
-        flex: 1;
       }
 
-      .modal-close {
-        background: none;
-        border: none;
+      .nx-modal-close {
+        width: 2.5rem;
+        height: 2.5rem;
         padding: 0.5rem;
-        margin: -0.5rem -0.5rem -0.5rem 0.5rem;
+        border: none;
+        background: transparent;
         cursor: pointer;
-        color: var(--color-text-secondary);
-        border-radius: var(--radius-sm);
+        border-radius: 0.25rem;
+        color: var(--text-color-secondary);
         transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
       }
 
-      .modal-close:hover {
-        background: var(--color-background);
-        color: var(--color-text);
+      .nx-modal-close:hover {
+        background: var(--hover-bg);
+        color: var(--text-color);
       }
 
-      .modal-close:focus {
-        outline: 2px solid var(--color-primary);
-        outline-offset: 2px;
-      }
-
-      .modal-close-icon {
-        width: 1.25rem;
-        height: 1.25rem;
+      .nx-modal-close svg {
+        width: 100%;
+        height: 100%;
+        fill: currentColor;
       }
 
       /* Body */
-      .modal-body {
+      .nx-modal-body {
         flex: 1;
         padding: 1.5rem;
         overflow-y: auto;
-        color: var(--color-text);
-      }
-
-      .modal-content {
-        line-height: 1.6;
       }
 
       /* Footer */
-      .modal-footer {
+      .nx-modal-footer {
         display: flex;
         align-items: center;
         justify-content: flex-end;
         gap: 0.75rem;
-        padding: 1rem 1.5rem;
-        border-top: 1px solid var(--modal-border);
-        flex-shrink: 0;
+        padding: 1.5rem;
+        border-top: 1px solid var(--border-color);
       }
 
-      /* Buttons */
-      .modal-button {
+      .nx-modal-button {
         padding: 0.5rem 1rem;
-        border-radius: var(--radius-md);
+        border: none;
+        border-radius: 0.25rem;
+        font-family: inherit;
+        font-size: 0.875rem;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s;
-        border: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
       }
 
-      .modal-button:focus {
-        outline: 2px solid var(--color-primary);
-        outline-offset: 2px;
-      }
-
-      .modal-button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      .button-primary {
+      .nx-modal-button.primary {
         background: var(--color-primary);
         color: white;
       }
 
-      .button-primary:hover:not(:disabled) {
+      .nx-modal-button.primary:hover {
         background: var(--color-primary-dark);
       }
 
-      .button-secondary {
-        background: var(--color-background);
-        color: var(--color-text);
-        border: 1px solid var(--color-border);
-      }
-
-      .button-secondary:hover:not(:disabled) {
-        background: var(--color-surface);
-      }
-
-      .button-danger {
-        background: var(--color-error);
-        color: white;
-      }
-
-      .button-danger:hover:not(:disabled) {
-        filter: brightness(0.9);
-      }
-
-      .button-ghost {
+      .nx-modal-button.secondary {
         background: transparent;
-        color: var(--color-text);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
       }
 
-      .button-ghost:hover:not(:disabled) {
-        background: var(--color-background);
+      .nx-modal-button.secondary:hover {
+        background: var(--hover-bg);
       }
 
-      /* Loading state */
-      .button-spinner {
-        width: 1rem;
-        height: 1rem;
-        border: 2px solid currentColor;
-        border-right-color: transparent;
-        border-radius: 50%;
-        animation: spin 0.6s linear infinite;
+      /* Animations */
+      .animation-slide .nx-modal-dialog {
+        transform: translateY(2rem);
       }
 
-      @keyframes spin {
-        to { transform: rotate(360deg); }
+      .animation-slide.open .nx-modal-dialog {
+        transform: translateY(0);
       }
 
-      /* Mobile responsiveness */
-      @media (max-width: 640px) {
-        .modal-container {
-          padding: 1rem;
-        }
+      .animation-scale .nx-modal-dialog {
+        transform: scale(0.7);
+      }
 
-        .modal {
-          margin: 0;
-          max-height: 100%;
-          border-radius: 0;
-        }
+      .animation-scale.open .nx-modal-dialog {
+        transform: scale(1);
+      }
 
-        .modal-full {
-          max-width: 100%;
-          max-height: 100%;
-          margin: 0;
-        }
+      .animation-none .nx-modal-backdrop,
+      .animation-none .nx-modal-dialog {
+        transition: none;
       }
     `;
   }
 
   protected afterRender(): void {
     // Close button
-    this.on('.modal-close', 'click', () => this.close());
+    const closeBtn = this.$('.nx-modal-close');
+    if (closeBtn) {
+      this.on(closeBtn, 'click', () => this.close());
+    }
 
     // Backdrop click
-    const backdrop = this.$('.modal-backdrop');
-    if (backdrop && this.getProp('backdrop') !== 'static') {
-      backdrop.addEventListener('click', () => {
-        if (this.getProp('backdrop') !== false) {
+    const backdrop = this.$('.nx-modal-backdrop');
+    if (backdrop && this.getProp('close-on-backdrop', true)) {
+      this.on(backdrop, 'click', () => this.close());
+    }
+
+    // Footer buttons
+    this.$$('.nx-modal-button').forEach(btn => {
+      this.on(btn, 'click', (e: Event) => {
+        const action = (e.target as HTMLElement).dataset.action;
+        if (action === 'cancel') {
+          this.close();
+        } else if (action === 'confirm') {
+          this.confirm();
+        }
+      });
+    });
+
+    // Escape key
+    if (this.getProp('close-on-escape', true)) {
+      this.on(document, 'keydown', (e: Event) => {
+        const keyEvent = e as KeyboardEvent;
+        if (keyEvent.key === 'Escape' && this.getState('open')) {
           this.close();
         }
       });
     }
 
-    // Button handlers
-    this.$$('.modal-button').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const index = parseInt((btn as HTMLElement).dataset.index || '0');
-        const buttons = this.getState('buttons', []) as ModalButton[];
-        const button = buttons[index];
-
-        if (button?.handler) {
-          // Set loading state
-          if (button.loading !== false) {
-            this.setButtonLoading(index, true);
-          }
-
-          try {
-            await button.handler(this);
-            // Handler might close the modal, so check if still connected
-            if (this.isConnected && button.loading !== false) {
-              this.setButtonLoading(index, false);
-            }
-          } catch (error) {
-            console.error('Modal button handler error:', error);
-            this.setButtonLoading(index, false);
-          }
-        }
-      });
-    });
-
-    // Keyboard handling
-    if (this.getProp('keyboard', true)) {
-      this.handleKeyboard();
-    }
-
-    // Focus management
-    if (this.getState('open') && this.getProp('autoFocus', true)) {
-      this.manageFocus();
-    }
-  }
-
-  private handleKeyboard(): void {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && this.getState('open')) {
-        e.preventDefault();
-        this.close();
-      }
-    };
-
-    document.addEventListener('keydown', handler);
-    
-    // Store for cleanup
-    this[ComponentState].set('keyboardHandler', handler);
-  }
-
-  private manageFocus(): void {
-    // Store previously focused element
-    this.previousFocus = document.activeElement as HTMLElement;
-
-    // Focus first focusable element
-    requestAnimationFrame(() => {
-      const focusable = this.shadow?.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-
-      if (focusable && focusable.length > 0) {
-        (focusable[0] as HTMLElement).focus();
-      }
-
-      // Set up focus trap
+    // Focus trap
+    if (this.getState('open')) {
       this.setupFocusTrap();
-    });
+    }
   }
 
   private setupFocusTrap(): void {
-    const modalElement = this.$('.modal');
-    if (!modalElement) return;
+    const focusableElements = this.$$('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
 
-    const focusableElements = modalElement.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
+    firstElement?.focus();
 
-    const firstFocusable = focusableElements[0] as HTMLElement;
-    const lastFocusable = focusableElements[focusableElements.length - 1] as HTMLElement;
-
-    modalElement.addEventListener('keydown', (e) => {
-      if (e.key !== 'Tab') return;
-
-      if (e.shiftKey) {
-        if (document.activeElement === firstFocusable) {
-          e.preventDefault();
-          lastFocusable?.focus();
-        }
-      } else {
-        if (document.activeElement === lastFocusable) {
-          e.preventDefault();
-          firstFocusable?.focus();
+    this.on(this.shadow!, 'keydown', (e: Event) => {
+      const keyEvent = e as KeyboardEvent;
+      if (keyEvent.key === 'Tab') {
+        if (keyEvent.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement?.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement?.focus();
+          }
         }
       }
     });
   }
 
-  private setButtonLoading(index: number, loading: boolean): void {
-    const buttons = [...(this.getState('buttons', []) as ModalButton[])];
-    if (buttons[index]) {
-      buttons[index] = { ...buttons[index], loading, disabled: loading };
-      this.setState('buttons', buttons);
-    }
-  }
-
-  private hasHeaderSlot(): boolean {
-    return !!this.querySelector('[slot="header"]');
-  }
-
-  private hasFooterSlot(): boolean {
-    return !!this.querySelector('[slot="footer"]');
-  }
-
-  protected cleanup(): void {
-    // Remove keyboard handler
-    const handler = this.getState('keyboardHandler');
-    if (handler) {
-      document.removeEventListener('keydown', handler);
-    }
-
-    // Restore focus
-    if (this.previousFocus && this.previousFocus.focus) {
-      this.previousFocus.focus();
-    }
-  }
-
-  // Public API
-
-  /**
-   * Open the modal
-   */
-  async open(): Promise<void> {
-    if (this.getState('open')) return;
-
+  open(): void {
     this.setState('open', true);
-    this.setState('animating', false);
+    this.setState('animating', true);
+    this.setAttribute('open', '');
 
-    // Trigger animation
-    requestAnimationFrame(() => {
-      this.setState('animating', true);
-      this.dispatchEvent(new CustomEvent('open'));
-    });
+    // Prevent body scroll
+    document.body.style.overflow = 'hidden';
+
+    this.setTimeout(() => {
+      this.setState('animating', false);
+      this.emit('open');
+    }, 300);
   }
 
-  /**
-   * Close the modal
-   */
-  async close(): Promise<void> {
-    if (!this.getState('open')) return;
-
-    this.setState('animating', false);
-
-    // Wait for animation
-    const animation = this.getProp('animation', 'fade');
-    const duration = animation === 'none' ? 0 : 300;
-
-    setTimeout(() => {
+  close(): void {
+    this.setState('animating', true);
+    
+    this.setTimeout(() => {
       this.setState('open', false);
-      this.cleanup();
-      this.dispatchEvent(new CustomEvent('close'));
-    }, duration);
+      this.setState('animating', false);
+      this.removeAttribute('open');
+      
+      // Restore body scroll
+      document.body.style.overflow = '';
+      
+      this.emit('close');
+    }, 300);
   }
 
-  /**
-   * Toggle modal open/close
-   */
-  toggle(): void {
-    if (this.getState('open')) {
-      this.close();
-    } else {
-      this.open();
+  confirm(): void {
+    this.emit('confirm');
+    this.close();
+  }
+
+  show(config?: ModalConfig): void {
+    if (config) {
+      Object.entries(config).forEach(([key, value]) => {
+        this.setAttribute(key, String(value));
+      });
+    }
+    this.open();
+  }
+
+  protected onAttributeChange(name: string, _oldValue: string | null, newValue: string | null): void {
+    if (name === 'open') {
+      if (newValue !== null) {
+        this.open();
+      } else {
+        this.close();
+      }
     }
   }
-
-  /**
-   * Update modal content
-   */
-  setContent(content: string): void {
-    this.setState('content', content);
-  }
-
-  /**
-   * Update modal buttons
-   */
-  setButtons(buttons: ModalButton[]): void {
-    this.setState('buttons', buttons);
-  }
-
-  /**
-   * Static helper to create and show a modal
-   */
-  static async show(config: ModalConfig & { parent?: HTMLElement }): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const modal = new NXModal({
-        ...config,
-        buttons: config.buttons || [
-          {
-            text: 'Cancel',
-            variant: 'secondary',
-            handler: (m) => {
-              m.close();
-              reject('cancelled');
-            }
-          },
-          {
-            text: 'OK',
-            variant: 'primary',
-            handler: (m) => {
-              m.close();
-              resolve(true);
-            }
-          }
-        ]
-      });
-
-      modal.addEventListener('close', () => {
-        modal.remove();
-      });
-
-      const parent = config.parent || document.body;
-      parent.appendChild(modal);
-      modal.open();
-    });
-  }
-
-  /**
-   * Static helper for confirm dialog
-   */
-  static confirm(message: string, title = 'Confirm'): Promise<boolean> {
-    return NXModal.show({
-      title,
-      content: message,
-      size: 'sm',
-      buttons: [
-        {
-          text: 'Cancel',
-          variant: 'secondary',
-          handler: (m) => m.close()
-        },
-        {
-          text: 'Confirm',
-          variant: 'primary',
-          handler: (m) => m.close()
-        }
-      ]
-    });
-  }
-
-  /**
-   * Static helper for alert dialog
-   */
-  static alert(message: string, title = 'Alert'): Promise<void> {
-    return NXModal.show({
-      title,
-      content: message,
-      size: 'sm',
-      buttons: [
-        {
-          text: 'OK',
-          variant: 'primary',
-          handler: (m) => m.close()
-        }
-      ]
-    });
-  }
-}
-
-// Focus trap helper
-interface FocusTrap {
-  activate(): void;
-  deactivate(): void;
 }
 
 customElements.define('nx-modal', NXModal);

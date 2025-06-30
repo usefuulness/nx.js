@@ -1,139 +1,78 @@
-// src/components/ui/menu.ts
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
 
 export interface MenuItem {
   id?: string;
   text: string;
   icon?: string;
-  href?: string;
   disabled?: boolean;
   divider?: boolean;
-  checked?: boolean;
-  group?: string;
-  shortcut?: string;
   submenu?: MenuItem[];
-  handler?: () => void;
+  action?: () => void;
 }
 
 export interface MenuConfig {
   items?: MenuItem[];
-  trigger?: 'click' | 'hover' | 'contextmenu';
-  position?: 'auto' | 'bottom' | 'top' | 'left' | 'right';
-  closeOnClick?: boolean;
-  showIcons?: boolean;
-  showShortcuts?: boolean;
-  width?: string | number;
-  onSelect?: (item: MenuItem) => void;
+  trigger?: 'click' | 'hover';
 }
 
-/**
- * Dropdown menu component
- */
 export class NXMenu extends BaseComponent {
   static get observedAttributes(): string[] {
-    return ['trigger', 'position', 'close-on-click', 'show-icons', 'show-shortcuts', 'width', 'open'];
+    return ['trigger'];
   }
-
-  private items: MenuItem[] = [];
-  private activeSubmenu: string | null = null;
 
   protected initializeState(): void {
+    this[ComponentState].set('items', []);
     this[ComponentState].set('open', false);
-    this[ComponentState].set('position', { top: 0, left: 0 });
+    this[ComponentState].set('activeSubmenu', null);
   }
 
-  constructor(config?: MenuConfig) {
+  constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    
-    if (config) {
-      this.configure(config);
-    }
-  }
-
-  configure(config: MenuConfig): void {
-    if (config.items) {
-      this.setItems(config.items);
-    }
-    
-    Object.entries(config).forEach(([key, value]) => {
-      if (key === 'onSelect') {
-        this[ComponentState].set(key, value);
-      } else if (key !== 'items') {
-        const attrName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-        this.setAttribute(attrName, String(value));
-      }
-    });
   }
 
   setItems(items: MenuItem[]): void {
-    this.items = items.map((item, index) => ({
-      ...item,
-      id: item.id || `item-${index}`
-    }));
-    this.update();
+    this.setState('items', items);
   }
 
   protected render(): string {
+    const items = this.getState<MenuItem[]>('items', []);
     const open = this.getState('open', false);
-    const showIcons = this.getProp('show-icons', true) ?? true;
-    const showShortcuts = this.getProp('show-shortcuts', true) ?? true;
-    const width = this.getProp('width');
-    const position = this.getState('position', { top: 0, left: 0 }) ?? { top: 0, left: 0 };
-
-    const style = `
-      ${width ? `width: ${typeof width === 'number' ? width + 'px' : width};` : ''}
-      top: ${(position?.top ?? 0)}px;
-      left: ${(position?.left ?? 0)}px;
-    `;
 
     return `
-      <div class="nx-menu-container ${open ? 'open' : ''}" part="container">
+      <div class="nx-menu ${open ? 'open' : ''}" part="container">
         <slot name="trigger"></slot>
-        <div class="nx-menu ${open ? 'open' : ''}" 
-             part="menu"
-             role="menu"
-             style="${style}">
-          ${this.renderItems(this.items, showIcons, showShortcuts)}
+        <div class="nx-menu-dropdown" part="dropdown" role="menu">
+          ${this.renderMenuItems(items)}
         </div>
       </div>
     `;
   }
 
-  private renderItems(items: MenuItem[], showIcons: boolean, showShortcuts: boolean): string {
-    return items.map(item => {
+  private renderMenuItems(items: MenuItem[]): string {
+    return items.map((item, index) => {
       if (item.divider) {
-        return '<div class="nx-menu-divider" role="separator"></div>';
+        return '<div class="nx-menu-divider" part="divider" role="separator"></div>';
       }
 
       const hasSubmenu = item.submenu && item.submenu.length > 0;
-      const isActive = this.activeSubmenu === item.id;
+      const isActive = this.getState('activeSubmenu') === item.id;
 
       return `
         <div class="nx-menu-item ${item.disabled ? 'disabled' : ''} ${hasSubmenu ? 'has-submenu' : ''}"
+             part="item"
              role="menuitem"
-             aria-disabled="${item.disabled}"
-             ${hasSubmenu ? 'aria-haspopup="true" aria-expanded="' + isActive + '"' : ''}
-             data-item-id="${item.id}"
+             data-item-id="${item.id || index}"
+             ${item.disabled ? 'aria-disabled="true"' : ''}
              tabindex="${item.disabled ? -1 : 0}">
-          ${showIcons ? `
-            <span class="nx-menu-icon">
-              ${item.icon ? this.renderIcon(item.icon) : ''}
-              ${item.checked !== undefined ? this.renderCheckbox(item.checked) : ''}
-            </span>
-          ` : ''}
-          <span class="nx-menu-text">${item.text}</span>
-          ${showShortcuts && item.shortcut ? `
-            <span class="nx-menu-shortcut">${item.shortcut}</span>
-          ` : ''}
+          ${item.icon ? `<span class="nx-menu-icon" part="icon">${item.icon}</span>` : ''}
+          <span class="nx-menu-text" part="text">${item.text}</span>
           ${hasSubmenu ? `
-            <span class="nx-menu-arrow">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </span>
-            <div class="nx-submenu ${isActive ? 'open' : ''}">
-              ${this.renderItems(item.submenu!, showIcons, showShortcuts)}
+            <svg class="nx-menu-submenu-icon" viewBox="0 0 24 24">
+              <path d="M9 5l7 7-7 7"/>
+            </svg>
+            <div class="nx-menu-submenu ${isActive ? 'active' : ''}" part="submenu">
+              ${this.renderMenuItems(item.submenu!)}
             </div>
           ` : ''}
         </div>
@@ -141,80 +80,53 @@ export class NXMenu extends BaseComponent {
     }).join('');
   }
 
-  private renderIcon(icon: string): string {
-    if (icon.startsWith('<svg')) {
-      return icon;
-    } else if (icon.startsWith('icon-')) {
-      return `<i class="${icon}"></i>`;
-    } else {
-      return icon;
-    }
-  }
-
-  private renderCheckbox(checked: boolean): string {
-    if (!checked) return '';
-    
-    return `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M20 6L9 17l-5-5"/>
-      </svg>
-    `;
-  }
-
   protected styles(): string {
     return `
       :host {
-        --menu-bg: var(--color-surface);
-        --menu-border: var(--color-border);
-        --menu-shadow: var(--shadow-lg);
-        --menu-radius: var(--radius-md);
-        --item-height: 2rem;
-        --item-padding: 0.5rem 1rem;
-        --item-hover: var(--color-background);
         display: inline-block;
-      }
-
-      .nx-menu-container {
         position: relative;
       }
 
       .nx-menu {
-        position: fixed;
-        background: var(--menu-bg);
-        border: 1px solid var(--menu-border);
-        border-radius: var(--menu-radius);
-        box-shadow: var(--menu-shadow);
-        min-width: 180px;
-        max-width: 320px;
-        padding: 0.5rem 0;
+        position: relative;
+      }
+
+      .nx-menu-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        min-width: 200px;
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 0.25rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 0.25rem;
+        z-index: 1000;
         opacity: 0;
         visibility: hidden;
         transform: translateY(-0.5rem);
         transition: all 0.2s;
-        z-index: 1000;
       }
 
-      .nx-menu.open {
+      .nx-menu.open .nx-menu-dropdown {
         opacity: 1;
         visibility: visible;
         transform: translateY(0);
       }
 
-      /* Menu items */
       .nx-menu-item {
+        position: relative;
         display: flex;
         align-items: center;
-        min-height: var(--item-height);
-        padding: var(--item-padding);
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.25rem;
         cursor: pointer;
-        transition: background-color 0.15s;
-        position: relative;
-        color: var(--color-text);
-        text-decoration: none;
+        transition: background-color 0.2s;
       }
 
       .nx-menu-item:hover:not(.disabled) {
-        background: var(--item-hover);
+        background: var(--hover-bg);
       }
 
       .nx-menu-item:focus {
@@ -228,250 +140,194 @@ export class NXMenu extends BaseComponent {
       }
 
       .nx-menu-icon {
+        flex-shrink: 0;
         width: 1.25rem;
         height: 1.25rem;
-        margin-right: 0.75rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-      }
-
-      .nx-menu-icon:empty {
-        visibility: hidden;
-      }
-
-      .nx-menu-icon svg {
-        width: 100%;
-        height: 100%;
       }
 
       .nx-menu-text {
         flex: 1;
-        font-size: 0.875rem;
       }
 
-      .nx-menu-shortcut {
-        margin-left: 2rem;
-        font-size: 0.75rem;
-        color: var(--color-text-secondary);
-      }
-
-      .nx-menu-arrow {
-        width: 1rem;
-        height: 1rem;
-        margin-left: 0.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .nx-menu-arrow svg {
-        width: 100%;
-        height: 100%;
-      }
-
-      /* Divider */
       .nx-menu-divider {
         height: 1px;
-        background: var(--menu-border);
-        margin: 0.5rem 0;
+        background: var(--border-color);
+        margin: 0.25rem 0;
       }
 
-      /* Submenu */
-      .nx-submenu {
+      .nx-menu-submenu-icon {
+        width: 1rem;
+        height: 1rem;
+        fill: currentColor;
+        margin-left: auto;
+      }
+
+      .nx-menu-submenu {
         position: absolute;
-        top: -0.5rem;
+        top: 0;
         left: 100%;
-        background: var(--menu-bg);
-        border: 1px solid var(--menu-border);
-        border-radius: var(--menu-radius);
-        box-shadow: var(--menu-shadow);
-        min-width: 180px;
-        padding: 0.5rem 0;
+        min-width: 200px;
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 0.25rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 0.25rem;
+        margin-left: 0.25rem;
         opacity: 0;
         visibility: hidden;
         transform: translateX(-0.5rem);
         transition: all 0.2s;
       }
 
-      .nx-submenu.open {
+      .nx-menu-item:hover .nx-menu-submenu,
+      .nx-menu-submenu.active {
         opacity: 1;
         visibility: visible;
-        transform: translateX(0.25rem);
-      }
-
-      /* Position adjustments */
-      .nx-menu-item:hover > .nx-submenu {
-        opacity: 1;
-        visibility: visible;
-        transform: translateX(0.25rem);
-      }
-
-      /* Mobile */
-      @media (max-width: 640px) {
-        .nx-menu {
-          position: absolute;
-          max-width: calc(100vw - 2rem);
-        }
-        
-        .nx-submenu {
-          position: static;
-          margin-left: 1rem;
-          margin-top: 0.25rem;
-          transform: none;
-        }
+        transform: translateX(0);
       }
     `;
   }
 
   protected afterRender(): void {
     const trigger = this.getProp('trigger', 'click');
-    const closeOnClick = this.getProp('close-on-click', true);
     
-    // Setup trigger
-    const triggerEl = this.querySelector('[slot="trigger"]');
-    if (triggerEl) {
+    // Trigger handling
+    const triggerSlot = this.$('slot[name="trigger"]') as HTMLSlotElement;
+    const triggerElements = triggerSlot?.assignedElements() || [];
+    
+    triggerElements.forEach(el => {
       if (trigger === 'click') {
-        triggerEl.addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.toggle();
-        });
-      } else if (trigger === 'hover') {
-        triggerEl.addEventListener('mouseenter', () => this.open());
-        this.addEventListener('mouseleave', () => this.close());
-      } else if (trigger === 'contextmenu') {
-        triggerEl.addEventListener('contextmenu', (e) => {
-          e.preventDefault();
-          const mouseEvent = e as MouseEvent;
-          this.openAt(mouseEvent.clientX, mouseEvent.clientY);
-        });
+        this.on(el, 'click', () => this.toggle());
+      } else {
+        this.on(el, 'mouseenter', () => this.open());
+        this.on(el, 'mouseleave', () => this.close());
       }
-    }
+    });
 
-    // Menu item clicks
-    this.$$('.nx-menu-item').forEach(item => {
-      item.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const itemId = (item as HTMLElement).dataset.itemId;
-        const menuItem = this.findItem(itemId!);
+    // Menu items
+    this.$$('.nx-menu-item:not(.disabled)').forEach(item => {
+      this.on(item, 'click', (e: Event) => {
+        const itemEl = e.currentTarget as HTMLElement;
+        const itemId = itemEl.dataset.itemId;
+        const menuItem = this.findMenuItem(itemId!);
         
-        if (menuItem && !menuItem.disabled) {
-          if (menuItem.handler) {
-            menuItem.handler();
-          }
-          
-          if (menuItem.href) {
-            window.location.href = menuItem.href;
-          }
-          
-          const onSelect = this.getState('onSelect');
-          if (onSelect) onSelect(menuItem);
-          
-          this.dispatchEvent(new CustomEvent('select', { detail: { item: menuItem } }));
-          
-          if (closeOnClick && !menuItem.submenu) {
-            this.close();
-          }
+        if (menuItem && !menuItem.submenu) {
+          menuItem.action?.();
+          this.close();
+          this.emit('select', { item: menuItem });
         }
       });
 
-      // Submenu handling
-      if (item.classList.contains('has-submenu')) {
-        item.addEventListener('mouseenter', () => {
-          const itemId = (item as HTMLElement).dataset.itemId;
-          this.activeSubmenu = itemId!;
-          this.update();
-        });
-      }
+      this.on(item, 'keydown', (e: Event) => {
+        this.handleKeyboard(e as KeyboardEvent);
+      });
     });
 
     // Close on outside click
-    document.addEventListener('click', () => this.close());
-    
-    // Keyboard navigation
-    this.setupKeyboardNavigation();
-  }
-
-  private setupKeyboardNavigation(): void {
-    const menu = this.$('.nx-menu');
-    if (!menu) return;
-
-    menu.addEventListener('keydown', (e) => {
-      const items = Array.from(this.$$('.nx-menu-item:not(.disabled)'));
-      const currentIndex = items.findIndex(item => item === document.activeElement);
-
-      switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault();
-          const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
-          (items[nextIndex] as HTMLElement).focus();
-          break;
-          
-        case 'ArrowUp':
-          e.preventDefault();
-          const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
-          (items[prevIndex] as HTMLElement).focus();
-          break;
-          
-        case 'Enter':
-        case ' ':
-          e.preventDefault();
-          if (currentIndex >= 0) {
-            items[currentIndex].dispatchEvent(new Event('click'));
-          }
-          break;
-          
-        case 'Escape':
-          e.preventDefault();
-          this.close();
-          break;
+    this.on(document, 'click', (e: Event) => {
+      if (!this.contains(e.target as Node)) {
+        this.close();
       }
     });
   }
 
-  private findItem(id: string): MenuItem | null {
-    const search = (items: MenuItem[]): MenuItem | null => {
+  private handleKeyboard(e: KeyboardEvent): void {
+    switch (e.key) {
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        (e.target as HTMLElement).click();
+        break;
+
+      case 'Escape':
+        e.preventDefault();
+        this.close();
+        break;
+
+      case 'ArrowDown':
+        e.preventDefault();
+        this.focusNext(e.target as HTMLElement);
+        break;
+
+      case 'ArrowUp':
+        e.preventDefault();
+        this.focusPrevious(e.target as HTMLElement);
+        break;
+
+      case 'ArrowRight':
+        e.preventDefault();
+        this.openSubmenu(e.target as HTMLElement);
+        break;
+
+      case 'ArrowLeft':
+        e.preventDefault();
+        this.closeSubmenu();
+        break;
+    }
+  }
+
+  private focusNext(current: HTMLElement): void {
+    const items = Array.from(this.$$('.nx-menu-item:not(.disabled)'));
+    const index = items.indexOf(current);
+    const next = items[index + 1] || items[0];
+    (next as HTMLElement).focus();
+  }
+
+  private focusPrevious(current: HTMLElement): void {
+    const items = Array.from(this.$$('.nx-menu-item:not(.disabled)'));
+    const index = items.indexOf(current);
+    const prev = items[index - 1] || items[items.length - 1];
+    (prev as HTMLElement).focus();
+  }
+
+  private openSubmenu(item: HTMLElement): void {
+    const itemId = item.dataset.itemId;
+    const menuItem = this.findMenuItem(itemId!);
+    if (menuItem?.submenu) {
+      this.setState('activeSubmenu', itemId);
+    }
+  }
+
+  private closeSubmenu(): void {
+    this.setState('activeSubmenu', null);
+  }
+
+  private findMenuItem(id: string): MenuItem | null {
+    const items = this.getState<MenuItem[]>('items', []);
+    
+    const find = (items: MenuItem[]): MenuItem | null => {
       for (const item of items) {
-        if (item.id === id) return item;
+        if ((item.id || items.indexOf(item).toString()) === id) {
+          return item;
+        }
         if (item.submenu) {
-          const found = search(item.submenu);
+          const found = find(item.submenu);
           if (found) return found;
         }
       }
       return null;
     };
     
-    return search(this.items);
+    return find(items);
   }
 
-  // Public API
   open(): void {
     this.setState('open', true);
-    this.dispatchEvent(new CustomEvent('open'));
+    this.emit('open');
   }
 
   close(): void {
     this.setState('open', false);
-    this.activeSubmenu = null;
-    this.dispatchEvent(new CustomEvent('close'));
+    this.setState('activeSubmenu', null);
+    this.emit('close');
   }
 
   toggle(): void {
-    if (this.getState('open')) {
+    if (this.getState('open', false)) {
       this.close();
     } else {
       this.open();
     }
-  }
-
-  openAt(x: number, y: number): void {
-    this.setState('position', { top: y, left: x });
-    this.open();
-  }
-
-  isOpen(): boolean {
-    return this.getState('open', false) || false;
   }
 }
 

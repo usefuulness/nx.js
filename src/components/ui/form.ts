@@ -1,51 +1,51 @@
-// form.ts
+import { BaseComponent, ComponentState } from '@/components/abstracts/base';
 
-import { NXDataComponent } from '@/components/abstracts/data';
+export interface FormConfig {
+  method?: 'get' | 'post';
+  action?: string;
+  noValidate?: boolean;
+  onSubmit?: (data: FormData) => void;
+}
 
-/**
- * Abstract form component that wraps a native `<form>` and manages its data.
- *
- * @template T Shape of the form’s data object.
- */
-export abstract class NXFormComponent<T extends Record<string, any> = Record<string, any>> extends NXDataComponent<T> {
-  /**
-   * Watch for `action` and `method` on the host.
-   */
+export class NXForm extends BaseComponent {
   static get observedAttributes(): string[] {
-    return ['action', 'method'];
+    return ['method', 'action', 'novalidate'];
   }
 
-  /**
-   * @param initialData - Optional starting values for form fields.
-   */
-  constructor(initialData: Partial<T> = {} as T) {
-    super(initialData as T);
+  protected initializeState(): void {
+    this[ComponentState].set('isValid', true);
+    this[ComponentState].set('isDirty', false);
+    this[ComponentState].set('errors', {});
+  }
+
+  constructor() {
+    super();
     this.attachShadow({ mode: 'open' });
   }
 
-  attributeChangedCallback(name: string, oldVal: string | null, newVal: string | null): void {
-    if (oldVal !== newVal) this.update();
-  }
-
-  /**
-   * Render the `<form>` wrapper. Override if you need custom structure.
-   */
   protected render(): string {
-    const action = this.getProp('action') || '';
-    const method = this.getProp('method') || 'get';
+    const method = this.getProp('method', 'post');
+    const action = this.getProp('action', '');
+    const noValidate = this.getProp('novalidate', false);
+
     return `
-      <form action="${action}" method="${method}">
+      <form class="nx-form" 
+            part="form"
+            method="${method}"
+            action="${action}"
+            ${noValidate ? 'novalidate' : ''}>
         <slot></slot>
       </form>
     `;
   }
 
-  /**
-   * Default styles for the form.
-   */
   protected styles(): string {
     return `
-      :host form {
+      :host {
+        display: block;
+      }
+
+      .nx-form {
         display: flex;
         flex-direction: column;
         gap: 1rem;
@@ -53,35 +53,60 @@ export abstract class NXFormComponent<T extends Record<string, any> = Record<str
     `;
   }
 
-  connectedCallback(): void {
-    this.update();
-    this.afterRender();
-  }
-
-  /**
-   * Re-render shadow DOM.
-   */
-  protected update(): void {
-    if (!this.shadow) return;
-    this.shadow.innerHTML = `
-      <style>${this.styles()}</style>
-      ${this.render()}
-    `;
-  }
-
-  /**
-   * After render: wire up `submit` to collect data & emit a `submit` event.
-   */
   protected afterRender(): void {
-    const form = this.shadow?.querySelector('form');
-    if (!form) return;
-    form.addEventListener('submit', (e: Event) => {
-      e.preventDefault();
-      const fd = new FormData(form as HTMLFormElement);
-      const data: Record<string, any> = {};
-      fd.forEach((v, k) => (data[k] = v));
-      this.setData(data as T);
-      this.dispatchEvent(new CustomEvent('submit', { detail: this.getData() }));
+    const form = this.$('form') as HTMLFormElement;
+    if (form) {
+      this.on(form, 'submit', (e: Event) => this.handleSubmit(e));
+      this.on(form, 'reset', () => this.handleReset());
+      this.on(form, 'change', () => this.setState('isDirty', true));
+    }
+  }
+
+  private handleSubmit(e: Event): void {
+    e.preventDefault();
+    
+    const form = this.$('form') as HTMLFormElement;
+    const formData = new FormData(form);
+    
+    if (this.validate()) {
+      this.emit('submit', Object.fromEntries(formData));
+    }
+  }
+
+  private handleReset(): void {
+    this.setState('isDirty', false);
+    this.setState('errors', {});
+    this.setState('isValid', true);
+    this.emit('reset');
+  }
+
+  validate(): boolean {
+    const form = this.$('form') as HTMLFormElement;
+    const isValid = form.checkValidity();
+    this.setState('isValid', isValid);
+    return isValid;
+  }
+
+  getData(): FormData {
+    const form = this.$('form') as HTMLFormElement;
+    return new FormData(form);
+  }
+
+  setData(data: Record<string, any>): void {
+    const form = this.$('form') as HTMLFormElement;
+    Object.entries(data).forEach(([_name, value]) => {
+      const input = form.elements.namedItem(_name) as HTMLInputElement;
+      if (input) {
+        input.value = String(value);
+      }
     });
   }
+
+  reset(): void {
+    const form = this.$('form') as HTMLFormElement;
+    form.reset();
+    this.handleReset();
+  }
 }
+
+customElements.define('nx-form', NXForm);

@@ -1,3 +1,5 @@
+import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+
 export interface LoaderConfig {
   type?: 'spinner' | 'dots' | 'bars' | 'pulse';
   size?: 'sm' | 'md' | 'lg';
@@ -7,9 +9,6 @@ export interface LoaderConfig {
   text?: string;
 }
 
-/**
- * Versatile loader component with different styles
- */
 export class NXLoader extends BaseComponent {
   static get observedAttributes(): string[] {
     return ['type', 'size', 'color', 'overlay', 'fullscreen', 'text', 'active'];
@@ -17,6 +16,11 @@ export class NXLoader extends BaseComponent {
 
   protected initializeState(): void {
     this[ComponentState].set('active', true);
+  }
+  
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
   }
 
   protected render(): string {

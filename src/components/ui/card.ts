@@ -3,7 +3,7 @@
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
 
-import { BaseComponent } from '@/components/abstracts/base';
+import { BaseComponent, ComponentState } from '@/components/abstracts/base';
 
 /**
  * A flexible card component with header, body, and footer slots.
@@ -17,111 +17,109 @@ import { BaseComponent } from '@/components/abstracts/base';
  * </nx-card>
  * ```
  */
+export interface CardConfig {
+  title?: string;
+  subtitle?: string;
+  headerActions?: any[];
+  footerActions?: any[];
+  elevation?: number;
+  padding?: boolean;
+}
+
 export class NXCard extends BaseComponent {
-  /**
-   * Attach shadow DOM and initialize rendering
-   */
+  static get observedAttributes(): string[] {
+    return ['title', 'subtitle', 'elevation', 'padding'];
+  }
+
+  protected initializeState(): void {
+    this[ComponentState].set('expanded', true);
+  }
+
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
   }
 
-  /**
-   * Called when the element is inserted into the DOM
-   */
-  connectedCallback(): void {
-    this.update();
-  }
+  protected render(): string {
+    const title = this.getProp('title');
+    const subtitle = this.getProp('subtitle');
+    const elevation = this.getProp('elevation', 1);
+    const padding = this.getProp('padding', true);
 
-  /**
-   * Observe attribute changes and re-render
-   */
-  static get observedAttributes(): string[] {
-    return ['disabled'];
-  }
-
-  /**
-   * Handle attribute changes
-   */
-  attributeChangedCallback(): void {
-    this.update();
-  }
-
-  /**
-   * Perform DOM update: re-render template and styles
-   */
-  private update(): void {
-    if (!this.shadowRoot) return;
-    this.shadowRoot.innerHTML = `
-      <style>${this.styles()}</style>
-      ${this.render()}
-    `;
-  }
-
-  /**
-   * Renders the card's template.
-   * @returns HTML string representing the component
-   */
-  public render(): string {
-    const disabled = this.hasAttribute('disabled');
-    return /* html */ `
-      <div class="card ${disabled ? 'disabled' : ''}">
-        <div class="card-header">
-          <slot name="header"></slot>
-        </div>
-        <div class="card-body">
+    return `
+      <div class="nx-card elevation-${elevation}" part="container">
+        ${title || subtitle ? `
+          <div class="nx-card-header" part="header">
+            <div class="nx-card-header-text">
+              ${title ? `<h3 class="nx-card-title" part="title">${title}</h3>` : ''}
+              ${subtitle ? `<p class="nx-card-subtitle" part="subtitle">${subtitle}</p>` : ''}
+            </div>
+            <div class="nx-card-header-actions" part="header-actions">
+              <slot name="header-actions"></slot>
+            </div>
+          </div>
+        ` : ''}
+        <div class="nx-card-content ${padding ? 'padded' : ''}" part="content">
           <slot></slot>
         </div>
-        <div class="card-footer">
+        <div class="nx-card-footer" part="footer">
           <slot name="footer"></slot>
         </div>
       </div>
     `;
   }
 
-  /**
-   * Defines scoped styles for the card.
-   * @returns CSS string
-   */
-  public styles(): string {
-    return /* css */ `
-      .card {
-        background-color: var(--color-surface, #ffffff);
-        border-radius: var(--radius-lg, 8px);
-        box-shadow: var(--shadow-md, 0 4px 6px rgba(0,0,0,0.1));
+  protected styles(): string {
+    return `
+      :host {
+        display: block;
+      }
+
+      .nx-card {
+        background: var(--surface-color);
+        border-radius: 0.25rem;
         overflow: hidden;
       }
 
-      .card.disabled {
-        opacity: 0.6;
-        pointer-events: none;
+      .elevation-0 { box-shadow: none; }
+      .elevation-1 { box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+      .elevation-2 { box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+      .elevation-3 { box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
+
+      .nx-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-color);
       }
 
-      .card-header {
-        padding: 1.5rem;
-        border-bottom: 1px solid var(--color-border, #e0e0e0);
-        font-weight: 600;
-        font-size: 1.125rem;
+      .nx-card-title {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 500;
       }
 
-      .card-body {
-        padding: 1.5rem;
+      .nx-card-subtitle {
+        margin: 0.25rem 0 0;
+        color: var(--text-color-secondary);
+        font-size: 0.875rem;
       }
 
-      .card-footer {
-        padding: 1rem 1.5rem;
-        border-top: 1px solid var(--color-border, #e0e0e0);
-        background-color: var(--color-background, #f9f9f9);
+      .nx-card-content {
+        min-height: 2rem;
       }
 
-      /* Hide empty header or footer */
-      .card-header:empty,
-      .card-footer:empty {
-        display: none;
+      .nx-card-content.padded {
+        padding: 1rem;
+      }
+
+      .nx-card-footer:not(:empty) {
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--border-color);
       }
     `;
   }
 }
 
-// Define the custom element
 customElements.define('nx-card', NXCard);

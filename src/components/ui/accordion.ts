@@ -1,123 +1,77 @@
-// src/components/ui/accordion.ts
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
 
-export interface AccordionPanel {
+export interface AccordionItem {
   id?: string;
   title: string;
   content?: string;
-  icon?: string;
-  disabled?: boolean;
   expanded?: boolean;
+  disabled?: boolean;
 }
 
 export interface AccordionConfig {
-  panels?: AccordionPanel[];
+  items?: AccordionItem[];
   multiple?: boolean;
   collapsible?: boolean;
-  animated?: boolean;
-  variant?: 'default' | 'filled' | 'separated';
-  expandIcon?: string;
-  onExpand?: (panel: AccordionPanel, index: number) => void;
-  onCollapse?: (panel: AccordionPanel, index: number) => void;
 }
 
-/**
- * Accordion component for collapsible content panels
- */
 export class NXAccordion extends BaseComponent {
   static get observedAttributes(): string[] {
-    return ['multiple', 'collapsible', 'animated', 'variant'];
+    return ['multiple', 'collapsible'];
   }
-
-  private panels: AccordionPanel[] = [];
 
   protected initializeState(): void {
-    this[ComponentState].set('expandedPanels', new Set<string>());
+    this[ComponentState].set('items', []);
+    this[ComponentState].set('expandedItems', new Set());
   }
 
-  constructor(config?: AccordionConfig) {
+  constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    
-    if (config) {
-      this.configure(config);
-    }
   }
 
-  configure(config: AccordionConfig): void {
-    if (config.panels) {
-      this.setPanels(config.panels);
-    }
-    
-    Object.entries(config).forEach(([key, value]) => {
-      if (['onExpand', 'onCollapse'].includes(key)) {
-        this[ComponentState].set(key, value);
-      } else if (key !== 'panels') {
-        const attrName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-        this.setAttribute(attrName, String(value));
+  setItems(items: AccordionItem[]): void {
+    this.setState('items', items);
+    const expanded = new Set<string>();
+    items.forEach((item, index) => {
+      if (item.expanded) {
+        expanded.add(item.id || String(index));
       }
     });
-  }
-
-  setPanels(panels: AccordionPanel[]): void {
-    this.panels = panels.map((panel, index) => ({
-      ...panel,
-      id: panel.id || `panel-${index}`
-    }));
-    
-    // Set initially expanded panels
-    const expandedPanels = new Set<string>();
-    this.panels.forEach(panel => {
-      if (panel.expanded) {
-        expandedPanels.add(panel.id!);
-      }
-    });
-    this.setState('expandedPanels', expandedPanels);
-    
-    this.update();
+    this.setState('expandedItems', expanded);
   }
 
   protected render(): string {
-    const variant = this.getProp('variant', 'default');
-    const animated = this.getProp('animated', true);
-    const expandedPanels = this.getState('expandedPanels', new Set<string>());
+    const items = this.getState<AccordionItem[]>('items', []);
+    const expandedItems = this.getState<Set<string>>('expandedItems', new Set());
 
     return `
-      <div class="nx-accordion nx-accordion-${variant} ${animated ? 'animated' : ''}" 
-           part="accordion"
-           role="presentation">
-        ${this.panels.map((panel, index) => {
-          const isExpanded = expandedPanels.has(panel.id!);
+      <div class="nx-accordion" part="container" role="region">
+        ${items.map((item, index) => {
+          const itemId = item.id || String(index);
+          const isExpanded = expandedItems.has(itemId);
           
           return `
-            <div class="nx-accordion-item ${isExpanded ? 'expanded' : ''} ${panel.disabled ? 'disabled' : ''}"
-                 part="item">
-              <button class="nx-accordion-header"
+            <div class="nx-accordion-item ${item.disabled ? 'disabled' : ''}" 
+                 part="item"
+                 data-item-id="${itemId}">
+              <button class="nx-accordion-header ${isExpanded ? 'expanded' : ''}" 
                       part="header"
-                      type="button"
-                      role="button"
                       aria-expanded="${isExpanded}"
-                      aria-controls="content-${panel.id}"
-                      ${panel.disabled ? 'disabled' : ''}
-                      data-panel-id="${panel.id}"
-                      data-index="${index}">
-                ${panel.icon ? `
-                  <span class="nx-accordion-icon" part="icon">
-                    ${this.renderIcon(panel.icon)}
-                  </span>
-                ` : ''}
-                <span class="nx-accordion-title" part="title">${panel.title}</span>
-                <span class="nx-accordion-expand-icon ${isExpanded ? 'expanded' : ''}" part="expand-icon">
-                  ${this.renderExpandIcon()}
-                </span>
+                      aria-controls="content-${itemId}"
+                      ${item.disabled ? 'disabled' : ''}>
+                <span class="nx-accordion-title">${item.title}</span>
+                <svg class="nx-accordion-icon" viewBox="0 0 24 24">
+                  <path d="M7 10l5 5 5-5z"/>
+                </svg>
               </button>
-              <div class="nx-accordion-content ${isExpanded ? 'expanded' : ''}"
+              <div id="content-${itemId}"
+                   class="nx-accordion-content ${isExpanded ? 'expanded' : ''}" 
                    part="content"
-                   id="content-${panel.id}"
                    role="region"
-                   aria-labelledby="header-${panel.id}">
+                   aria-labelledby="header-${itemId}">
                 <div class="nx-accordion-body" part="body">
-                  ${panel.content || `<slot name="${panel.id}"></slot>`}
+                  ${item.content || ''}
+                  <slot name="item-${itemId}"></slot>
                 </div>
               </div>
             </div>
@@ -127,319 +81,151 @@ export class NXAccordion extends BaseComponent {
     `;
   }
 
-  private renderIcon(icon: string): string {
-    if (icon.startsWith('<svg')) {
-      return icon;
-    } else if (icon.startsWith('icon-')) {
-      return `<i class="${icon}"></i>`;
-    } else {
-      return icon;
-    }
-  }
-
-  private renderExpandIcon(): string {
-    const customIcon = this.getProp('expand-icon');
-    if (customIcon) {
-      return this.renderIcon(customIcon);
-    }
-    
-    return `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M6 9l6 6 6-6"/>
-      </svg>
-    `;
-  }
-
   protected styles(): string {
     return `
       :host {
-        --accordion-gap: 0;
-        --header-height: 3rem;
-        --header-padding: 1rem;
-        --content-padding: 1rem;
-        --border-color: var(--color-border);
-        --header-bg: transparent;
-        --header-hover-bg: var(--color-background);
-        --content-bg: var(--color-surface);
         display: block;
       }
 
       .nx-accordion {
-        display: flex;
-        flex-direction: column;
-        gap: var(--accordion-gap);
-      }
-
-      /* Variants */
-      .nx-accordion-default .nx-accordion-item {
         border: 1px solid var(--border-color);
+        border-radius: 0.25rem;
+        overflow: hidden;
       }
 
-      .nx-accordion-default .nx-accordion-item:not(:last-child) {
+      .nx-accordion-item {
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .nx-accordion-item:last-child {
         border-bottom: none;
       }
 
-      .nx-accordion-default .nx-accordion-item:first-child {
-        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-      }
-
-      .nx-accordion-default .nx-accordion-item:last-child {
-        border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-      }
-
-      .nx-accordion-default .nx-accordion-item:only-child {
-        border-radius: var(--radius-lg);
-      }
-
-      .nx-accordion-filled {
-        --header-bg: var(--color-background);
-        --content-bg: var(--color-surface);
-      }
-
-      .nx-accordion-separated {
-        --accordion-gap: 0.75rem;
-      }
-
-      .nx-accordion-separated .nx-accordion-item {
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-      }
-
-      /* Item */
-      .nx-accordion-item {
-        overflow: hidden;
-      }
-
       .nx-accordion-item.disabled {
-        opacity: 0.6;
+        opacity: 0.5;
       }
 
-      /* Header */
       .nx-accordion-header {
         width: 100%;
-        height: var(--header-height);
-        padding: 0 var(--header-padding);
-        background: var(--header-bg);
+        padding: 1rem;
         border: none;
+        background: var(--surface-color);
         cursor: pointer;
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        font-size: 0.875rem;
-        font-family: inherit;
-        font-weight: 500;
-        color: var(--color-text);
+        justify-content: space-between;
         text-align: left;
+        font-family: inherit;
+        font-size: 1rem;
         transition: background-color 0.2s;
       }
 
       .nx-accordion-header:hover:not(:disabled) {
-        background: var(--header-hover-bg);
-      }
-
-      .nx-accordion-header:focus {
-        outline: 2px solid var(--color-primary);
-        outline-offset: -2px;
+        background-color: var(--hover-bg, rgba(0, 0, 0, 0.04));
       }
 
       .nx-accordion-header:disabled {
         cursor: not-allowed;
       }
 
-      .nx-accordion-icon {
-        width: 1.25rem;
-        height: 1.25rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-      }
-
       .nx-accordion-title {
         flex: 1;
       }
 
-      .nx-accordion-expand-icon {
-        width: 1.25rem;
-        height: 1.25rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        transition: transform 0.2s;
+      .nx-accordion-icon {
+        width: 1.5rem;
+        height: 1.5rem;
+        fill: currentColor;
+        transition: transform 0.3s;
       }
 
-      .nx-accordion-expand-icon.expanded {
+      .nx-accordion-header.expanded .nx-accordion-icon {
         transform: rotate(180deg);
       }
 
-      .nx-accordion-expand-icon svg {
-        width: 100%;
-        height: 100%;
-      }
-
-      /* Content */
       .nx-accordion-content {
         max-height: 0;
         overflow: hidden;
-        background: var(--content-bg);
-      }
-
-      .nx-accordion.animated .nx-accordion-content {
         transition: max-height 0.3s ease-out;
       }
 
       .nx-accordion-content.expanded {
-        max-height: var(--content-height, 500px);
+        max-height: none;
       }
 
       .nx-accordion-body {
-        padding: var(--content-padding);
-      }
-
-      /* Filled variant specific */
-      .nx-accordion-filled .nx-accordion-header {
-        border-bottom: 1px solid var(--border-color);
-      }
-
-      .nx-accordion-filled .nx-accordion-item.expanded .nx-accordion-header {
-        background: var(--color-surface);
-      }
-
-      /* Focus within */
-      .nx-accordion-item:focus-within {
-        outline: 2px solid var(--color-primary);
-        outline-offset: 2px;
+        padding: 1rem;
+        background: var(--bg-color);
       }
     `;
   }
 
   protected afterRender(): void {
-    // Header clicks
-    this.$$('.nx-accordion-header').forEach(header => {
-      header.addEventListener('click', () => {
-        const panelId = (header as HTMLElement).dataset.panelId!;
-        const index = parseInt((header as HTMLElement).dataset.index!);
-        this.togglePanel(panelId, index);
-      });
+    this.on(this.shadow!, 'click', (e: Event) => {
+      const header = (e.target as Element).closest('.nx-accordion-header');
+      if (header && !header.hasAttribute('disabled')) {
+        this.handleToggle(e);
+      }
     });
 
-    // Measure content heights for smooth animation
-    if (this.getProp('animated', true)) {
-      this.measureContentHeights();
-    }
-
-    // Keyboard navigation
-    this.setupKeyboardNavigation();
-  }
-
-  private measureContentHeights(): void {
-    this.$$('.nx-accordion-content').forEach(content => {
-      const body = content.querySelector('.nx-accordion-body') as HTMLElement;
-      if (body) {
-        const height = body.scrollHeight;
-        (content as HTMLElement).style.setProperty('--content-height', `${height}px`);
+    this.on(this.shadow!, 'keydown', (e: Event) => {
+      const keyEvent = e as KeyboardEvent;
+      if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+        const header = (e.target as Element).closest('.nx-accordion-header');
+        if (header && !header.hasAttribute('disabled')) {
+          e.preventDefault();
+          this.handleToggle(e);
+        }
       }
     });
   }
 
-  private togglePanel(panelId: string, index: number): void {
-    const panel = this.panels[index];
-    if (!panel || panel.disabled) return;
-
-    const expandedPanels = new Set(this.getState('expandedPanels', new Set<string>()));
-    const isExpanded = expandedPanels.has(panelId);
+  private handleToggle(e: Event): void {
+    const header = (e.target as Element).closest('.nx-accordion-header') as HTMLElement;
+    const item = header.closest('.nx-accordion-item') as HTMLElement;
+    const itemId = item.dataset.itemId!;
     const multiple = this.getProp('multiple', false);
     const collapsible = this.getProp('collapsible', true);
+    const expandedItems = this.getState<Set<string>>('expandedItems', new Set());
 
-    if (isExpanded && collapsible) {
-      // Collapse
-      expandedPanels.delete(panelId);
-      const onCollapse = this.getState('onCollapse');
-      if (onCollapse) onCollapse(panel, index);
-      this.dispatchEvent(new CustomEvent('collapse', { detail: { panel, index } }));
-    } else if (!isExpanded) {
-      // Expand
-      if (!multiple) {
-        expandedPanels.clear();
+    if (expandedItems.has(itemId)) {
+      if (collapsible) {
+        expandedItems.delete(itemId);
       }
-      expandedPanels.add(panelId);
-      const onExpand = this.getState('onExpand');
-      if (onExpand) onExpand(panel, index);
-      this.dispatchEvent(new CustomEvent('expand', { detail: { panel, index } }));
+    } else {
+      if (!multiple) {
+        expandedItems.clear();
+      }
+      expandedItems.add(itemId);
     }
 
-    this.setState('expandedPanels', expandedPanels);
+    this.setState('expandedItems', new Set(expandedItems));
+    this.emit('toggle', { itemId, expanded: expandedItems.has(itemId) });
   }
 
-  private setupKeyboardNavigation(): void {
-    const headers = this.$$('.nx-accordion-header');
-    
-    headers.forEach((header, index) => {
-      header.addEventListener('keydown', (e) => {
-        switch (e.key) {
-          case 'ArrowUp':
-            e.preventDefault();
-            const prevIndex = index > 0 ? index - 1 : headers.length - 1;
-            (headers[prevIndex] as HTMLElement).focus();
-            break;
-            
-          case 'ArrowDown':
-            e.preventDefault();
-            const nextIndex = index < headers.length - 1 ? index + 1 : 0;
-            (headers[nextIndex] as HTMLElement).focus();
-            break;
-            
-          case 'Home':
-            e.preventDefault();
-            (headers[0] as HTMLElement).focus();
-            break;
-            
-          case 'End':
-            e.preventDefault();
-            (headers[headers.length - 1] as HTMLElement).focus();
-            break;
-        }
-      });
-    });
+  expand(itemId: string): void {
+    const expandedItems = this.getState<Set<string>>('expandedItems', new Set());
+    expandedItems.add(itemId);
+    this.setState('expandedItems', new Set(expandedItems));
   }
 
-  // Public API
+  collapse(itemId: string): void {
+    const expandedItems = this.getState<Set<string>>('expandedItems', new Set());
+    expandedItems.delete(itemId);
+    this.setState('expandedItems', new Set(expandedItems));
+  }
+
   expandAll(): void {
-    const expandedPanels = new Set<string>();
-    this.panels.forEach(panel => {
-      if (!panel.disabled) {
-        expandedPanels.add(panel.id!);
-      }
+    const items = this.getState<AccordionItem[]>('items', []);
+    const expandedItems = new Set<string>();
+    items.forEach((_item, index) => {
+      expandedItems.add(String(index));
     });
-    this.setState('expandedPanels', expandedPanels);
+    this.setState('expandedItems', expandedItems);
   }
 
   collapseAll(): void {
-    this.setState('expandedPanels', new Set<string>());
-  }
-
-  expandPanel(panelId: string): void {
-    const panel = this.panels.find(p => p.id === panelId);
-    if (panel && !panel.disabled) {
-      const index = this.panels.indexOf(panel);
-      const expandedPanels = new Set(this.getState('expandedPanels', new Set<string>()));
-      
-      if (!expandedPanels.has(panelId)) {
-        if (!this.getProp('multiple', false)) {
-          expandedPanels.clear();
-        }
-        expandedPanels.add(panelId);
-        this.setState('expandedPanels', expandedPanels);
-      }
-    }
-  }
-
-  collapsePanel(panelId: string): void {
-    const expandedPanels = new Set(this.getState('expandedPanels', new Set<string>()));
-    expandedPanels.delete(panelId);
-    this.setState('expandedPanels', expandedPanels);
+    this.setState('expandedItems', new Set());
   }
 }
 

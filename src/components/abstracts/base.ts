@@ -1,3 +1,4 @@
+
 /**
  * @file @/components/abstracts/base.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
@@ -126,48 +127,31 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
    */
   constructor() {
     super();
+    
+    // Initialize state and props
     this[ComponentState] = new Map();
     this[ComponentProps] = new Map();
+    
+    // Initialize component state
     this.initializeState();
   }
 
   /**
-   * Defines which attributes should be observed for changes.
-   * Override in subclasses to specify observed attributes.
-   * 
-   * @returns {string[]} Array of attribute names to observe
-   * @static
-   * 
-   * @example
-   * ```typescript
-   * static get observedAttributes() {
-   *   return ['disabled', 'value', 'label'];
-   * }
-   * ```
-   */
-  static get observedAttributes(): string[] {
-    return [];
-  }
-
-  /**
-   * Called when the component is added to the DOM.
-   * Registers with Core, initializes the component, and triggers lifecycle hooks.
+   * Called when the component is connected to the DOM.
+   * Performs initialization and triggers initial render.
    */
   connectedCallback(): void {
-    Core.getInstance().registerComponent(this);
-    
     if (!this.initialized) {
-      this.initialize();
       this.initialized = true;
+      this.initialize();
     }
     
     this.afterConnect();
-    this.scheduleUpdate();
   }
 
   /**
-   * Called when the component is removed from the DOM.
-   * Performs cleanup, cancels pending updates, and unregisters from Core.
+   * Called when the component is disconnected from the DOM.
+   * Performs cleanup to prevent memory leaks.
    */
   disconnectedCallback(): void {
     this.beforeDisconnect();
@@ -178,34 +162,25 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
       this.updateFrameId = 0;
     }
     
-    // Run all cleanup functions
-    this.cleanupFunctions.forEach(fn => {
-      try {
-        fn();
-      } catch (error) {
-        console.error('Error during cleanup:', error);
-      }
-    });
+    // Run cleanup functions
+    this.cleanupFunctions.forEach(cleanup => cleanup());
     this.cleanupFunctions = [];
     
     // Custom cleanup
     this.cleanup();
-    
-    // Unregister from core
-    Core.getInstance().unregisterComponent(this);
   }
 
   /**
    * Called when an observed attribute changes.
-   * Triggers update if the value actually changed.
+   * Triggers component update if initialized.
    * 
    * @param {string} name - Name of the changed attribute
    * @param {string | null} oldValue - Previous value
    * @param {string | null} newValue - New value
    */
-  attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
-    if (oldValue !== newValue) {
-      this.onAttributeChange(name, oldValue, newValue);
+  attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null): void {
+    if (_oldValue !== newValue) {
+      this.onAttributeChange(name, _oldValue, newValue);
       if (this.initialized) {
         this.scheduleUpdate();
       }
@@ -313,69 +288,276 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
   protected update(): void {
     if (!this.shadow) return;
     
-    // Create template
-    const template = document.createElement('template');
-    template.innerHTML = `
-      <style>
-        ${this.globalStyles()}
-        ${this.styles()}
-      </style>
-      ${this.render()}
+    const template = this.render();
+    const styles = this.styles();
+    
+    this.shadow.innerHTML = `
+      ${styles ? `<style>${styles}</style>` : ''}
+      ${template}
     `;
     
-    // Clear and append
-    this.shadow.innerHTML = '';
-    this.shadow.appendChild(template.content.cloneNode(true));
+    this.afterRender();
+  }
+
+  /**
+   * Schedule an update for the next animation frame.
+   * Multiple calls are batched into a single update.
+   * 
+   * @protected
+   */
+  protected scheduleUpdate(): void {
+    if (this.updateFrameId) return;
     
-    // Trigger after render hook
-    requestAnimationFrame(() => {
-      this.afterRender();
+    this.updateFrameId = requestAnimationFrame(() => {
+      this.updateFrameId = 0;
+      this.update();
     });
   }
 
   /**
-   * Global styles applied to all components.
-   * Provides base styling and CSS reset for shadow DOM.
+   * Force immediate update without scheduling.
+   * Use sparingly as it bypasses update batching.
    * 
-   * @returns {string} Global CSS styles
-   * @private
+   * @protected
    */
-  private globalStyles(): string {
-    return `
-      /* Base styles */
-      :host {
-        box-sizing: border-box;
-        display: block;
-      }
-      
-      :host([hidden]) {
-        display: none !important;
-      }
-      
-      :host([disabled]) {
-        pointer-events: none;
-        opacity: 0.6;
-      }
-      
-      /* Box sizing reset */
-      *, *::before, *::after {
-        box-sizing: inherit;
-      }
-      
-      /* Focus styles */
-      :focus {
-        outline: 2px solid var(--focus-color, #0066cc);
-        outline-offset: 2px;
-      }
-      
-      /* Smooth transitions */
-      * {
-        transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 150ms;
-      }
-    `;
+  protected forceUpdate(): void {
+    if (this.updateFrameId) {
+      cancelAnimationFrame(this.updateFrameId);
+      this.updateFrameId = 0;
+    }
+    this.update();
   }
+
+  /**
+   * Get a property value with optional default.
+   * First checks attributes, then internal props.
+   * 
+   * @template T - Type of the property value
+   * @param {string} name - Property name
+   * @param {T} [defaultValue] - Default value if not found
+   * @returns {T} Property value
+   * @protected
+   */
+  protected getProp<T = any>(name: string, defaultValue?: T): T {
+    // Check attribute first
+    const attr = this.getAttribute(name);
+    if (attr !== null) {
+      // Try to parse JSON for objects/arrays
+      if (attr.startsWith('{') || attr.startsWith('[')) {
+        try {
+          return JSON.parse(attr);
+        } catch {
+          return attr as any;
+        }
+      }
+      
+      // Convert boolean strings
+      if (attr === 'true') return true as any;
+      if (attr === 'false') return false as any;
+      
+      // Convert numbers
+      const num = Number(attr);
+      if (!isNaN(num) && attr.trim() !== '') return num as any;
+      
+      return attr as any;
+    }
+    
+    // Check internal props
+    if (this[ComponentProps].has(name)) {
+      return this[ComponentProps].get(name);
+    }
+    
+    return defaultValue as T;
+  }
+
+  /**
+   * Set a property value.
+   * Stores in internal props map.
+   * 
+   * @param {string} name - Property name
+   * @param {any} value - Property value
+   * @protected
+   */
+  protected setProp(name: string, value: any): void {
+    this[ComponentProps].set(name, value);
+    this.scheduleUpdate();
+  }
+
+  /**
+   * Check if a property exists.
+   * 
+   * @param {string} name - Property name
+   * @returns {boolean} True if property exists
+   * @protected
+   */
+  protected hasProp(name: string): boolean {
+    return this.hasAttribute(name) || this[ComponentProps].has(name);
+  }
+
+  /**
+   * Get all properties as a plain object.
+   * Combines attributes and internal props.
+   * 
+   * @returns {Record<string, any>} All properties
+   * @protected
+   */
+  protected getProps(): Record<string, any> {
+    const props: Record<string, any> = {};
+    
+    // Get attributes
+    Array.from(this.attributes).forEach(attr => {
+      props[attr.name] = this.getProp(attr.name);
+    });
+    
+    // Get internal props
+    this[ComponentProps].forEach((value, key) => {
+      if (!(key in props)) {
+        props[key] = value;
+      }
+    });
+    
+    return props;
+  }
+
+  /**
+   * Query shadow DOM for an element.
+   * 
+   * @param {string} selector - CSS selector
+   * @returns {Element | null} Found element or null
+   * @protected
+   */
+  protected $(selector: string): Element | null {
+    return this.shadow?.querySelector(selector) || null;
+  }
+
+  /**
+   * Query shadow DOM for all matching elements.
+   * 
+   * @param {string} selector - CSS selector
+   * @returns {NodeListOf<Element>} List of found elements
+   * @protected
+   */
+  protected $$(selector: string): NodeListOf<Element> {
+    return this.shadow?.querySelectorAll(selector) || ([] as any);
+  }
+
+  /**
+   * Add event listener with automatic cleanup.
+   * 
+   * @param {EventTarget} target - Event target
+   * @param {string} event - Event name
+   * @param {Function} handler - Event handler
+   * @param {AddEventListenerOptions} [options] - Event options
+   * @protected
+   */
+  protected on(target: EventTarget, event: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions): void {
+    target.addEventListener(event, handler, options);
+    
+    this.cleanupFunctions.push(() => {
+      target.removeEventListener(event, handler, options);
+    });
+  }
+
+  /**
+   * Add one-time event listener.
+   * 
+   * @param {EventTarget} target - Event target
+   * @param {string} event - Event name
+   * @param {Function} handler - Event handler
+   * @param {AddEventListenerOptions} [options] - Event options
+   * @protected
+   */
+  protected once(target: EventTarget, event: string, handler: EventListener, options?: AddEventListenerOptions): void {
+    const onceHandler = (e: Event) => {
+      handler(e);
+      target.removeEventListener(event, onceHandler, options);
+    };
+    
+    this.on(target, event, onceHandler, options);
+  }
+
+  /**
+   * Emit a custom event.
+   * 
+   * @param {string} name - Event name
+   * @param {any} [detail] - Event detail data
+   * @param {boolean} [bubbles=true] - Whether event bubbles
+   * @param {boolean} [composed=true] - Whether event crosses shadow DOM
+   * @protected
+   */
+  protected emit(name: string, detail?: any, bubbles = true, composed = true): boolean {
+    const event = new CustomEvent(name, {
+      detail,
+      bubbles,
+      composed
+    });
+    
+    return this.dispatchEvent(event);
+  }
+
+  /**
+   * Set a timer with automatic cleanup.
+   * 
+   * @param {Function} callback - Timer callback
+   * @param {number} delay - Delay in milliseconds
+   * @returns {number} Timer ID
+   * @protected
+   */
+  protected setTimeout(callback: Function, delay: number): number {
+    const id = window.setTimeout(callback, delay);
+    
+    this.cleanupFunctions.push(() => {
+      window.clearTimeout(id);
+    });
+    
+    return id;
+  }
+
+  /**
+   * Set an interval with automatic cleanup.
+   * 
+   * @param {Function} callback - Interval callback
+   * @param {number} delay - Delay in milliseconds
+   * @returns {number} Interval ID
+   * @protected
+   */
+  protected setInterval(callback: Function, delay: number): number {
+    const id = window.setInterval(callback, delay);
+    
+    this.cleanupFunctions.push(() => {
+      window.clearInterval(id);
+    });
+    
+    return id;
+  }
+
+  /**
+   * Request animation frame with automatic cleanup.
+   * 
+   * @param {FrameRequestCallback} callback - Animation callback
+   * @returns {number} Frame ID
+   * @protected
+   */
+  protected requestAnimationFrame(callback: FrameRequestCallback): number {
+    const id = window.requestAnimationFrame(callback);
+    
+    this.cleanupFunctions.push(() => {
+      window.cancelAnimationFrame(id);
+    });
+    
+    return id;
+  }
+
+  /**
+   * Called when state changes.
+   * Override to react to specific state changes.
+   * 
+   * @param {string} key - State key that changed
+   * @param {any} oldValue - Previous value
+   * @param {any} newValue - New value
+   * @protected
+   */
+  protected onStateChange(_key: string, _oldValue: any, _newValue: any): void {}
 
   /**
    * Called after component is connected to DOM.
@@ -410,7 +592,7 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
    * @param {string | null} newValue - New value
    * @protected
    */
-  protected onAttributeChange(name: string, oldValue: string | null, newValue: string | null): void {}
+  protected onAttributeChange(_name: string, _oldValue: string | null, _newValue: string | null): void {}
 
   /**
    * Called when component is adopted into a new document.
@@ -484,7 +666,7 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
    * this.updateState({
    *   isOpen: true,
    *   selectedIndex: 2,
-   *   items: newItems
+   *   items: ['a', 'b', 'c']
    * });
    * ```
    */
@@ -503,278 +685,6 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
     if (hasChanges) {
       this.scheduleUpdate();
     }
-  }
-
-  /**
-   * Called when state changes.
-   * Override to react to specific state changes.
-   * 
-   * @param {string} key - State key that changed
-   * @param {any} oldValue - Previous value
-   * @param {any} newValue - New value
-   * @protected
-   */
-  protected onStateChange(key: string, oldValue: any, newValue: any): void {}
-
-  /**
-   * Get property value from attributes or internal props.
-   * Attributes take precedence over internal props.
-   * 
-   * @template T - Type of the property value
-   * @param {string} name - Property name
-   * @param {T} [defaultValue] - Default value
-   * @returns {T} Property value
-   * @protected
-   * 
-   * @example
-   * ```typescript
-   * const label = this.getProp<string>('label', 'Default Label');
-   * const max = this.getProp<number>('max', 100);
-   * const disabled = this.getProp<boolean>('disabled', false);
-   * ```
-   */
-  protected getProp<T = any>(name: string, defaultValue?: T): T {
-    // Check attribute first
-    const attrValue = this.getAttribute(name);
-    if (attrValue !== null) {
-      return this.parseAttributeValue(attrValue, defaultValue) as T;
-    }
-    
-    // Check internal props
-    if (this[ComponentProps].has(name)) {
-      return this[ComponentProps].get(name);
-    }
-    
-    return defaultValue as T;
-  }
-
-  /**
-   * Set property value and update corresponding attribute.
-   * 
-   * @param {string} name - Property name
-   * @param {any} value - Value to set
-   * @protected
-   * 
-   * @example
-   * ```typescript
-   * this.setProp('label', 'New Label');
-   * this.setProp('disabled', true);
-   * this.setProp('items', ['a', 'b', 'c']);
-   * ```
-   */
-  protected setProp(name: string, value: any): void {
-    const oldValue = this.getProp(name);
-    this[ComponentProps].set(name, value);
-    
-    // Update attribute
-    if (typeof value === 'boolean') {
-      this.toggleAttribute(name, value);
-    } else if (value == null) {
-      this.removeAttribute(name);
-    } else if (typeof value === 'object') {
-      this.setAttribute(name, JSON.stringify(value));
-    } else {
-      this.setAttribute(name, String(value));
-    }
-    
-    if (oldValue !== value) {
-      this.onPropChange(name, oldValue, value);
-    }
-  }
-
-  /**
-   * Called when a property changes.
-   * Override to react to specific property changes.
-   * 
-   * @param {string} name - Property name
-   * @param {any} oldValue - Previous value
-   * @param {any} newValue - New value
-   * @protected
-   */
-  protected onPropChange(name: string, oldValue: any, newValue: any): void {}
-
-  /**
-   * Parse attribute string value to appropriate type.
-   * Handles booleans, numbers, null/undefined, and JSON.
-   * 
-   * @param {string} value - String value to parse
-   * @param {any} [defaultValue] - Default value for type inference
-   * @returns {any} Parsed value
-   * @private
-   */
-  private parseAttributeValue(value: string, defaultValue?: any): any {
-    // Handle boolean values
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    
-    // Handle null/undefined
-    if (value === 'null') return null;
-    if (value === 'undefined') return undefined;
-    
-    // Handle empty string
-    if (value === '') {
-      // For boolean attributes, empty string means true
-      if (typeof defaultValue === 'boolean') return true;
-      return value;
-    }
-    
-    // Try to parse as number
-    if (typeof defaultValue === 'number' || /^-?\d+(\.\d+)?$/.test(value)) {
-      const num = Number(value);
-      if (!isNaN(num)) return num;
-    }
-    
-    // Try to parse as JSON
-    if (value.startsWith('{') || value.startsWith('[')) {
-      try {
-        return JSON.parse(value);
-      } catch {
-        // Not valid JSON, return as string
-      }
-    }
-    
-    // Return as string
-    return value;
-  }
-
-  /**
-   * Query selector within shadow DOM.
-   * Returns null if shadow DOM doesn't exist.
-   * 
-   * @template E - Element type
-   * @param {string} selector - CSS selector
-   * @returns {E | null} Found element or null
-   * @protected
-   * 
-   * @example
-   * ```typescript
-   * const button = this.$<HTMLButtonElement>('.submit-btn');
-   * const input = this.$<HTMLInputElement>('input[name="email"]');
-   * ```
-   */
-  protected $<E extends Element = Element>(selector: string): E | null {
-    return this.shadow?.querySelector<E>(selector) ?? null;
-  }
-
-  /**
-   * Query selector all within shadow DOM.
-   * Returns empty array if shadow DOM doesn't exist.
-   * 
-   * @template E - Element type
-   * @param {string} selector - CSS selector
-   * @returns {E[]} Array of found elements
-   * @protected
-   * 
-   * @example
-   * ```typescript
-   * const buttons = this.$$<HTMLButtonElement>('button');
-   * const items = this.$$('.list-item');
-   * ```
-   */
-  protected $$<E extends Element = Element>(selector: string): E[] {
-    return Array.from(this.shadow?.querySelectorAll<E>(selector) ?? []);
-  }
-
-  /**
-   * Add event listener with automatic cleanup.
-   * Listener will be automatically removed when component disconnects.
-   * 
-   * @param {EventTarget} target - Event target
-   * @param {string} event - Event name
-   * @param {EventListener} handler - Event handler
-   * @param {AddEventListenerOptions} [options] - Event options
-   * @protected
-   * 
-   * @example
-   * ```typescript
-   * this.addListener(window, 'resize', this.handleResize);
-   * this.addListener(button, 'click', (e) => this.handleClick(e), { once: true });
-   * ```
-   */
-  protected addListener(
-    target: EventTarget,
-    event: string,
-    handler: EventListener,
-    options?: AddEventListenerOptions
-  ): void {
-    target.addEventListener(event, handler, options);
-    this.cleanupFunctions.push(() => {
-      target.removeEventListener(event, handler, options);
-    });
-  }
-
-  /**
-   * Add cleanup function to be called on disconnect.
-   * Useful for cleaning up external resources.
-   * 
-   * @param {() => void} fn - Cleanup function
-   * @protected
-   * 
-   * @example
-   * ```typescript
-   * const timer = setInterval(() => this.tick(), 1000);
-   * this.addCleanup(() => clearInterval(timer));
-   * ```
-   */
-  protected addCleanup(fn: () => void): void {
-    this.cleanupFunctions.push(fn);
-  }
-
-  /**
-   * Emit custom event with detail data.
-   * Events are composed and bubble by default.
-   * 
-   * @param {string} eventName - Event name
-   * @param {any} [detail] - Event detail data
-   * @param {CustomEventInit} [options] - Additional event options
-   * @returns {boolean} False if event was cancelled
-   * @protected
-   * 
-   * @example
-   * ```typescript
-   * this.emit('change', { value: newValue });
-   * this.emit('submit', formData, { cancelable: true });
-   * ```
-   */
-  protected emit(eventName: string, detail?: any, options?: CustomEventInit): boolean {
-    const event = new CustomEvent(eventName, {
-      bubbles: true,
-      composed: true,
-      cancelable: false,
-      ...options,
-      detail
-    });
-    
-    return this.dispatchEvent(event);
-  }
-
-  /**
-   * Schedule update on next animation frame.
-   * Multiple calls are batched into a single update.
-   * 
-   * @protected
-   */
-  protected scheduleUpdate(): void {
-    if (this.updateFrameId) return;
-    
-    this.updateFrameId = requestAnimationFrame(() => {
-      this.updateFrameId = 0;
-      this.update();
-    });
-  }
-
-  /**
-   * Force immediate update without scheduling.
-   * Use sparingly as it bypasses update batching.
-   * 
-   * @protected
-   */
-  protected forceUpdate(): void {
-    if (this.updateFrameId) {
-      cancelAnimationFrame(this.updateFrameId);
-      this.updateFrameId = 0;
-    }
-    this.update();
   }
 
   /**

@@ -1,3 +1,5 @@
+import { BaseComponent } from '@/components/abstracts/base';
+
 export interface SpinnerConfig {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   color?: string;
@@ -6,12 +8,18 @@ export interface SpinnerConfig {
   label?: string;
 }
 
-/**
- * Loading spinner component
- */
 export class NXSpinner extends BaseComponent {
   static get observedAttributes(): string[] {
     return ['size', 'color', 'thickness', 'speed', 'label'];
+  }
+
+  protected initializeState(): void {
+    // No state needed for spinner
+  }
+
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
   }
 
   protected render(): string {

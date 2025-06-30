@@ -1,4 +1,3 @@
-// src/core/registry.ts
 import { BaseComponent } from '@/components/abstracts/base';
 
 export interface ComponentDefinition {
@@ -86,39 +85,36 @@ export class ComponentRegistry {
    * Register a component
    */
   static register(xtype: string, component: typeof BaseComponent, config?: any): void {
-    // Ensure tag name format
-    const tagName = this.normalizeTagName(xtype);
+    const tagName = this.aliases.get(xtype) || xtype;
     
-    // Check if already defined
-    if (customElements.get(tagName)) {
-      console.warn(`Component ${tagName} is already defined`);
-      return;
-    }
-
-    // Store definition
     this.components.set(xtype, {
       tagName,
       component,
       config
     });
 
-    // Define custom element
-    try {
-      customElements.define(tagName, component);
-    } catch (error) {
-      console.error(`Failed to define component ${tagName}:`, error);
+    // Register with custom elements if not already registered
+    if (!customElements.get(tagName)) {
+      // Only register concrete components, not abstract ones
+      if (!component.name.includes('Abstract') && !component.name.includes('Base')) {
+        try {
+          customElements.define(tagName, component as any);
+        } catch (e) {
+          console.warn(`Failed to register component ${tagName}:`, e);
+        }
+      }
     }
   }
 
   /**
    * Create an alias for a component
    */
-  static alias(alias: string, xtype: string): void {
-    this.aliases.set(alias, xtype);
+  static alias(alias: string, tagName: string): void {
+    this.aliases.set(alias, tagName);
   }
 
   /**
-   * Register a factory function for complex components
+   * Register a factory function for a component
    */
   static registerFactory(xtype: string, factory: ComponentFactory): void {
     this.factories.set(xtype, factory);
@@ -127,351 +123,141 @@ export class ComponentRegistry {
   /**
    * Create a component instance
    */
-  static create(xtype: string, config?: any): BaseComponent | null {
-    // Initialize if needed
-    if (!this.initialized) {
-      this.initialize();
-    }
-
-    // Resolve alias
-    const resolvedXtype = this.aliases.get(xtype) || xtype;
-
-    // Check for factory
-    const factory = this.factories.get(resolvedXtype);
-    if (factory) {
-      return factory(config);
+  static create(xtype: string, config?: any): HTMLElement | null {
+    // Check for factory first
+    if (this.factories.has(xtype)) {
+      const factory = this.factories.get(xtype)!;
+      return factory(config) as HTMLElement;
     }
 
     // Get component definition
-    const definition = this.components.get(resolvedXtype);
+    const definition = this.components.get(xtype);
     if (!definition) {
-      // Try to create by tag name
-      const tagName = this.normalizeTagName(resolvedXtype);
-      const ElementClass = customElements.get(tagName);
+      // Try to find by tag name
+      const tagName = this.aliases.get(xtype) || xtype;
+      const element = document.createElement(tagName);
       
-      if (ElementClass && ElementClass.prototype instanceof BaseComponent) {
-        const element = new ElementClass() as BaseComponent;
-        this.applyConfig(element, config);
-        return element;
-      }
-
-      console.error(`Component not found: ${xtype}`);
-      return null;
-    }
-
-    // Create instance
-    const element = document.createElement(definition.tagName) as BaseComponent;
-    
-    // Apply default config
-    if (definition.config) {
-      this.applyConfig(element, definition.config);
-    }
-
-    // Apply user config
-    if (config) {
-      this.applyConfig(element, config);
-    }
-
-    return element;
-  }
-
-  /**
-   * Apply configuration to an element
-   */
-  static applyConfig(element: BaseComponent | HTMLElement, config: any): void {
-    if (!config || typeof config !== 'object') return;
-
-    Object.entries(config).forEach(([key, value]) => {
-      // Special handling for certain properties
-      switch (key) {
-        case 'xtype':
-        case 'tag':
-          // Skip these
-          break;
-
-        case 'listeners':
-          // Add event listeners
-          if (typeof value === 'object') {
-            Object.entries(value).forEach(([event, handler]) => {
-              if (typeof handler === 'function') {
-                element.addEventListener(event, handler as EventListener);
-              }
-            });
-          }
-          break;
-
-        case 'items':
-          // Handle child items
-          if (Array.isArray(value)) {
-            value.forEach(itemConfig => {
-              const child = this.create(itemConfig.xtype || 'panel', itemConfig);
-              if (child) {
-                element.appendChild(child);
-              }
-            });
-          }
-          break;
-
-        case 'html':
-        case 'content':
-          // Set inner content
-          if ('setContent' in element && typeof element.setContent === 'function') {
-            element.setContent(value);
-          } else {
-            element.innerHTML = String(value);
-          }
-          break;
-
-        case 'text':
-          // Set text content
-          element.textContent = String(value);
-          break;
-
-        case 'cls':
-        case 'className':
-          // Add CSS classes
-          element.className = String(value);
-          break;
-
-        case 'style':
-          // Apply styles
-          if (typeof value === 'object') {
-            Object.assign((element as HTMLElement).style, value);
-          } else if (typeof value === 'string') {
-            element.setAttribute('style', value);
-          }
-          break;
-
-        case 'data':
-          // Set data attributes
-          if (typeof value === 'object') {
-            Object.entries(value).forEach(([dataKey, dataValue]) => {
-              element.setAttribute(`data-${dataKey}`, String(dataValue));
-            });
-          }
-          break;
-
-        case 'handler':
-          // Convenience for click handler
-          if (typeof value === 'function') {
-            element.addEventListener('click', value as EventListener);
-          }
-          break;
-
-        default:
-          // Set as attribute
-          if (value === true) {
-            element.setAttribute(key, '');
-          } else if (value === false || value === null || value === undefined) {
-            element.removeAttribute(key);
-          } else if (typeof value === 'object') {
+      // Apply config as attributes
+      if (config) {
+        Object.entries(config).forEach(([key, value]) => {
+          if (typeof value === 'object' && value !== null) {
             element.setAttribute(key, JSON.stringify(value));
           } else {
             element.setAttribute(key, String(value));
           }
+        });
       }
-    });
+      
+      return element;
+    }
+
+    // Create component instance
+    const { tagName, component } = definition;
+    let instance: HTMLElement;
+
+    try {
+      instance = new (component as any)(config) as HTMLElement;
+    } catch {
+      // If constructor fails, create via document
+      instance = document.createElement(tagName);
+    }
+
+    // Apply config
+    if (config) {
+      Object.entries(config).forEach(([key, value]) => {
+        if (key === 'listeners') {
+          // Add event listeners
+          Object.entries(value as Record<string, Function>).forEach(([event, handler]) => {
+            instance.addEventListener(event, handler as EventListener);
+          });
+        } else if (key === 'style' && typeof value === 'object') {
+          // Apply styles
+          Object.assign(instance.style, value);
+        } else if (typeof value === 'object' && value !== null) {
+          // Set as JSON attribute
+          instance.setAttribute(key, JSON.stringify(value));
+        } else {
+          // Set as attribute
+          instance.setAttribute(key, String(value));
+        }
+      });
+    }
+
+    return instance;
   }
 
   /**
    * Check if a component is registered
    */
   static has(xtype: string): boolean {
-    const resolvedXtype = this.aliases.get(xtype) || xtype;
-    return this.components.has(resolvedXtype) || 
-           this.factories.has(resolvedXtype) ||
-           customElements.get(this.normalizeTagName(resolvedXtype)) !== undefined;
-  }
-
-  /**
-   * Get all registered components
-   */
-  static getAll(): string[] {
-    const all = new Set<string>();
-    
-    // Add registered components
-    this.components.forEach((_, xtype) => all.add(xtype));
-    
-    // Add factories
-    this.factories.forEach((_, xtype) => all.add(xtype));
-    
-    // Add aliases
-    this.aliases.forEach((_, alias) => all.add(alias));
-    
-    return Array.from(all).sort();
+    return this.components.has(xtype) || this.factories.has(xtype);
   }
 
   /**
    * Get component definition
    */
-  static getDefinition(xtype: string): ComponentDefinition | undefined {
-    const resolvedXtype = this.aliases.get(xtype) || xtype;
-    return this.components.get(resolvedXtype);
+  static get(xtype: string): ComponentDefinition | undefined {
+    return this.components.get(xtype);
   }
 
   /**
-   * Batch create components
+   * Get all registered components
    */
-  static createMany(configs: Array<any>): BaseComponent[] {
-    return configs
-      .map(config => this.create(config.xtype || 'panel', config))
-      .filter(Boolean) as BaseComponent[];
+  static getAll(): Map<string, ComponentDefinition> {
+    return new Map(this.components);
   }
 
   /**
-   * Create and append to parent
+   * Create a lazy component that loads on demand
    */
-  static createAndAppend(parent: HTMLElement, xtype: string, config?: any): BaseComponent | null {
-    const component = this.create(xtype, config);
-    if (component) {
-      parent.appendChild(component);
-    }
-    return component;
+  static lazy(xtype: string, loader: () => Promise<typeof BaseComponent>): void {
+    this.registerFactory(xtype, async (config) => {
+      const Component = await loader();
+      this.register(xtype, Component);
+      return this.create(xtype, config);
+    });
   }
 
   /**
-   * Normalize tag name
+   * Extend an existing component
    */
-  private static normalizeTagName(xtype: string): string {
-    // Ensure tag name starts with nx- and is lowercase
-    const name = xtype.toLowerCase();
-    return name.startsWith('nx-') ? name : `nx-${name}`;
-  }
-
-  /**
-   * Query components in DOM
-   */
-  static query(selector: string, root: HTMLElement | Document = document): BaseComponent | null {
-    return root.querySelector(selector) as BaseComponent | null;
-  }
-
-  /**
-   * Query all components in DOM
-   */
-  static queryAll(selector: string, root: HTMLElement | Document = document): NodeListOf<BaseComponent> {
-    return root.querySelectorAll(selector) as NodeListOf<BaseComponent>;
-  }
-
-  /**
-   * Find component by ID
-   */
-  static find(id: string): BaseComponent | null {
-    return document.getElementById(id) as BaseComponent | null;
-  }
-
-  /**
-   * Define a component class inline
-   */
-  static define(xtype: string, definition: any): typeof BaseComponent {
-    const Component = class extends BaseComponent {
+  static extend(xtype: string, ParentComponent: typeof BaseComponent, extension: any): typeof BaseComponent {
+    class ExtendedComponent extends ParentComponent {
       static get observedAttributes() {
-        return definition.observedAttributes || [];
+        return [
+          ...(ParentComponent.observedAttributes || []),
+          ...(extension.observedAttributes || [])
+        ];
       }
 
-      constructor() {
-        super();
-        if (definition.constructor) {
-          definition.constructor.call(this);
+      protected initializeState(): void {
+        super.initializeState();
+        extension.initializeState?.call(this);
+      }
+
+      protected render(): string {
+        if (extension.render) {
+          return extension.render.call(this);
         }
+        return super.render();
       }
 
-      connectedCallback() {
-        if (definition.connectedCallback) {
-          definition.connectedCallback.call(this);
-        }
-        super.connectedCallback();
+      protected styles(): string {
+        const parentStyles = super.styles();
+        const extStyles = extension.styles?.call(this) || '';
+        return `${parentStyles}\n${extStyles}`;
       }
-
-      disconnectedCallback() {
-        if (definition.disconnectedCallback) {
-          definition.disconnectedCallback.call(this);
-        }
-        super.disconnectedCallback();
-      }
-
-      attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
-        if (definition.attributeChangedCallback) {
-          definition.attributeChangedCallback.call(this, name, oldValue, newValue);
-        }
-        super.attributeChangedCallback(name, oldValue, newValue);
-      }
-
-      initialize() {
-        if (definition.initialize) {
-          definition.initialize.call(this);
-        }
-      }
-
-      render() {
-        if (definition.render) {
-          return definition.render.call(this);
-        }
-        return '';
-      }
-
-      styles() {
-        if (definition.styles) {
-          return definition.styles.call(this);
-        }
-        return '';
-      }
-
-      afterRender() {
-        if (definition.afterRender) {
-          definition.afterRender.call(this);
-        }
-      }
-
-      cleanup() {
-        if (definition.cleanup) {
-          definition.cleanup.call(this);
-        }
-      }
-    };
-
-    // Copy static properties
-    if (definition.statics) {
-      Object.assign(Component, definition.statics);
     }
 
-    // Copy prototype methods
-    if (definition.methods) {
-      Object.entries(definition.methods).forEach(([name, method]) => {
-        if (typeof method === 'function') {
-          Component.prototype[name] = method;
-        }
-      });
-    }
+    // Copy over any additional methods
+    Object.entries(extension).forEach(([key, value]) => {
+      if (typeof value === 'function' && 
+          !['initializeState', 'render', 'styles', 'observedAttributes'].includes(key)) {
+        (ExtendedComponent.prototype as any)[key] = value;
+      }
+    });
 
-    // Register the component
-    this.register(xtype, Component, definition.defaults);
-
-    return Component;
-  }
-
-  /**
-   * Create a component tree from nested configuration
-   */
-  static createTree(config: any, parent?: HTMLElement): BaseComponent | null {
-    const component = this.create(config.xtype || 'panel', config);
-    if (!component) return null;
-
-    if (config.items && Array.isArray(config.items)) {
-      config.items.forEach((itemConfig: any) => {
-        const child = this.createTree(itemConfig);
-        if (child) {
-          component.appendChild(child);
-        }
-      });
-    }
-
-    if (parent) {
-      parent.appendChild(component);
-    }
-
-    return component;
+    this.register(xtype, ExtendedComponent);
+    return ExtendedComponent;
   }
 }
-
-// Initialize on import
-ComponentRegistry.initialize();

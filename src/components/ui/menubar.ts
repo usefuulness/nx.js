@@ -1,93 +1,53 @@
-import { BaseComponent, ComponentState } from "@/components/abstracts/base";
-import type { MenuItem, NXMenu } from "@/components/ui/menu";
-
-export interface MenuBarItem extends MenuItem {
-  menu?: MenuItem[];
-}
+import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+import type { MenuItem } from '@/components/ui/menu';
 
 export interface MenuBarConfig {
-  items?: MenuBarItem[];
-  variant?: 'default' | 'minimal' | 'rounded';
-  onSelect?: (item: MenuItem) => void;
+  items?: MenuItem[];
 }
 
-/**
- * Horizontal menu bar component
- */
 export class NXMenuBar extends BaseComponent {
   static get observedAttributes(): string[] {
-    return ['variant'];
+    return [];
   }
 
-  private items: MenuBarItem[] = [];
-  private activeMenu: string | null = null;
-
   protected initializeState(): void {
+    this[ComponentState].set('items', []);
     this[ComponentState].set('activeMenu', null);
   }
 
-  constructor(config?: MenuBarConfig) {
+  constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    
-    if (config) {
-      this.configure(config);
-    }
   }
 
-  configure(config: MenuBarConfig): void {
-    if (config.items) {
-      this.setItems(config.items);
-    }
-    
-    Object.entries(config).forEach(([key, value]) => {
-      if (key === 'onSelect') {
-        this[ComponentState].set(key, value);
-      } else if (key !== 'items') {
-        const attrName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-        this.setAttribute(attrName, String(value));
-      }
-    });
-  }
-
-  setItems(items: MenuBarItem[]): void {
-    this.items = items.map((item, index) => ({
-      ...item,
-      id: item.id || `menu-${index}`
-    }));
-    this.update();
+  setItems(items: MenuItem[]): void {
+    this.setState('items', items);
   }
 
   protected render(): string {
-    const variant = this.getProp('variant', 'default');
+    const items = this.getState<MenuItem[]>('items', []);
     const activeMenu = this.getState('activeMenu');
 
     return `
-      <nav class="nx-menubar nx-menubar-${variant}" 
-           part="menubar"
-           role="menubar">
-        ${this.items.map(item => {
-          const hasMenu = item.menu && item.menu.length > 0;
-          const isActive = activeMenu === item.id;
+      <nav class="nx-menubar" part="container" role="menubar">
+        ${items.map((item, index) => {
+          const itemId = item.id || String(index);
+          const isActive = activeMenu === itemId;
+          const hasSubmenu = item.submenu && item.submenu.length > 0;
 
           return `
             <div class="nx-menubar-item ${item.disabled ? 'disabled' : ''} ${isActive ? 'active' : ''}"
-                 part="item">
-              <button class="nx-menubar-button"
-                      role="menuitem"
-                      aria-haspopup="${hasMenu}"
-                      aria-expanded="${isActive}"
-                      ${item.disabled ? 'disabled' : ''}
-                      data-item-id="${item.id}">
-                ${item.icon ? `
-                  <span class="nx-menubar-icon">${this.renderIcon(item.icon)}</span>
-                ` : ''}
-                <span class="nx-menubar-text">${item.text}</span>
-              </button>
-              ${hasMenu ? `
-                <nx-menu class="nx-menubar-menu ${isActive ? 'open' : ''}">
-                  <div slot="trigger"></div>
-                </nx-menu>
+                 part="item"
+                 role="menuitem"
+                 data-item-id="${itemId}"
+                 ${item.disabled ? 'aria-disabled="true"' : ''}
+                 tabindex="${item.disabled ? -1 : 0}">
+              ${item.icon ? `<span class="nx-menubar-icon" part="icon">${item.icon}</span>` : ''}
+              <span class="nx-menubar-text" part="text">${item.text}</span>
+              ${hasSubmenu ? `
+                <div class="nx-menubar-dropdown ${isActive ? 'open' : ''}" part="dropdown">
+                  ${this.renderSubmenu(item.submenu!)}
+                </div>
               ` : ''}
             </div>
           `;
@@ -96,83 +56,58 @@ export class NXMenuBar extends BaseComponent {
     `;
   }
 
-  private renderIcon(icon: string): string {
-    if (icon.startsWith('<svg')) {
-      return icon;
-    } else if (icon.startsWith('icon-')) {
-      return `<i class="${icon}"></i>`;
-    } else {
-      return icon;
-    }
+  private renderSubmenu(items: MenuItem[]): string {
+    return `
+      <div class="nx-menubar-submenu" role="menu">
+        ${items.map((item, index) => {
+          if (item.divider) {
+            return '<div class="nx-menubar-divider" role="separator"></div>';
+          }
+
+          return `
+            <div class="nx-menubar-submenu-item ${item.disabled ? 'disabled' : ''}"
+                 role="menuitem"
+                 data-item-id="${item.id || index}"
+                 ${item.disabled ? 'aria-disabled="true"' : ''}
+                 tabindex="${item.disabled ? -1 : 0}">
+              ${item.icon ? `<span class="nx-menubar-submenu-icon">${item.icon}</span>` : ''}
+              <span class="nx-menubar-submenu-text">${item.text}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
   }
 
   protected styles(): string {
     return `
       :host {
-        --menubar-height: 2.5rem;
-        --menubar-bg: var(--color-surface);
-        --menubar-border: var(--color-border);
-        --button-hover: var(--color-background);
-        --button-active: var(--color-primary);
         display: block;
       }
 
       .nx-menubar {
         display: flex;
         align-items: center;
-        height: var(--menubar-height);
-        background: var(--menubar-bg);
-        border-bottom: 1px solid var(--menubar-border);
+        background: var(--surface-color);
+        border-bottom: 1px solid var(--border-color);
       }
 
-      /* Variants */
-      .nx-menubar-minimal {
-        background: transparent;
-        border-bottom: none;
-      }
-
-      .nx-menubar-rounded {
-        border-radius: var(--radius-lg);
-        border: 1px solid var(--menubar-border);
-        overflow: hidden;
-      }
-
-      /* Items */
       .nx-menubar-item {
         position: relative;
-        height: 100%;
-      }
-
-      .nx-menubar-button {
-        height: 100%;
-        padding: 0 1rem;
-        background: none;
-        border: none;
-        cursor: pointer;
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        font-size: 0.875rem;
-        font-family: inherit;
-        color: var(--color-text);
-        transition: all 0.2s;
-        position: relative;
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
       }
 
-      .nx-menubar-button:hover:not(:disabled) {
-        background: var(--button-hover);
+      .nx-menubar-item:hover:not(.disabled),
+      .nx-menubar-item.active {
+        background: var(--hover-bg);
       }
 
-      .nx-menubar-item.active .nx-menubar-button {
-        background: var(--button-hover);
-      }
-
-      .nx-menubar-button:focus {
-        outline: 2px solid var(--color-primary);
-        outline-offset: -2px;
-      }
-
-      .nx-menubar-button:disabled {
+      .nx-menubar-item.disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
@@ -180,162 +115,196 @@ export class NXMenuBar extends BaseComponent {
       .nx-menubar-icon {
         width: 1.25rem;
         height: 1.25rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
       }
 
-      .nx-menubar-text {
-        white-space: nowrap;
-      }
-
-      /* Menu positioning */
-      .nx-menubar-menu {
+      .nx-menubar-dropdown {
         position: absolute;
         top: 100%;
         left: 0;
-        display: none;
+        min-width: 200px;
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 0 0 0.25rem 0.25rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-0.5rem);
+        transition: all 0.2s;
       }
 
-      .nx-menubar-menu.open {
-        display: block;
+      .nx-menubar-dropdown.open {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+
+      .nx-menubar-submenu {
+        padding: 0.25rem;
+      }
+
+      .nx-menubar-submenu-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+
+      .nx-menubar-submenu-item:hover:not(.disabled) {
+        background: var(--hover-bg);
+      }
+
+      .nx-menubar-submenu-item.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .nx-menubar-submenu-icon {
+        width: 1.25rem;
+        height: 1.25rem;
+      }
+
+      .nx-menubar-divider {
+        height: 1px;
+        background: var(--border-color);
+        margin: 0.25rem 0;
       }
     `;
   }
 
   protected afterRender(): void {
-    // Button clicks
-    this.$$('.nx-menubar-button').forEach(button => {
-      button.addEventListener('click', (e) => {
+    // Menu bar items
+    this.$$('.nx-menubar-item:not(.disabled)').forEach(item => {
+      this.on(item, 'click', (e: Event) => {
+        const itemEl = e.currentTarget as HTMLElement;
+        const itemId = itemEl.dataset.itemId;
+        const activeMenu = this.getState('activeMenu');
+
+        if (activeMenu === itemId) {
+          this.closeMenu();
+        } else {
+          this.openMenu(itemId!);
+        }
+      });
+
+      this.on(item, 'keydown', (e: Event) => {
+        this.handleKeyboard(e as KeyboardEvent);
+      });
+    });
+
+    // Submenu items
+    this.$$('.nx-menubar-submenu-item:not(.disabled)').forEach(item => {
+      this.on(item, 'click', (e: Event) => {
         e.stopPropagation();
-        const itemId = (button as HTMLElement).dataset.itemId;
-        const item = this.items.find(i => i.id === itemId);
-        
-        if (item && !item.disabled) {
-          if (item.menu) {
-            this.toggleMenu(itemId!);
-          } else {
-            if (item.handler) {
-              item.handler();
-            }
-            
-            const onSelect = this.getState('onSelect');
-            if (onSelect) onSelect(item);
-            
-            this.dispatchEvent(new CustomEvent('select', { detail: { item } }));
-          }
+        const itemEl = e.currentTarget as HTMLElement;
+        const itemId = itemEl.dataset.itemId;
+        const menuItem = this.findMenuItem(itemId!);
+
+        if (menuItem) {
+          menuItem.action?.();
+          this.closeMenu();
+          this.emit('select', { item: menuItem });
         }
       });
     });
 
-    // Setup menus
-    this.items.forEach(item => {
-      if (item.menu) {
-        const menu = this.$(`.nx-menubar-item nx-menu`) as NXMenu;
-        if (menu) {
-          menu.setItems(item.menu);
-          menu.addEventListener('select', (e: any) => {
-            this.closeAllMenus();
-            
-            const onSelect = this.getState('onSelect');
-            if (onSelect) onSelect(e.detail.item);
-            
-            this.dispatchEvent(new CustomEvent('select', { 
-              detail: { item: e.detail.item, parent: item } 
-            }));
-          });
-        }
+    // Close on outside click
+    this.on(document, 'click', (e: Event) => {
+      if (!this.contains(e.target as Node)) {
+        this.closeMenu();
       }
     });
-
-    // Close menus on outside click
-    document.addEventListener('click', () => this.closeAllMenus());
-
-    // Keyboard navigation
-    this.setupKeyboardNavigation();
   }
 
-  private setupKeyboardNavigation(): void {
-    const buttons = this.$$('.nx-menubar-button');
-    
-    buttons.forEach((button, index) => {
-      button.addEventListener('keydown', (e) => {
-        switch (e.key) {
-          case 'ArrowLeft':
-            e.preventDefault();
-            const prevIndex = index > 0 ? index - 1 : buttons.length - 1;
-            (buttons[prevIndex] as HTMLElement).focus();
-            break;
-            
-          case 'ArrowRight':
-            e.preventDefault();
-            const nextIndex = index < buttons.length - 1 ? index + 1 : 0;
-            (buttons[nextIndex] as HTMLElement).focus();
-            break;
-            
-          case 'ArrowDown':
-            e.preventDefault();
-            const itemId = (button as HTMLElement).dataset.itemId;
-            const item = this.items.find(i => i.id === itemId);
-            if (item?.menu) {
-              this.openMenu(itemId!);
-              // Focus first menu item
-              setTimeout(() => {
-                const menu = this.$(`.nx-menubar-menu.open .nx-menu`);
-                const firstItem = menu?.querySelector('.nx-menu-item:not(.disabled)') as HTMLElement;
-                firstItem?.focus();
-              }, 100);
-            }
-            break;
-            
-          case 'Escape':
-            e.preventDefault();
-            this.closeAllMenus();
-            break;
+  private handleKeyboard(e: KeyboardEvent): void {
+    const target = e.target as HTMLElement;
+    const isMenuItem = target.classList.contains('nx-menubar-item');
+
+    switch (e.key) {
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (isMenuItem) {
+          target.click();
         }
-      });
-    });
+        break;
+
+      case 'Escape':
+        e.preventDefault();
+        this.closeMenu();
+        if (isMenuItem) {
+          target.focus();
+        }
+        break;
+
+      case 'ArrowRight':
+        e.preventDefault();
+        if (isMenuItem) {
+          this.focusNextItem(target);
+        }
+        break;
+
+      case 'ArrowLeft':
+        e.preventDefault();
+        if (isMenuItem) {
+          this.focusPreviousItem(target);
+        }
+        break;
+
+      case 'ArrowDown':
+        e.preventDefault();
+        if (isMenuItem) {
+          const itemId = target.dataset.itemId;
+          this.openMenu(itemId!);
+          this.focusFirstSubmenuItem();
+        }
+        break;
+    }
   }
 
-  private toggleMenu(itemId: string): void {
-    const currentActive = this.getState('activeMenu');
-    
-    if (currentActive === itemId) {
-      this.closeAllMenus();
-    } else {
-      this.openMenu(itemId);
-    }
+  private focusNextItem(current: HTMLElement): void {
+    const items = Array.from(this.$$('.nx-menubar-item:not(.disabled)'));
+    const index = items.indexOf(current);
+    const next = items[index + 1] || items[0];
+    (next as HTMLElement).focus();
+  }
+
+  private focusPreviousItem(current: HTMLElement): void {
+    const items = Array.from(this.$$('.nx-menubar-item:not(.disabled)'));
+    const index = items.indexOf(current);
+    const prev = items[index - 1] || items[items.length - 1];
+    (prev as HTMLElement).focus();
+  }
+
+  private focusFirstSubmenuItem(): void {
+    const activeMenu = this.getState('activeMenu');
+    const submenuItem = this.$(`.nx-menubar-item[data-item-id="${activeMenu}"] .nx-menubar-submenu-item:not(.disabled)`);
+    (submenuItem as HTMLElement)?.focus();
   }
 
   private openMenu(itemId: string): void {
     this.setState('activeMenu', itemId);
-    
-    // Open the corresponding menu
-    const menuEl = this.$(`.nx-menubar-item nx-menu`) as NXMenu;
-    if (menuEl) {
-      menuEl.open();
-    }
   }
 
-  private closeAllMenus(): void {
+  private closeMenu(): void {
     this.setState('activeMenu', null);
+  }
+
+  private findMenuItem(id: string): MenuItem | null {
+    const items = this.getState<MenuItem[]>('items', []);
     
-    // Close all menus
-    this.$$('nx-menu').forEach(menu => {
-      (menu as NXMenu).close();
-    });
-  }
-
-  // Public API
-  getItems(): MenuBarItem[] {
-    return [...this.items];
-  }
-
-  setActiveItem(itemId: string): void {
-    const item = this.items.find(i => i.id === itemId);
-    if (item && item.menu) {
-      this.openMenu(itemId);
+    for (const item of items) {
+      if (item.submenu) {
+        const found = item.submenu.find(sub => 
+          (sub.id || item.submenu!.indexOf(sub).toString()) === id
+        );
+        if (found) return found;
+      }
     }
+    
+    return null;
   }
 }
 

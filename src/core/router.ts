@@ -36,7 +36,11 @@ interface RouteMatch {
 /**
  * Client-side router for single-page applications
  */
-export class Router extends EventBus<string, any> {
+export class Router extends EventBus<{
+  navigate: Route;
+  beforeNavigate: { to: Route; from: Route | null };
+  afterNavigate: { to: Route; from: Route | null };
+}> {
   private mode: 'hash' | 'history';
   private base: string;
   private routes: RouteMatch[] = [];
@@ -102,7 +106,7 @@ export class Router extends EventBus<string, any> {
       keys
     });
 
-    // Process child routes
+    // Add child routes
     if (route.children) {
       route.children.forEach(child => this.addRoute(child, route));
     }
@@ -113,39 +117,35 @@ export class Router extends EventBus<string, any> {
    */
   start(): void {
     if (this.mode === 'hash') {
-      window.addEventListener('hashchange', () => this.handleRouteChange());
+      window.addEventListener('hashchange', () => this.handleRoute());
     } else {
-      window.addEventListener('popstate', () => this.handleRouteChange());
-      
-      // Intercept link clicks
-      document.addEventListener('click', (e) => {
-        const link = (e.target as HTMLElement).closest('a');
-        if (link && link.href && link.target !== '_blank') {
-          const url = new URL(link.href);
-          if (url.origin === window.location.origin) {
-            e.preventDefault();
-            this.push(url.pathname + url.search + url.hash);
-          }
-        }
-      });
+      window.addEventListener('popstate', () => this.handleRoute());
     }
 
     // Handle initial route
-    this.handleRouteChange();
+    this.handleRoute();
   }
 
   /**
    * Navigate to a path
    */
-  async push(path: string): Promise<boolean> {
-    return this.navigate(path, 'push');
-  }
+  navigate(path: string, options: { replace?: boolean; state?: any } = {}): void {
+    const url = this.createUrl(path);
 
-  /**
-   * Replace current path
-   */
-  async replace(path: string): Promise<boolean> {
-    return this.navigate(path, 'replace');
+    if (this.mode === 'hash') {
+      if (options.replace) {
+        location.replace(url);
+      } else {
+        location.hash = path;
+      }
+    } else {
+      if (options.replace) {
+        history.replaceState(options.state, '', url);
+      } else {
+        history.pushState(options.state, '', url);
+      }
+      this.handleRoute();
+    }
   }
 
   /**
@@ -163,386 +163,175 @@ export class Router extends EventBus<string, any> {
   }
 
   /**
-   * Go to specific position in history
+   * Create URL for a path
    */
-  go(delta: number): void {
-    window.history.go(delta);
-  }
-
-  /**
-   * Internal navigation method
-   */
-  private async navigate(path: string, method: 'push' | 'replace'): Promise<boolean> {
-    const route = this.resolve(path);
-    
-    if (!route) {
-      console.warn(`No route found for path: ${path}`);
-      return false;
-    }
-
-    // Run before hooks
-    const canNavigate = await this.runBeforeHooks(route, this.currentRoute);
-    if (!canNavigate) {
-      return false;
-    }
-
-    // Update URL
+  private createUrl(path: string): string {
     if (this.mode === 'hash') {
-      if (method === 'push') {
-        window.location.hash = path;
-      } else {
-        window.location.replace(`#${path}`);
-      }
-    } else {
-      const url = this.base + path;
-      if (method === 'push') {
-        window.history.pushState(null, '', url);
-      } else {
-        window.history.replaceState(null, '', url);
-      }
+      return `#${path}`;
     }
-
-    // Update current route
-    const previousRoute = this.currentRoute;
-    this.currentRoute = route;
-
-    // Emit events
-    this.emit('navigate', route);
-    this.emit('route-change', { to: route, from: previousRoute });
-
-    // Run after hooks
-    this.runAfterHooks(route, previousRoute);
-
-    return true;
+    return this.base === '/' ? path : this.base + path;
   }
 
   /**
-   * Handle route change from browser
-   */
-  private handleRouteChange(): void {
-    const path = this.getCurrentPath();
-    const route = this.resolve(path);
-
-    if (!route) {
-      console.warn(`No route found for path: ${path}`);
-      if (this.fallback) {
-        this.currentRoute = this.createRoute(this.fallback, path, {});
-        this.emit('navigate', this.currentRoute);
-      }
-      return;
-    }
-
-    // Run before hooks
-    this.runBeforeHooks(route, this.currentRoute).then(canNavigate => {
-      if (!canNavigate) {
-        // Revert URL change
-        if (this.currentRoute) {
-          if (this.mode === 'hash') {
-            window.location.hash = this.currentRoute.path;
-          } else {
-            window.history.pushState(null, '', this.base + this.currentRoute.path);
-          }
-        }
-        return;
-      }
-
-      const previousRoute = this.currentRoute;
-      this.currentRoute = route;
-
-      this.emit('navigate', route);
-      this.emit('route-change', { to: route, from: previousRoute });
-
-      this.runAfterHooks(route, previousRoute);
-    });
-  }
-
-  /**
-   * Get current path from browser
+   * Get current path
    */
   private getCurrentPath(): string {
     if (this.mode === 'hash') {
-      return window.location.hash.slice(1) || '/';
-    } else {
-      const path = window.location.pathname;
-      if (this.base !== '/' && path.startsWith(this.base)) {
-        return path.slice(this.base.length) || '/';
-      }
-      return path;
+      return location.hash.slice(1) || '/';
     }
-  }
-
-  /**
-   * Resolve a path to a route
-   */
-  resolve(path: string): Route | null {
-    // Parse path
-    const [pathname, search, hash] = this.parsePath(path);
-    const query = this.parseQuery(search);
-
-    // Find matching route
-    for (const routeMatch of this.routes) {
-      const match = pathname.match(routeMatch.regex);
-      
-      if (match) {
-        const params: Record<string, string> = {};
-        
-        // Extract params
-        routeMatch.keys.forEach((key, index) => {
-          params[key] = match[index + 1];
-        });
-
-        return this.createRoute(routeMatch.route, path, params, query, hash);
-      }
-    }
-
-    // Check fallback
-    if (this.fallback) {
-      return this.createRoute(this.fallback, path, {}, query, hash);
-    }
-
-    return null;
-  }
-
-  /**
-   * Create a route object
-   */
-  private createRoute(
-    config: RouteConfig,
-    fullPath: string,
-    params: Record<string, string>,
-    query: Record<string, string> = {},
-    hash: string = ''
-  ): Route {
-    const matched = [config];
-    let parent = config;
     
-    // Build matched array for nested routes
-    while (parent.children) {
-      const child = parent.children.find(c => 
-        fullPath.startsWith(parent.path + c.path)
-      );
-      if (child) {
-        matched.push(child);
-        parent = child;
-      } else {
-        break;
-      }
-    }
-
-    return {
-      path: config.path,
-      params,
-      query,
-      hash,
-      fullPath,
-      matched,
-      meta: config.meta || {}
-    };
-  }
-
-  /**
-   * Parse path into components
-   */
-  private parsePath(path: string): [string, string, string] {
-    const hashIndex = path.indexOf('#');
-    const queryIndex = path.indexOf('?');
-
-    let pathname = path;
-    let search = '';
-    let hash = '';
-
-    if (hashIndex >= 0) {
-      hash = path.slice(hashIndex + 1);
-      pathname = path.slice(0, hashIndex);
-    }
-
-    if (queryIndex >= 0 && (hashIndex < 0 || queryIndex < hashIndex)) {
-      search = pathname.slice(queryIndex + 1);
-      pathname = pathname.slice(0, queryIndex);
-    }
-
-    return [pathname, search, hash];
+    const path = location.pathname;
+    if (this.base === '/') return path;
+    
+    return path.startsWith(this.base) ? path.slice(this.base.length) : path;
   }
 
   /**
    * Parse query string
    */
-  private parseQuery(search: string): Record<string, string> {
-    if (!search) return {};
+  private parseQuery(query: string): Record<string, string> {
+    const params: Record<string, string> = {};
+    if (!query) return params;
 
-    const query: Record<string, string> = {};
-    const pairs = search.split('&');
-
-    for (const pair of pairs) {
-      const [key, value] = pair.split('=');
+    query.split('&').forEach(param => {
+      const [key, value] = param.split('=');
       if (key) {
-        query[decodeURIComponent(key)] = decodeURIComponent(value || '');
+        params[decodeURIComponent(key)] = decodeURIComponent(value || '');
       }
-    }
+    });
 
-    return query;
+    return params;
   }
 
   /**
-   * Run before navigation hooks
+   * Handle route change
    */
-  private async runBeforeHooks(to: Route, from: Route | null): Promise<boolean> {
-    // Route-specific hook
-    if (to.matched.length > 0) {
-      const lastMatched = to.matched[to.matched.length - 1];
-      if (lastMatched.beforeEnter) {
-        const canEnter = await lastMatched.beforeEnter(to);
-        if (!canEnter) return false;
+  private async handleRoute(): Promise<void> {
+    const path = this.getCurrentPath();
+    const [pathname, search] = path.split('?');
+    const [pathWithoutHash, hash] = pathname.split('#');
+    
+    const route: Route = {
+      path: pathWithoutHash,
+      params: {},
+      query: this.parseQuery(search),
+      hash: hash || '',
+      fullPath: path,
+      matched: [],
+      meta: {}
+    };
+
+    // Find matching route
+    let matched = false;
+    for (const routeMatch of this.routes) {
+      const match = routeMatch.regex.exec(pathWithoutHash);
+      if (match) {
+        matched = true;
+        route.matched.push(routeMatch.route);
+        
+        // Extract params
+        routeMatch.keys.forEach((key, index) => {
+          route.params[key] = match[index + 1];
+        });
+
+        // Merge meta
+        Object.assign(route.meta, routeMatch.route.meta);
+        break;
       }
     }
 
-    // Global hooks
+    // Use fallback if no match
+    if (!matched && this.fallback) {
+      route.matched.push(this.fallback);
+    }
+
+    // Run before hooks
+    const from = this.currentRoute;
+    this.emit('beforeNavigate', { to: route, from });
+
     for (const hook of this.beforeHooks) {
-      const result = await hook(to, from);
-      if (!result) return false;
+      const result = await hook(route, from);
+      if (result === false) return;
     }
 
-    return true;
-  }
+    // Run route-specific beforeEnter
+    for (const matchedRoute of route.matched) {
+      if (matchedRoute.beforeEnter) {
+        const result = await matchedRoute.beforeEnter(route);
+        if (result === false) return;
+      }
+    }
 
-  /**
-   * Run after navigation hooks
-   */
-  private runAfterHooks(to: Route, from: Route | null): void {
+    // Update current route
+    this.currentRoute = route;
+    this.emit('navigate', route);
+
+    // Run after hooks
     for (const hook of this.afterHooks) {
-      hook(to, from);
+      hook(route, from);
     }
+    
+    this.emit('afterNavigate', { to: route, from });
   }
 
   /**
-   * Add a global before hook
+   * Add global before hook
    */
-  beforeEach(hook: (to: Route, from: Route | null) => boolean | Promise<boolean>): () => void {
+  beforeEach(hook: (to: Route, from: Route | null) => boolean | Promise<boolean>): void {
     this.beforeHooks.push(hook);
-    return () => {
-      const index = this.beforeHooks.indexOf(hook);
-      if (index >= 0) this.beforeHooks.splice(index, 1);
-    };
   }
 
   /**
-   * Add a global after hook
+   * Add global after hook
    */
-  afterEach(hook: (to: Route, from: Route | null) => void): () => void {
+  afterEach(hook: (to: Route, from: Route | null) => void): void {
     this.afterHooks.push(hook);
-    return () => {
-      const index = this.afterHooks.indexOf(hook);
-      if (index >= 0) this.afterHooks.splice(index, 1);
-    };
   }
 
   /**
    * Get current route
    */
-  get current(): Route | null {
+  getCurrentRoute(): Route | null {
     return this.currentRoute;
   }
 
   /**
-   * Create a URL for a route
+   * Get route config by path
    */
-  createUrl(name: string, params?: Record<string, string>, query?: Record<string, string>): string {
-    // Find route by name/path
-    const routeMatch = this.routes.find(r => r.route.path === name);
-    if (!routeMatch) return '#';
-
-    let path = routeMatch.route.path;
-
-    // Replace params
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        path = path.replace(`:${key}`, value);
-      });
+  getRouteConfig(path: string): RouteConfig | undefined {
+    for (const routeMatch of this.routes) {
+      if (routeMatch.route.path === path) {
+        return routeMatch.route;
+      }
     }
-
-    // Add query
-    if (query && Object.keys(query).length > 0) {
-      const queryString = Object.entries(query)
-        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-        .join('&');
-      path += `?${queryString}`;
-    }
-
-    return this.mode === 'hash' ? `#${path}` : this.base + path;
+    return undefined;
   }
 
   /**
-   * Check if a route is active
+   * Check if path matches current route
    */
-  isActive(path: string, exact = false): boolean {
+  isActive(path: string, exact = true): boolean {
     if (!this.currentRoute) return false;
     
     if (exact) {
       return this.currentRoute.path === path;
     }
-
-    return this.currentRoute.fullPath.startsWith(path);
+    
+    return this.currentRoute.path.startsWith(path);
   }
 
   /**
-   * Get route configuration by path
+   * Generate link for a path
    */
-  getRouteConfig(path: string): RouteConfig | null {
-    const route = this.resolve(path);
-    return route ? route.matched[route.matched.length - 1] : null;
-  }
-}
-
-// Route link component
-export class NXRouterLink extends HTMLElement {
-  static get observedAttributes(): string[] {
-    return ['to', 'exact', 'active-class'];
-  }
-
-  connectedCallback(): void {
-    this.addEventListener('click', this.handleClick);
-    this.updateActiveState();
-  }
-
-  disconnectedCallback(): void {
-    this.removeEventListener('click', this.handleClick);
-  }
-
-  attributeChangedCallback(): void {
-    this.updateActiveState();
-  }
-
-  private handleClick = (e: Event): void => {
-    e.preventDefault();
-    const to = this.getAttribute('to');
-    if (to && window.NX?.app) {
-      window.NX.app.navigate(to);
+  link(path: string, params?: Record<string, string>): string {
+    let finalPath = path;
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        finalPath = finalPath.replace(`:${key}`, value);
+      });
     }
-  };
-
-  private updateActiveState(): void {
-    const to = this.getAttribute('to');
-    const exact = this.hasAttribute('exact');
-    const activeClass = this.getAttribute('active-class') || 'active';
-
-    if (to && window.NX?.app?.router) {
-      const isActive = window.NX.app.router.isActive(to, exact);
-      
-      if (isActive) {
-        this.classList.add(activeClass);
-      } else {
-        this.classList.remove(activeClass);
-      }
-    }
-  }
-}
-
-// Register router link component
-customElements.define('nx-link', NXRouterLink);
-
-// Extend window interface
-declare global {
-  interface Window {
-    NX?: any;
+    
+    return this.createUrl(finalPath);
   }
 }
