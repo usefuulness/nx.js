@@ -36,11 +36,7 @@ interface RouteMatch {
 /**
  * Client-side router for single-page applications
  */
-export class Router extends EventBus<{
-  navigate: Route;
-  beforeNavigate: { to: Route; from: Route | null };
-  afterNavigate: { to: Route; from: Route | null };
-}> {
+export class Router extends EventBus {
   private mode: 'hash' | 'history';
   private base: string;
   private routes: RouteMatch[] = [];

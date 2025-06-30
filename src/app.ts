@@ -5,18 +5,9 @@
 
 import { BaseComponent } from '@/components/abstracts/base';
 import { ComponentRegistry } from '@/core/registry';
-import { Router, type RouterConfig as CoreRouterConfig, type RouteConfig as CoreRouteConfig } from '@/core/router';
+import { Router, type RouterConfig, type RouteConfig } from '@/core/router';
 import { ThemeManager } from '@/core/theme';
 import { Store, type StoreConfig as CoreStoreConfig } from '@/data/store';
-
-// Re-export compatible interfaces
-export interface RouteConfig extends CoreRouteConfig {
-  component?: string | typeof BaseComponent;
-}
-
-export interface RouterConfig extends CoreRouterConfig {
-  routes?: RouteConfig[];
-}
 
 export interface StoreConfig extends CoreStoreConfig<any> {}
 
@@ -57,12 +48,6 @@ export interface ProxyConfig {
 export interface Plugin {
   name: string;
   install: (app: NXApplication) => void;
-}
-
-interface Route {
-  path: string;
-  params: Record<string, string>;
-  query: Record<string, string>;
 }
 
 /**
@@ -130,17 +115,8 @@ export class NXApplication extends EventTarget {
 
     // Set up router
     if (config.router) {
-      // Convert to core router config
-      const coreConfig: CoreRouterConfig = {
-        mode: config.router.mode,
-        base: config.router.base,
-        routes: config.router.routes?.map(route => ({
-          ...route,
-          component: typeof route.component === 'string' ? route.component : undefined
-        }))
-      };
-      this.router = new Router(coreConfig);
-      this.router.on('navigate', (route: Route) => {
+      this.router = new Router(config.router);
+      this.router.on('navigate', (route) => {
         this.handleRouteChange(route);
       });
     }
@@ -306,7 +282,7 @@ export class NXApplication extends EventTarget {
   /**
    * Handle route changes
    */
-  private handleRouteChange(route: Route): void {
+  private handleRouteChange(route: any): void {
     this.dispatchEvent(new CustomEvent('route', { detail: route }));
 
     // Update viewport based on route

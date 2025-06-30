@@ -76,7 +76,6 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
   private records: StoreRecord<T>[] = [];
   private removedRecords: StoreRecord<T>[] = [];
   private proxy: Proxy<T> | null = null;
-  private Model: any = null;
   private loading = false;
   private totalCount = 0;
   private currentPage = 1;
@@ -86,7 +85,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
   // State
   private sorters: Sorter[] = [];
   private filters: Filter[] = [];
-  private snapshot: StoreRecord<T>[] | null = null;
+  private snapshotData: StoreRecord<T>[] | null = null;
 
   constructor(config: StoreConfig<T> = {}) {
     super();
@@ -96,13 +95,6 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
     // Set up proxy
     if (config.proxy) {
       this.proxy = this.createProxy(config.proxy);
-    }
-    
-    // Set up model
-    if (config.model) {
-      this.Model = typeof config.model === 'string' ? 
-        this.lookupModel(config.model) : 
-        config.model;
     }
     
     // Apply initial sorters and filters
@@ -247,12 +239,13 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    */
   update(record: StoreRecord<T>, data: Partial<T>): void {
     Object.keys(data).forEach(key => {
-      if (key in record.data) {
-        if (record.data[key] !== data[key]) {
-          if (!record.modified[key]) {
-            record.modified[key] = record.data[key];
+      const typedKey = key as keyof T;
+      if (typedKey in record.data) {
+        if (record.data[typedKey] !== data[typedKey]) {
+          if (!record.modified[typedKey]) {
+            record.modified[typedKey] = record.data[typedKey];
           }
-          record.data[key] = data[key] as any;
+          (record.data as any)[typedKey] = data[typedKey];
           record.dirty = true;
         }
       }
@@ -325,7 +318,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    * Find record by property value
    */
   findRecord(property: string, value: any): StoreRecord<T> | null {
-    return this.records.find(record => record.data[property] === value) || null;
+    return this.records.find(record => (record.data as any)[property] === value) || null;
   }
 
   /**
@@ -412,7 +405,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
     if (record) {
       // Reject single record
       Object.keys(record.modified).forEach(key => {
-        record.data[key] = record.modified[key];
+        (record.data as any)[key] = record.modified[key as keyof T];
       });
       record.modified = {};
       record.dirty = false;
@@ -420,7 +413,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
       // Reject all changes
       this.records.forEach(r => {
         Object.keys(r.modified).forEach(key => {
-          r.data[key] = r.modified[key];
+          (r.data as any)[key] = r.modified[key as keyof T];
         });
         r.modified = {};
         r.dirty = false;
@@ -511,7 +504,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    * Query the store
    */
   query(property: string, value: any): StoreRecord<T>[] {
-    return this.records.filter(record => record.data[property] === value);
+    return this.records.filter(record => (record.data as any)[property] === value);
   }
 
   /**
@@ -534,21 +527,21 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    * Get snapshot of current records
    */
   snapshot(): StoreRecord<T>[] {
-    this.snapshot = this.records.map(r => ({
+    this.snapshotData = this.records.map(r => ({
       ...r,
       data: { ...r.data },
       modified: { ...r.modified }
     }));
-    return this.snapshot;
+    return this.snapshotData;
   }
 
   /**
    * Restore from snapshot
    */
   restore(): void {
-    if (this.snapshot) {
-      this.records = this.snapshot;
-      this.snapshot = null;
+    if (this.snapshotData) {
+      this.records = this.snapshotData;
+      this.snapshotData = null;
       this.emit('datachanged', { records: this.records });
     }
   }
@@ -619,7 +612,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
   // Private methods
 
   private createRecord(data: T, phantom = false): StoreRecord<T> {
-    const id = data.id || this.generateId();
+    const id = (data as any).id || this.generateId();
     return {
       data: { ...data, id },
       modified: {},
@@ -656,8 +649,8 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
     
     this.records.sort((a, b) => {
       for (const sorter of this.sorters) {
-        let aVal = a.data[sorter.property];
-        let bVal = b.data[sorter.property];
+        let aVal = (a.data as any)[sorter.property];
+        let bVal = (b.data as any)[sorter.property];
         
         if (sorter.transform) {
           aVal = sorter.transform(aVal);
@@ -727,7 +720,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
     };
   }
 
-  private lookupModel(name: string): any {
+  private lookupModel(_name: string): any {
     // Model registry would be implemented here
     return null;
   }

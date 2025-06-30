@@ -1,4 +1,4 @@
-import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+import { BaseComponent } from '@/components/abstracts/base';
 
 export interface SkeletonConfig {
   variant?: 'text' | 'circular' | 'rectangular';
@@ -29,7 +29,7 @@ export class NXSkeleton extends BaseComponent {
     const animation = this.getProp('animation', 'pulse');
     const count = this.getProp('count', 1);
 
-    const skeletons = Array.from({ length: count }, (_, index) => `
+    const skeletons = Array.from({ length: count }, () => `
       <div class="nx-skeleton nx-skeleton-${variant} nx-skeleton-${animation}" 
            part="skeleton"
            style="width: ${width}; height: ${height};">

@@ -1,10 +1,7 @@
-
 /**
  * @file @/components/abstracts/base.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
-
-import { Core } from '@/core/core';
 
 /**
  * Symbol for accessing component's internal state management.

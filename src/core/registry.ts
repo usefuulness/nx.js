@@ -211,10 +211,19 @@ export class ComponentRegistry {
    * Create a lazy component that loads on demand
    */
   static lazy(xtype: string, loader: () => Promise<typeof BaseComponent>): void {
-    this.registerFactory(xtype, async (config) => {
-      const Component = await loader();
-      this.register(xtype, Component);
-      return this.create(xtype, config);
+    this.registerFactory(xtype, (config) => {
+      // Create a placeholder element that will be replaced when component loads
+      const placeholder = document.createElement('div');
+      
+      loader().then(Component => {
+        this.register(xtype, Component);
+        const actualComponent = this.create(xtype, config);
+        if (actualComponent && placeholder.parentNode) {
+          placeholder.parentNode.replaceChild(actualComponent, placeholder);
+        }
+      });
+      
+      return placeholder as any;
     });
   }
 
@@ -224,14 +233,15 @@ export class ComponentRegistry {
   static extend(xtype: string, ParentComponent: typeof BaseComponent, extension: any): typeof BaseComponent {
     class ExtendedComponent extends ParentComponent {
       static get observedAttributes() {
-        return [
-          ...(ParentComponent.observedAttributes || []),
-          ...(extension.observedAttributes || [])
-        ];
+        const parentAttrs = (ParentComponent as any).observedAttributes || [];
+        const extAttrs = extension.observedAttributes || [];
+        return [...parentAttrs, ...extAttrs];
       }
 
       protected initializeState(): void {
-        super.initializeState();
+        if ((ParentComponent.prototype as any).initializeState) {
+          (ParentComponent.prototype as any).initializeState.call(this);
+        }
         extension.initializeState?.call(this);
       }
 
@@ -239,11 +249,17 @@ export class ComponentRegistry {
         if (extension.render) {
           return extension.render.call(this);
         }
-        return super.render();
+        if ((ParentComponent.prototype as any).render) {
+          return (ParentComponent.prototype as any).render.call(this);
+        }
+        return '';
       }
 
       protected styles(): string {
-        const parentStyles = super.styles();
+        let parentStyles = '';
+        if ((ParentComponent.prototype as any).styles) {
+          parentStyles = (ParentComponent.prototype as any).styles.call(this);
+        }
         const extStyles = extension.styles?.call(this) || '';
         return `${parentStyles}\n${extStyles}`;
       }

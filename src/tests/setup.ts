@@ -1,35 +1,33 @@
-import { vi } from 'vitest';
-import '@testing-library/jest-dom';
-
 // Mock window.customElements if needed
 if (!window.customElements) {
   window.customElements = {
-    define: vi.fn(),
-    get: vi.fn(),
-    whenDefined: vi.fn(() => Promise.resolve()),
-    upgrade: vi.fn()
+    define: () => {},
+    get: () => undefined,
+    whenDefined: () => Promise.resolve(),
+    upgrade: () => {}
   } as any;
 }
 
 // Mock requestAnimationFrame
-global.requestAnimationFrame = (cb: FrameRequestCallback) => {
+(globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => {
   return setTimeout(() => cb(Date.now()), 0) as any;
 };
 
-global.cancelAnimationFrame = (id: number) => {
+(globalThis as any).cancelAnimationFrame = (id: number) => {
   clearTimeout(id);
 };
 
 // Setup ResizeObserver mock
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+(globalThis as any).ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
 
 // Setup IntersectionObserver mock
-global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+(globalThis as any).IntersectionObserver = class IntersectionObserver {
+  constructor() {}
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
