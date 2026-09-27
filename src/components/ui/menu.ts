@@ -1,4 +1,5 @@
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
 
 export interface MenuItem {
   id?: string;
@@ -331,4 +332,4 @@ export class NXMenu extends BaseComponent {
   }
 }
 
-customElements.define('nx-menu', NXMenu);
+define('nx-menu', NXMenu);

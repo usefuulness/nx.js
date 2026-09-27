@@ -1,31 +1,56 @@
-import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+/**
+ * @file @/layout/panel.ts
+ * @copyright Copyright (c) 2025 fool@nexaro.cloud
+ */
+import { BaseComponent, ComponentState, escapeHTML } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
+import { Icons } from '@/core/icons';
 
 export interface PanelConfig {
   title?: string;
+  icon?: string;
   collapsible?: boolean;
   collapsed?: boolean;
   closable?: boolean;
   resizable?: boolean;
-  minWidth?: string;
-  maxWidth?: string;
-  minHeight?: string;
-  maxHeight?: string;
-  width?: string;
-  height?: string;
+  minWidth?: string | number;
+  maxWidth?: string | number;
+  minHeight?: string | number;
+  maxHeight?: string | number;
+  width?: string | number;
+  height?: string | number;
+  /** Padding inside the body. `true` (default) = 1rem, `false` = none, or any CSS length / number (px). */
+  bodyPadding?: boolean | string | number;
+  /** Draw the outer border. Defaults to true, or the region edge only inside a border layout. */
+  border?: boolean;
   region?: 'north' | 'south' | 'east' | 'west' | 'center';
 }
 
+const size = (value: unknown): string | null => {
+  if (value === null || value === undefined || value === '') return null;
+  return typeof value === 'number' || /^\d+(\.\d+)?$/.test(String(value)) ? `${value}px` : String(value);
+};
+
+/**
+ * General-purpose container with an optional header. Inside a viewport,
+ * set `region` to dock it (`north`, `west`, `center`, ...).
+ *
+ * @example
+ * ```typescript
+ * { xtype: 'panel', title: 'Navigation', region: 'west', width: 260, collapsible: true, items: [...] }
+ * ```
+ */
 export class NXPanel extends BaseComponent {
   static get observedAttributes(): string[] {
     return [
-      'title', 'collapsible', 'collapsed', 'closable', 'resizable',
+      'title', 'icon', 'collapsible', 'collapsed', 'closable', 'resizable',
       'min-width', 'max-width', 'min-height', 'max-height',
-      'width', 'height', 'region'
+      'width', 'height', 'region', 'body-padding', 'border'
     ];
   }
 
   protected initializeState(): void {
-    this[ComponentState].set('collapsed', false);
+    this[ComponentState].set('collapsed', null);
     this[ComponentState].set('resizing', false);
     this[ComponentState].set('width', null);
     this[ComponentState].set('height', null);
@@ -36,163 +61,204 @@ export class NXPanel extends BaseComponent {
     this.attachShadow({ mode: 'open' });
   }
 
+  private isCollapsed(): boolean {
+    const state = this.getState<boolean | null>('collapsed', null);
+    return state ?? !!this.getProp('collapsed', false);
+  }
+
   protected render(): string {
     const title = this.getProp('title');
+    const icon = this.getProp<string>('icon');
     const collapsible = this.getProp('collapsible', false);
-    const collapsed = this.getState('collapsed', false);
+    const collapsed = this.isCollapsed();
     const closable = this.getProp('closable', false);
     const resizable = this.getProp('resizable', false);
-    const region = this.getProp('region');
-    const width = this.getState('width') || this.getProp('width');
-    const height = this.getState('height') || this.getProp('height');
+    const region = this.getProp<string>('region');
+    const border = this.getProp('border', true);
+    const horizontal = region === 'west' || region === 'east';
+
+    this.applyHostSize(collapsed && horizontal);
 
     const panelClasses = [
       'nx-panel',
       collapsed ? 'collapsed' : '',
-      region ? `region-${region}` : ''
+      region ? `region region-${region}` : 'standalone',
+      border ? 'bordered' : ''
     ].filter(Boolean).join(' ');
 
-    const style = [
-      width ? `width: ${width}` : '',
-      height ? `height: ${height}` : ''
-    ].filter(Boolean).join('; ');
+    const toggleIcon = horizontal
+      ? (region === 'west') !== collapsed ? 'chevron-left' : 'chevron-right'
+      : collapsed ? 'chevron-right' : 'chevron-down';
+
+    const hasHeader = title || icon || collapsible || closable;
 
     return `
-      <div class="${panelClasses}" part="container" ${style ? `style="${style}"` : ''}>
-        ${title || collapsible || closable ? `
+      <div class="${panelClasses}" part="container">
+        ${hasHeader ? `
           <div class="nx-panel-header" part="header">
-            ${collapsible ? `
-              <button class="nx-panel-toggle" part="toggle" aria-label="Toggle panel">
-                <svg viewBox="0 0 24 24">
-                  <path d="M7 10l5 5 5-5z"/>
-                </svg>
-              </button>
-            ` : ''}
-            <h3 class="nx-panel-title" part="title">${title || ''}</h3>
+            ${icon ? `<span class="nx-panel-icon" part="icon">${Icons.get(icon)}</span>` : ''}
+            <h3 class="nx-panel-title" part="title">${escapeHTML(title ?? '')}</h3>
             <div class="nx-panel-tools" part="tools">
               <slot name="tools"></slot>
+              ${collapsible ? `
+                <button class="nx-panel-tool nx-panel-toggle" part="toggle"
+                        aria-label="${collapsed ? 'Expand' : 'Collapse'} panel"
+                        aria-expanded="${!collapsed}">
+                  ${Icons.get(toggleIcon)}
+                </button>
+              ` : ''}
               ${closable ? `
-                <button class="nx-panel-close" part="close" aria-label="Close panel">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                  </svg>
+                <button class="nx-panel-tool nx-panel-close" part="close" aria-label="Close panel">
+                  ${Icons.get('close')}
                 </button>
               ` : ''}
             </div>
           </div>
         ` : ''}
-        
+
         <div class="nx-panel-body" part="body">
           <slot></slot>
         </div>
-        
-        ${resizable ? `
-          <div class="nx-panel-resize-handle" part="resize"></div>
-        ` : ''}
+
+        <slot name="footer"></slot>
+
+        ${resizable ? `<div class="nx-panel-resize-handle" part="resize"></div>` : ''}
       </div>
     `;
   }
 
+  private applyHostSize(railCollapsed: boolean): void {
+    const width = railCollapsed ? '3rem' : size(this.getState('width') || this.getProp('width'));
+    const height = size(this.getState('height') || this.getProp('height'));
+    this.style.width = width ?? '';
+    this.style.height = height ?? '';
+    this.style.minWidth = railCollapsed ? '' : size(this.getProp('min-width')) ?? '';
+    this.style.maxWidth = railCollapsed ? '' : size(this.getProp('max-width')) ?? '';
+  }
+
   protected styles(): string {
+    const padding = this.getProp<boolean | string | number>('body-padding', true);
+    const bodyPadding = padding === true ? '1rem' : padding === false ? '0' : size(padding);
+
     return `
       :host {
-        display: block;
+        display: flex;
+        flex-direction: column;
         position: relative;
+        min-width: 0;
+        min-height: 0;
+        transition: width var(--transition-duration) var(--transition-easing);
       }
 
       .nx-panel {
         display: flex;
         flex-direction: column;
-        height: 100%;
-        background: var(--bg-color);
-        border: 1px solid var(--border-color);
-        border-radius: 0.25rem;
+        flex: 1;
+        min-height: 0;
+        background: var(--color-surface);
+        color: var(--color-text);
         overflow: hidden;
       }
+
+      .standalone.bordered {
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+      }
+
+      .region-north.bordered { border-bottom: 1px solid var(--color-border); }
+      .region-south.bordered { border-top: 1px solid var(--color-border); }
+      .region-west.bordered { border-right: 1px solid var(--color-border); }
+      .region-east.bordered { border-left: 1px solid var(--color-border); }
+      .region-center { background: var(--color-background); }
 
       /* Header */
       .nx-panel-header {
         display: flex;
         align-items: center;
-        padding: 0.75rem 1rem;
-        background: var(--surface-color);
-        border-bottom: 1px solid var(--border-color);
         gap: 0.5rem;
+        min-height: 3rem;
+        padding: 0 0.5rem 0 1rem;
+        border-bottom: 1px solid var(--color-border);
+        flex-shrink: 0;
       }
 
-      .nx-panel-toggle {
-        width: 1.5rem;
-        height: 1.5rem;
-        padding: 0;
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        color: var(--text-color);
-        transition: transform 0.2s;
-      }
-
-      .nx-panel-toggle svg {
-        width: 100%;
-        height: 100%;
-        fill: currentColor;
-      }
-
-      .collapsed .nx-panel-toggle {
-        transform: rotate(-90deg);
+      .nx-panel-icon {
+        display: inline-flex;
+        font-size: 1rem;
+        color: var(--color-text-secondary);
       }
 
       .nx-panel-title {
         flex: 1;
         margin: 0;
-        font-size: 1rem;
-        font-weight: 500;
+        font-size: 0.875rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .nx-panel-tools {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.125rem;
       }
 
-      .nx-panel-close {
-        width: 1.5rem;
-        height: 1.5rem;
-        padding: 0.25rem;
+      .nx-panel-tool {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        padding: 0;
         border: none;
+        border-radius: var(--radius-sm);
         background: transparent;
+        color: var(--color-text-secondary);
+        font-size: 1rem;
         cursor: pointer;
-        color: var(--text-color-secondary);
-        border-radius: 0.25rem;
-        transition: all 0.2s;
+        transition: background var(--transition-duration), color var(--transition-duration);
       }
 
-      .nx-panel-close:hover {
-        background: var(--hover-bg);
-        color: var(--text-color);
-      }
-
-      .nx-panel-close svg {
-        width: 100%;
-        height: 100%;
-        fill: currentColor;
+      .nx-panel-tool:hover {
+        background: var(--color-accent);
+        color: var(--color-text);
       }
 
       /* Body */
       .nx-panel-body {
         flex: 1;
-        padding: 1rem;
+        min-height: 0;
+        padding: ${bodyPadding};
         overflow: auto;
       }
 
-      .collapsed .nx-panel-body {
+      .collapsed .nx-panel-body,
+      .collapsed ::slotted([slot="footer"]) {
+        display: none;
+      }
+
+      .collapsed.region-west .nx-panel-header,
+      .collapsed.region-east .nx-panel-header {
+        padding: 0.5rem 0;
+        justify-content: center;
+        border-bottom: none;
+      }
+
+      .collapsed.region-west .nx-panel-title,
+      .collapsed.region-east .nx-panel-title,
+      .collapsed.region-west .nx-panel-icon,
+      .collapsed.region-east .nx-panel-icon {
         display: none;
       }
 
       /* Resize handle */
       .nx-panel-resize-handle {
         position: absolute;
-        background: transparent;
         z-index: 10;
+        background: transparent;
+        transition: background var(--transition-duration);
       }
 
       .region-east .nx-panel-resize-handle,
@@ -203,13 +269,8 @@ export class NXPanel extends BaseComponent {
         cursor: ew-resize;
       }
 
-      .region-east .nx-panel-resize-handle {
-        left: 0;
-      }
-
-      .region-west .nx-panel-resize-handle {
-        right: 0;
-      }
+      .region-east .nx-panel-resize-handle { left: -2px; }
+      .region-west .nx-panel-resize-handle { right: -2px; }
 
       .region-north .nx-panel-resize-handle,
       .region-south .nx-panel-resize-handle {
@@ -219,47 +280,27 @@ export class NXPanel extends BaseComponent {
         cursor: ns-resize;
       }
 
-      .region-north .nx-panel-resize-handle {
-        bottom: 0;
-      }
-
-      .region-south .nx-panel-resize-handle {
-        top: 0;
-      }
+      .region-north .nx-panel-resize-handle { bottom: -2px; }
+      .region-south .nx-panel-resize-handle { top: -2px; }
 
       .nx-panel-resize-handle:hover,
       .nx-panel-resize-handle.resizing {
-        background: var(--color-primary);
-        opacity: 0.5;
-      }
-
-      /* Region-specific styles */
-      .region-north,
-      .region-south {
-        width: 100%;
-      }
-
-      .region-east,
-      .region-west {
-        height: 100%;
+        background: var(--color-ring);
       }
     `;
   }
 
   protected afterRender(): void {
-    // Toggle button
     const toggleBtn = this.$('.nx-panel-toggle');
     if (toggleBtn) {
       this.on(toggleBtn, 'click', () => this.toggle());
     }
 
-    // Close button
     const closeBtn = this.$('.nx-panel-close');
     if (closeBtn) {
       this.on(closeBtn, 'click', () => this.close());
     }
 
-    // Resize handle
     const resizeHandle = this.$('.nx-panel-resize-handle');
     if (resizeHandle) {
       this.setupResize(resizeHandle as HTMLElement);
@@ -272,77 +313,68 @@ export class NXPanel extends BaseComponent {
     let startWidth = 0;
     let startHeight = 0;
 
-    const handleMouseDown = (e: Event) => {
-      const mouseEvent = e as MouseEvent;
-      mouseEvent.preventDefault();
-      startX = mouseEvent.clientX;
-      startY = mouseEvent.clientY;
-      
-      const rect = this.getBoundingClientRect();
-      startWidth = rect.width;
-      startHeight = rect.height;
-      
-      handle.classList.add('resizing');
-      this.setState('resizing', true);
-      
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    };
-
-    const handleMouseMove = (e: Event) => {
-      const mouseEvent = e as MouseEvent;
+    const handleMouseMove = (e: MouseEvent) => {
       const region = this.getProp('region');
       const minWidth = parseInt(this.getProp('min-width', '100'));
       const maxWidth = parseInt(this.getProp('max-width', '9999'));
       const minHeight = parseInt(this.getProp('min-height', '100'));
       const maxHeight = parseInt(this.getProp('max-height', '9999'));
-      
+
       if (region === 'east' || region === 'west') {
-        const deltaX = region === 'west' ? mouseEvent.clientX - startX : startX - mouseEvent.clientX;
-        const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + deltaX));
-        this.setState('width', `${newWidth}px`);
+        const deltaX = region === 'west' ? e.clientX - startX : startX - e.clientX;
+        this.style.width = `${Math.max(minWidth, Math.min(maxWidth, startWidth + deltaX))}px`;
       } else {
-        const deltaY = region === 'south' ? mouseEvent.clientY - startY : startY - mouseEvent.clientY;
-        const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + deltaY));
-        this.setState('height', `${newHeight}px`);
+        const deltaY = region === 'north' ? e.clientY - startY : startY - e.clientY;
+        this.style.height = `${Math.max(minHeight, Math.min(maxHeight, startHeight + deltaY))}px`;
       }
     };
 
     const handleMouseUp = () => {
       handle.classList.remove('resizing');
-      this.setState('resizing', false);
-      
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
-      
-      this.emit('resize', {
-        width: this.getState('width'),
-        height: this.getState('height')
-      });
+      document.body.style.userSelect = '';
+
+      // Persist the size so re-renders keep it
+      this[ComponentState].set('width', this.style.width || null);
+      this[ComponentState].set('height', this.style.height || null);
+      this.emit('resize', { width: this.style.width, height: this.style.height });
     };
 
-    this.on(handle, 'mousedown', handleMouseDown);
+    this.on(handle, 'mousedown', (e: Event) => {
+      const mouseEvent = e as MouseEvent;
+      mouseEvent.preventDefault();
+      startX = mouseEvent.clientX;
+      startY = mouseEvent.clientY;
+      const rect = this.getBoundingClientRect();
+      startWidth = rect.width;
+      startHeight = rect.height;
+      handle.classList.add('resizing');
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    });
   }
 
   toggle(): void {
-    const collapsed = !this.getState('collapsed', false);
+    const collapsed = !this.isCollapsed();
     this.setState('collapsed', collapsed);
     this.emit('toggle', { collapsed });
+    this.emit(collapsed ? 'collapse' : 'expand');
   }
 
   close(): void {
-    this.emit('close');
-    this.remove();
+    if (this.emit('close')) {
+      this.remove();
+    }
   }
 
   collapse(): void {
-    this.setState('collapsed', true);
-    this.emit('collapse');
+    if (!this.isCollapsed()) this.toggle();
   }
 
   expand(): void {
-    this.setState('collapsed', false);
-    this.emit('expand');
+    if (this.isCollapsed()) this.toggle();
   }
 
   setTitle(title: string): void {
@@ -354,4 +386,4 @@ export class NXPanel extends BaseComponent {
   }
 }
 
-customElements.define('nx-panel', NXPanel);
+define('nx-panel', NXPanel);

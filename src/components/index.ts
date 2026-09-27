@@ -1,8 +1,11 @@
-// Import all components to register them
-import '@/components/abstracts/base';
-import '@/components/abstracts/data';
+// Importing this module defines every <nx-*> element.
 
-// UI Components
+// Layout
+import '@/layout/container';
+import '@/layout/panel';
+import '@/layout/viewport';
+
+// UI
 import '@/components/ui/accordion';
 import '@/components/ui/breadcrumb';
 import '@/components/ui/button';
@@ -12,24 +15,22 @@ import '@/components/ui/loader';
 import '@/components/ui/menu';
 import '@/components/ui/menubar';
 import '@/components/ui/modal';
+import '@/components/ui/progress';
 import '@/components/ui/skeleton';
 import '@/components/ui/spinner';
 import '@/components/ui/tabpanel';
+import '@/components/ui/toast';
 import '@/components/ui/toolbar';
 import '@/components/ui/tree';
 
-// Form Components
+// Forms
 import '@/components/ui/form';
 import '@/components/ui/form/textfield';
 import '@/components/ui/form/select';
+import '@/components/ui/form/checkbox';
 
-// Data Components
-import '@/components/ui/data';
+// Data
+import '@/data/grid';
 
-// Layout Components
-import '@/layout/panel';
-import '@/layout/viewport';
-
-// Register core components with the registry
 import { ComponentRegistry } from '@/core/registry';
 ComponentRegistry.initialize();

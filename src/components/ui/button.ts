@@ -2,342 +2,273 @@
  * @file @/components/ui/button.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
-import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+import { BaseComponent, escapeHTML } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
+import { Icons } from '@/core/icons';
 
 export interface ButtonConfig {
   text?: string;
   type?: 'button' | 'submit' | 'reset';
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'link';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'link';
+  size?: 'sm' | 'md' | 'lg' | 'icon';
+  /** Icon name from the built-in set (see `Icons.names()`) or raw SVG */
   icon?: string;
   iconPosition?: 'left' | 'right';
   disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
-  onClick?: () => void;
+  /** Link target — renders the button as an `<a>` */
+  href?: string;
+  tooltip?: string;
+  handler?: (e: MouseEvent) => void;
 }
 
-export interface ButtonIcon {
-  content: string;
-  position?: 'left' | 'right';
-}
-
+/**
+ * Button.
+ *
+ * @example
+ * ```typescript
+ * { xtype: 'button', text: 'Save', icon: 'save', handler: () => save() }
+ * { xtype: 'button', icon: 'settings', variant: 'ghost', tooltip: 'Settings' }
+ * ```
+ * ```html
+ * <nx-button variant="outline" icon="plus">New</nx-button>
+ * ```
+ */
 export class NXButton extends BaseComponent {
   static get observedAttributes(): string[] {
     return [
-      'type', 'variant', 'size', 'icon', 'icon-position',
+      'text', 'type', 'variant', 'size', 'icon', 'icon-position', 'href', 'tooltip',
       'disabled', 'loading', 'full-width', 'aria-label', 'tabindex'
     ];
   }
 
-  protected initializeState(): void {
-    this[ComponentState].set('pressed', false);
-    this[ComponentState].set('ripples', []);
-  }
+  protected initializeState(): void {}
 
   constructor() {
     super();
-    this.attachShadow({ mode: 'open' });
+    this.attachShadow({ mode: 'open', delegatesFocus: true });
+
+    // Block clicks while disabled/loading — including listeners added via `handler`
+    this.addEventListener('click', (e) => {
+      if (this.getProp('disabled', false) || this.getProp('loading', false)) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
+    }, { capture: true });
   }
 
   protected render(): string {
     const type = this.getProp('type', 'button');
     const variant = this.getProp('variant', 'primary');
-    const size = this.getProp('size', 'md');
-    const icon = this.getProp('icon');
+    const text = this.getProp<string>('text', '');
+    const icon = this.getProp<string>('icon');
     const iconPosition = this.getProp<string>('icon-position', 'left');
     const disabled = this.getProp('disabled', false);
     const loading = this.getProp('loading', false);
-    const fullWidth = this.getProp('full-width', false);
-    const ariaLabel = this.getProp('aria-label');
-    const tabIndex = this.getProp('tabindex');
-    
-    const hasIcon = !!icon || !!this.querySelector('[slot^="icon-"]');
+    const href = this.getProp<string>('href');
+    const tooltip = this.getProp<string>('tooltip');
+    const ariaLabel = this.getProp<string>('aria-label') || tooltip || (!text ? icon : undefined);
 
-    const buttonClasses = [
+    const hasLabel = !!text || this.hasLabelContent();
+    let size = this.getProp<string>('size', 'md');
+    if (icon && !hasLabel && size === 'md') size = 'icon';
+
+    const classes = [
       'nx-button',
       `variant-${variant}`,
       `size-${size}`,
-      fullWidth ? 'full-width' : '',
       loading ? 'loading' : '',
-      disabled ? 'disabled' : '',
-      hasIcon ? `has-icon icon-${iconPosition}` : ''
+      disabled ? 'disabled' : ''
     ].filter(Boolean).join(' ');
 
+    const iconHtml = loading
+      ? `<span part="spinner" class="button-icon spinner" aria-hidden="true">${Icons.get('<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>')}</span>`
+      : icon ? `<span part="icon" class="button-icon">${Icons.get(icon)}</span>` : '';
+
+    const inner = `
+      ${iconPosition === 'left' ? iconHtml : ''}
+      <span part="label" class="button-label ${hasLabel ? '' : 'empty'}"><slot>${escapeHTML(text)}</slot></span>
+      ${iconPosition === 'right' ? iconHtml : ''}
+    `;
+
+    const common = `
+      part="button"
+      class="${classes}"
+      ${ariaLabel ? `aria-label="${escapeHTML(ariaLabel)}"` : ''}
+      ${tooltip ? `title="${escapeHTML(tooltip)}"` : ''}
+      ${loading ? 'aria-busy="true"' : ''}
+    `;
+
+    if (href && !disabled) {
+      return `<a ${common} href="${escapeHTML(href)}">${inner}</a>`;
+    }
+
     return `
-      <button
-        part="button"
-        class="${buttonClasses}"
-        type="${type}"
-        ${disabled || loading ? 'disabled' : ''}
-        ${ariaLabel ? `aria-label="${ariaLabel}"` : ''}
-        ${tabIndex ? `tabindex="${tabIndex}"` : ''}
-        ${loading ? 'aria-busy="true"' : ''}
-      >
-        ${loading ? this.renderSpinner() : ''}
-        ${hasIcon && iconPosition === 'left' && !loading ? this.renderIcon() : ''}
-        <span part="content" class="button-content">
-          <slot></slot>
-        </span>
-        ${hasIcon && iconPosition === 'right' && !loading ? this.renderIcon() : ''}
-        <span class="ripple-container"></span>
+      <button ${common} type="${type}" ${disabled || loading ? 'disabled' : ''}>
+        ${inner}
       </button>
     `;
   }
 
-  private renderSpinner(): string {
-    return `
-      <span part="spinner" class="button-spinner" aria-hidden="true">
-        <svg class="spinner-svg" viewBox="0 0 24 24">
-          <circle 
-            class="spinner-circle" 
-            cx="12" 
-            cy="12" 
-            r="10" 
-            fill="none" 
-            stroke-width="3"
-          />
-        </svg>
-      </span>
-    `;
-  }
-
-  private renderIcon(): string {
-    const icon = this.getAttribute('icon');
-    const iconConfig = this.getProp<ButtonIcon>('iconConfig');
-    
-    if (iconConfig?.content) {
-      return `
-        <span part="icon" class="button-icon">
-          ${iconConfig.content}
-        </span>
-      `;
-    }
-    
-    const iconPosition = this.getProp('icon-position', 'left');
-    return `
-      <span part="icon" class="button-icon">
-        <slot name="icon-${iconPosition}">${this.getDefaultIcon(icon || '')}</slot>
-      </span>
-    `;
-  }
-
-  private getDefaultIcon(iconName: string): string {
-    const icons: Record<string, string> = {
-      'arrow-right': '<svg viewBox="0 0 24 24"><path d="M5 12h14m-7-7l7 7-7 7"/></svg>',
-      'check': '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>',
-      'close': '<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>',
-      'save': '<svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/></svg>'
-    };
-    
-    return icons[iconName] || '';
+  private hasLabelContent(): boolean {
+    return Array.from(this.childNodes).some(node =>
+      node.nodeType === Node.ELEMENT_NODE ? !(node as Element).slot : !!node.textContent?.trim()
+    );
   }
 
   protected styles(): string {
     return `
       :host {
-        display: inline-block;
+        display: inline-flex;
+        vertical-align: middle;
+      }
+
+      :host([full-width]) {
+        display: flex;
+        width: 100%;
       }
 
       .nx-button {
-        position: relative;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        border: none;
-        border-radius: 0.25rem;
+        width: 100%;
+        height: 2.25rem;
+        padding: 0 1rem;
+        border: 1px solid transparent;
+        border-radius: var(--radius-md);
         font-family: inherit;
         font-size: 0.875rem;
         font-weight: 500;
-        line-height: 1.25rem;
+        line-height: 1;
+        white-space: nowrap;
+        text-decoration: none;
         cursor: pointer;
-        transition: all 0.2s;
-        overflow: hidden;
         user-select: none;
+        transition: background-color var(--transition-duration) var(--transition-easing),
+                    color var(--transition-duration) var(--transition-easing),
+                    border-color var(--transition-duration) var(--transition-easing),
+                    box-shadow var(--transition-duration) var(--transition-easing),
+                    transform 80ms var(--transition-easing);
+      }
+
+      .nx-button:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+
+      .nx-button:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px var(--color-ring);
       }
 
       /* Sizes */
-      .size-sm {
-        padding: 0.25rem 0.75rem;
-        font-size: 0.75rem;
-      }
-
-      .size-lg {
-        padding: 0.75rem 1.5rem;
-        font-size: 1rem;
-      }
+      .size-sm { height: 2rem; padding: 0 0.75rem; font-size: 0.8125rem; border-radius: var(--radius-sm); }
+      .size-lg { height: 2.75rem; padding: 0 1.5rem; font-size: 0.9375rem; }
+      .size-icon { width: 2.25rem; padding: 0; }
+      .size-sm.size-icon { width: 2rem; }
 
       /* Variants */
       .variant-primary {
         background: var(--color-primary);
-        color: white;
+        color: var(--color-primary-foreground);
+        box-shadow: var(--shadow-sm);
       }
-
-      .variant-primary:hover:not(:disabled) {
-        background: var(--color-primary-dark);
-      }
+      .variant-primary:hover:not(:disabled) { background: var(--color-primary-dark); }
 
       .variant-secondary {
         background: var(--color-secondary);
-        color: white;
+        color: var(--color-secondary-foreground);
       }
+      .variant-secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--color-secondary) 85%, var(--color-text)); }
 
-      .variant-danger {
-        background: var(--color-danger);
-        color: white;
+      .variant-outline {
+        background: var(--color-background);
+        color: var(--color-text);
+        border-color: var(--color-border);
+        box-shadow: var(--shadow-sm);
       }
+      .variant-outline:hover:not(:disabled) { background: var(--color-accent); }
 
       .variant-ghost {
         background: transparent;
-        color: var(--color-primary);
-        border: 1px solid currentColor;
+        color: var(--color-text);
       }
+      .variant-ghost:hover:not(:disabled) { background: var(--color-accent); }
+
+      .variant-danger {
+        background: var(--color-error);
+        color: #fff;
+        box-shadow: var(--shadow-sm);
+      }
+      .variant-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-error) 88%, #000); }
 
       .variant-link {
-        background: transparent;
-        color: var(--color-primary);
-        text-decoration: underline;
+        height: auto;
         padding: 0;
+        background: transparent;
+        color: var(--color-text);
+        text-decoration: underline;
+        text-underline-offset: 4px;
       }
 
       /* States */
+      .nx-button:disabled,
       .disabled {
         opacity: 0.5;
         cursor: not-allowed;
+        box-shadow: none;
       }
 
       .loading {
-        cursor: wait;
+        cursor: progress;
       }
 
-      .full-width {
-        width: 100%;
+      /* Content */
+      .button-label.empty {
+        display: none;
       }
 
-      /* Icons */
       .button-icon {
         display: inline-flex;
-        width: 1.25em;
-        height: 1.25em;
+        flex-shrink: 0;
+        font-size: 1rem;
       }
 
-      .button-icon svg {
-        width: 100%;
-        height: 100%;
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
+      .button-icon :is(svg) {
+        width: 1em;
+        height: 1em;
       }
 
-      /* Spinner */
-      .button-spinner {
-        position: absolute;
-        display: inline-flex;
+      .spinner {
+        animation: spin 0.8s linear infinite;
       }
 
-      .spinner-svg {
-        width: 1.25em;
-        height: 1.25em;
-        animation: rotate 1s linear infinite;
-      }
-
-      .spinner-circle {
-        stroke: currentColor;
-        stroke-dasharray: 62.83;
-        stroke-dashoffset: 47.12;
-        animation: dash 1.5s ease-in-out infinite;
-      }
-
-      @keyframes rotate {
-        100% {
-          transform: rotate(360deg);
-        }
-      }
-
-      @keyframes dash {
-        0% {
-          stroke-dashoffset: 47.12;
-        }
-        50% {
-          stroke-dashoffset: 11.78;
-        }
-        100% {
-          stroke-dashoffset: 47.12;
-        }
-      }
-
-      /* Ripple effect */
-      .ripple-container {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        overflow: hidden;
-        pointer-events: none;
-      }
-
-      .ripple {
-        position: absolute;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.5);
-        transform: scale(0);
-        animation: ripple 0.6s ease-out;
-      }
-
-      @keyframes ripple {
-        to {
-          transform: scale(4);
-          opacity: 0;
-        }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
       }
     `;
   }
 
-  protected afterRender(): void {
-    const button = this.$('button');
-    if (button) {
-      this.on(button, 'click', (e: Event) => {
-        if (!this.getProp('disabled') && !this.getProp('loading')) {
-          this.createRipple(e as MouseEvent);
-          this.emit('click', e);
-        }
-      });
+  /** Programmatically click (respects disabled/loading). */
+  click(): void {
+    if (!this.getProp('disabled', false) && !this.getProp('loading', false)) {
+      super.click();
     }
   }
 
-  private createRipple(e: MouseEvent): void {
-    const button = this.$('button') as HTMLElement;
-    const container = this.$('.ripple-container') as HTMLElement;
-    
-    const rect = button.getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height);
-    const x = e.clientX - rect.left - size / 2;
-    const y = e.clientY - rect.top - size / 2;
-    
-    const ripple = document.createElement('span');
-    ripple.className = 'ripple';
-    ripple.style.width = ripple.style.height = `${size}px`;
-    ripple.style.left = `${x}px`;
-    ripple.style.top = `${y}px`;
-    
-    container.appendChild(ripple);
-    
-    this.setTimeout(() => ripple.remove(), 600);
+  setText(text: string): void {
+    this.setAttribute('text', text);
   }
 
-  protected onAttributeChange(name: string, _oldValue: string | null, newValue: string | null): void {
-    if (name === 'loading') {
-      const button = this.$('button') as HTMLButtonElement;
-      if (button) {
-        button.disabled = newValue !== null || this.hasAttribute('disabled');
-      }
-    }
+  setLoading(loading: boolean): void {
+    this.toggleAttribute('loading', loading);
+  }
+
+  setDisabled(disabled: boolean): void {
+    this.toggleAttribute('disabled', disabled);
   }
 }
 
-customElements.define('nx-button', NXButton);
+define('nx-button', NXButton);

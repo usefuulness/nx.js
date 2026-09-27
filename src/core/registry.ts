@@ -1,4 +1,34 @@
-import { BaseComponent } from '@/components/abstracts/base';
+import { BaseComponent, toKebab } from '@/components/abstracts/base';
+
+/**
+ * A declarative component config. `xtype` picks the component
+ * (`'button'`, `'nx-button'`, or any plain tag like `'div'`), `items` are children.
+ * Every other key is applied with `BaseComponent.configure()`.
+ */
+export interface ComponentConfig {
+  xtype?: string;
+  items?: ItemConfig[];
+  [key: string]: any;
+}
+
+/**
+ * Anything that can appear in an `items` array:
+ * - a config object
+ * - an existing DOM node
+ * - `'->'` (flexible spacer), `'-'` / `'|'` (separator)
+ * - any other string, rendered as HTML
+ * - `null` / `false` (skipped — handy for conditionals)
+ */
+export type ItemConfig = ComponentConfig | Node | string | null | undefined | false;
+
+/**
+ * Containers can implement this to take over how their `items` are built
+ * (e.g. the tab panel turns each item into a tab). Components that instead
+ * define `setItems(items)` receive the raw items as data.
+ */
+export interface ItemsAware {
+  applyItems(items: ItemConfig[], build: (item: ItemConfig) => HTMLElement | null): void;
+}
 
 export interface ComponentDefinition {
   tagName: string;
@@ -28,13 +58,16 @@ export class ComponentRegistry {
     this.initialized = true;
     
     // Register core component aliases
-    this.alias('container', 'nx-panel');
-    this.alias('box', 'nx-panel');
+    this.alias('container', 'nx-container');
+    this.alias('box', 'nx-container');
+    this.alias('hbox', 'nx-container');
+    this.alias('vbox', 'nx-container');
+    this.alias('html', 'div');
+    this.alias('text', 'span');
     this.alias('grid', 'nx-grid');
     this.alias('form', 'nx-form');
     this.alias('button', 'nx-button');
     this.alias('btn', 'nx-button');
-    this.alias('text', 'nx-text');
     this.alias('input', 'nx-textfield');
     this.alias('select', 'nx-select');
     this.alias('checkbox', 'nx-checkbox');
@@ -59,7 +92,7 @@ export class ComponentRegistry {
     this.alias('skeleton', 'nx-skeleton');
     this.alias('loader', 'nx-loader');
     this.alias('divider', 'nx-divider');
-    this.alias('separator', 'nx-divider');
+    this.alias('separator', 'nx-separator');
     this.alias('spacer', 'nx-spacer');
     this.alias('viewport', 'nx-viewport');
     this.alias('layout', 'nx-layout');
@@ -76,16 +109,21 @@ export class ComponentRegistry {
     this.alias('listview', 'nx-list');
     this.alias('dataview', 'nx-dataview');
     this.alias('card', 'nx-card');
+    this.alias('table', 'nx-data-table');
+    this.alias('datatable', 'nx-data-table');
+    this.alias('data-table', 'nx-data-table');
+    this.alias('spinner', 'nx-spinner');
     this.alias('panel', 'nx-panel');
     this.alias('splitter', 'nx-splitter');
     this.alias('split', 'nx-splitter');
   }
 
   /**
-   * Register a component
+   * Register a component under an xtype. The tag name is taken from an existing
+   * alias, the xtype itself if it contains a dash, or `nx-<xtype>`.
    */
   static register(xtype: string, component: typeof BaseComponent, config?: any): void {
-    const tagName = this.aliases.get(xtype) || xtype;
+    const tagName = this.aliases.get(xtype) || (xtype.includes('-') ? xtype : `nx-${xtype}`);
     
     this.components.set(xtype, {
       tagName,
@@ -121,69 +159,109 @@ export class ComponentRegistry {
   }
 
   /**
-   * Create a component instance
+   * Resolve an xtype (`'button'`, `'btn'`, `'nx-button'`, `'div'`) to a tag name.
    */
-  static create(xtype: string, config?: any): HTMLElement | null {
-    // Check for factory first
-    if (this.factories.has(xtype)) {
-      const factory = this.factories.get(xtype)!;
-      return factory(config) as HTMLElement;
-    }
-
-    // Get component definition
+  static resolveTag(xtype: string): string {
+    this.initialize();
     const definition = this.components.get(xtype);
-    if (!definition) {
-      // Try to find by tag name
-      const tagName = this.aliases.get(xtype) || xtype;
-      const element = document.createElement(tagName);
-      
-      // Apply config as attributes
-      if (config) {
-        Object.entries(config).forEach(([key, value]) => {
-          if (typeof value === 'object' && value !== null) {
-            element.setAttribute(key, JSON.stringify(value));
-          } else {
-            element.setAttribute(key, String(value));
-          }
-        });
-      }
-      
-      return element;
+    if (definition) return definition.tagName;
+    const alias = this.aliases.get(xtype);
+    if (alias) return alias;
+    if (xtype.includes('-')) return xtype;
+    if (customElements.get(`nx-${xtype}`)) return `nx-${xtype}`;
+    return xtype;
+  }
+
+  /**
+   * Create a component instance.
+   *
+   * @example
+   * ```typescript
+   * ComponentRegistry.create('button', { text: 'Save', handler: save });
+   * ```
+   */
+  static create(xtype: string, config: Record<string, any> = {}): HTMLElement | null {
+    return this.build({ ...config, xtype });
+  }
+
+  /**
+   * Build a component tree from a declarative config.
+   *
+   * @example
+   * ```typescript
+   * ComponentRegistry.build({
+   *   xtype: 'toolbar',
+   *   items: [{ xtype: 'button', text: 'New' }, '->', { xtype: 'button', icon: 'settings' }]
+   * });
+   * ```
+   */
+  static build(item: ItemConfig): HTMLElement | null {
+    if (item === null || item === undefined || item === false) return null;
+    if (item instanceof Node) return item as HTMLElement;
+
+    if (typeof item === 'string') {
+      if (item === '->') return document.createElement('nx-spacer');
+      if (item === '-' || item === '|') return document.createElement('nx-separator');
+      const div = document.createElement('div');
+      div.innerHTML = item;
+      return div;
     }
 
-    // Create component instance
-    const { tagName, component } = definition;
-    let instance: HTMLElement;
+    const { xtype: rawXtype, items, ...config } = item;
+    const xtype = rawXtype ?? ('html' in config || 'text' in config ? 'html' : 'container');
 
+    const factory = this.factories.get(xtype);
+    if (factory) return factory({ ...config, items }) as HTMLElement;
+
+    const tagName = this.resolveTag(xtype);
+    let element: HTMLElement;
     try {
-      instance = new (component as any)(config) as HTMLElement;
+      element = document.createElement(tagName);
     } catch {
-      // If constructor fails, create via document
-      instance = document.createElement(tagName);
+      console.error(`[nx] Cannot create "${xtype}" — "${tagName}" is not a valid tag name.`);
+      return null;
     }
 
-    // Apply config
-    if (config) {
-      Object.entries(config).forEach(([key, value]) => {
-        if (key === 'listeners') {
-          // Add event listeners
-          Object.entries(value as Record<string, Function>).forEach(([event, handler]) => {
-            instance.addEventListener(event, handler as EventListener);
-          });
-        } else if (key === 'style' && typeof value === 'object') {
-          // Apply styles
-          Object.assign(instance.style, value);
-        } else if (typeof value === 'object' && value !== null) {
-          // Set as JSON attribute
-          instance.setAttribute(key, JSON.stringify(value));
-        } else {
-          // Set as attribute
-          instance.setAttribute(key, String(value));
-        }
-      });
+    if (tagName.includes('-') && !customElements.get(tagName)) {
+      console.warn(`[nx] Unknown component "${xtype}" (<${tagName}>). Did you forget to import it?`);
     }
 
-    return instance;
+    // Layout shorthands for containers: { xtype: 'hbox' }
+    if ((xtype === 'hbox' || xtype === 'vbox') && config.layout === undefined) {
+      config.layout = xtype;
+    }
+
+    if (element instanceof BaseComponent) {
+      element.configure(config);
+    } else {
+      applyToElement(element, config);
+    }
+
+    if (items && items.length) {
+      this.appendItems(element, items);
+    }
+
+    return element;
+  }
+
+  /**
+   * Build `items` into a container, respecting `ItemsAware` containers.
+   */
+  static appendItems(container: HTMLElement, items: ItemConfig[]): void {
+    const build = (item: ItemConfig) => this.build(item);
+    if (typeof (container as any).applyItems === 'function') {
+      (container as unknown as ItemsAware).applyItems(items, build);
+      return;
+    }
+    // Data-driven components (menu, breadcrumb, accordion…) take items as data
+    if (typeof (container as any).setItems === 'function') {
+      (container as any).setItems(items);
+      return;
+    }
+    items.forEach(item => {
+      const child = build(item);
+      if (child) container.appendChild(child);
+    });
   }
 
   /**
@@ -276,4 +354,65 @@ export class ComponentRegistry {
     this.register(xtype, ExtendedComponent);
     return ExtendedComponent;
   }
+}
+
+
+/**
+ * Define a custom element (once — safe under HMR) and register its xtype.
+ * `define('nx-button', NXButton)` makes `{ xtype: 'button' }` work.
+ */
+export function define(tagName: string, component: CustomElementConstructor): void {
+  if (!customElements.get(tagName)) {
+    customElements.define(tagName, component);
+  }
+  const xtype = tagName.replace(/^nx-/, '');
+  ComponentRegistry.alias(xtype, tagName);
+}
+
+/**
+ * Apply a config object to a plain (non-Nexaro) element.
+ */
+function applyToElement(element: HTMLElement, config: Record<string, any>): void {
+  Object.entries(config).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === false) return;
+    switch (key) {
+      case 'html':
+      case 'content':
+        element.innerHTML = String(value);
+        return;
+      case 'text':
+        element.textContent = String(value);
+        return;
+      case 'cls':
+      case 'className':
+        element.classList.add(...String(value).split(/\s+/).filter(Boolean));
+        return;
+      case 'style':
+        if (typeof value === 'string') element.style.cssText += `;${value}`;
+        else Object.assign(element.style, value);
+        return;
+      case 'flex':
+        element.style.flex = String(value);
+        return;
+      case 'region':
+        element.setAttribute('region', value);
+        element.slot = value;
+        return;
+      case 'listeners':
+        Object.entries(value as Record<string, EventListener>).forEach(([event, fn]) => {
+          element.addEventListener(event, fn);
+        });
+        return;
+      case 'handler':
+        element.addEventListener('click', value);
+        return;
+    }
+    if (typeof value === 'function' && /^on[A-Z]/.test(key)) {
+      element.addEventListener(toKebab(key.slice(2)), value);
+    } else if (typeof value === 'object') {
+      (element as any)[key] = value;
+    } else {
+      element.setAttribute(toKebab(key), value === true ? '' : String(value));
+    }
+  });
 }

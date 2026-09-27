@@ -3,6 +3,13 @@ import { EventBus } from '@/core/zustand/event-bus';
 
 export interface RouteConfig {
   path: string;
+  /**
+   * What to render in the app's `outlet` for this route: a component config,
+   * an element, or a function of the route returning either (may be async).
+   */
+  view?: any;
+  /** Document title while this route is active */
+  title?: string;
   component?: string | (() => Promise<any>);
   layout?: any;
   beforeEnter?: (route: Route) => boolean | Promise<boolean>;

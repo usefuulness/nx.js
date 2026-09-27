@@ -1,4 +1,5 @@
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
 
 export interface AccordionItem {
   id?: string;
@@ -60,8 +61,8 @@ export class NXAccordion extends BaseComponent {
                       aria-controls="content-${itemId}"
                       ${item.disabled ? 'disabled' : ''}>
                 <span class="nx-accordion-title">${item.title}</span>
-                <svg class="nx-accordion-icon" viewBox="0 0 24 24">
-                  <path d="M7 10l5 5 5-5z"/>
+                <svg class="nx-accordion-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m6 9 6 6 6-6"/>
                 </svg>
               </button>
               <div id="content-${itemId}"
@@ -133,10 +134,11 @@ export class NXAccordion extends BaseComponent {
       }
 
       .nx-accordion-icon {
-        width: 1.5rem;
-        height: 1.5rem;
-        fill: currentColor;
-        transition: transform 0.3s;
+        width: 1rem;
+        height: 1rem;
+        flex-shrink: 0;
+        color: var(--color-text-secondary);
+        transition: transform var(--transition-duration) var(--transition-easing);
       }
 
       .nx-accordion-header.expanded .nx-accordion-icon {
@@ -229,4 +231,4 @@ export class NXAccordion extends BaseComponent {
   }
 }
 
-customElements.define('nx-accordion', NXAccordion);
+define('nx-accordion', NXAccordion);

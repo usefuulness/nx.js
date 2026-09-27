@@ -1,4 +1,6 @@
-import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+import { BaseComponent, ComponentState, escapeHTML } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
+import { Icons } from '@/core/icons';
 
 export interface TreeNode {
   id?: string | number;
@@ -40,22 +42,67 @@ export class NXTree extends BaseComponent {
     }
   }
 
+  /** Stable string id for a node (DOM data attributes are always strings). */
+  private static nodeId(node: TreeNode): string {
+    return String(node.id ?? node.text);
+  }
+
   setData(data: TreeNode[]): void {
-    this.setState('data', data);
-    // Initialize expanded state
-    const expanded = new Set<string | number>();
+    const expanded = new Set<string>();
+    const selected = new Set<string>();
+    const checked = new Set<string>();
     const traverse = (nodes: TreeNode[]) => {
       nodes.forEach(node => {
-        if (node.expanded && node.id !== undefined) {
-          expanded.add(node.id);
-        }
-        if (node.children) {
-          traverse(node.children);
-        }
+        const id = NXTree.nodeId(node);
+        if (node.expanded) expanded.add(id);
+        if (node.selected) selected.add(id);
+        if (node.checked) checked.add(id);
+        if (node.children) traverse(node.children);
       });
     };
     traverse(data);
-    this.setState('expandedNodes', expanded);
+    this.updateState({ data, expandedNodes: expanded, selectedNodes: selected, checkedNodes: checked });
+  }
+
+  /** Find a node by id (or text, for nodes without id). */
+  findNode(id: string | number): TreeNode | null {
+    const target = String(id);
+    const search = (nodes: TreeNode[]): TreeNode | null => {
+      for (const node of nodes) {
+        if (NXTree.nodeId(node) === target) return node;
+        const found = node.children ? search(node.children) : null;
+        if (found) return found;
+      }
+      return null;
+    };
+    return search(this.getState<TreeNode[]>('data', []));
+  }
+
+  /** Select a node programmatically. */
+  select(id: string | number): void {
+    this.setState('selectedNodes', new Set([String(id)]));
+  }
+
+  getSelected(): TreeNode[] {
+    return Array.from(this.getState<Set<string>>('selectedNodes', new Set()))
+      .map(id => this.findNode(id))
+      .filter((n): n is TreeNode => !!n);
+  }
+
+  expandAll(): void {
+    const all = new Set<string>();
+    const traverse = (nodes: TreeNode[]) => nodes.forEach(node => {
+      if (node.children?.length) {
+        all.add(NXTree.nodeId(node));
+        traverse(node.children);
+      }
+    });
+    traverse(this.getState<TreeNode[]>('data', []));
+    this.setState('expandedNodes', all);
+  }
+
+  collapseAll(): void {
+    this.setState('expandedNodes', new Set());
   }
 
   protected render(): string {
@@ -68,56 +115,53 @@ export class NXTree extends BaseComponent {
   }
 
   private renderNodes(nodes: TreeNode[], level: number): string {
-    const expandedNodes = this.getState<Set<string | number>>('expandedNodes', new Set());
-    const selectedNodes = this.getState<Set<string | number>>('selectedNodes', new Set());
-    const checkedNodes = this.getState<Set<string | number>>('checkedNodes', new Set());
+    const expandedNodes = this.getState<Set<string>>('expandedNodes', new Set());
+    const selectedNodes = this.getState<Set<string>>('selectedNodes', new Set());
+    const checkedNodes = this.getState<Set<string>>('checkedNodes', new Set());
     const checkboxes = this.getProp('checkboxes', false);
     const icons = this.getProp('icons', true);
 
     return nodes.map(node => {
-      const nodeId = node.id || node.text;
-      const isExpanded = node.children && expandedNodes.has(nodeId);
+      const nodeId = NXTree.nodeId(node);
+      const hasChildren = !!node.children && node.children.length > 0;
+      const isExpanded = hasChildren && expandedNodes.has(nodeId);
       const isSelected = selectedNodes.has(nodeId);
       const isChecked = checkedNodes.has(nodeId);
-      const hasChildren = node.children && node.children.length > 0;
 
       return `
-        <div class="nx-tree-node ${node.disabled ? 'disabled' : ''}" 
-             data-node-id="${nodeId}"
+        <div class="nx-tree-node ${node.disabled ? 'disabled' : ''}"
+             data-node-id="${escapeHTML(nodeId)}"
              data-level="${level}">
-          <div class="nx-tree-node-content ${isSelected ? 'selected' : ''}" 
-               part="node"
+          <div class="nx-tree-node-content ${isSelected ? 'selected' : ''}"
+               part="node${isSelected ? ' node-selected' : ''}"
                role="treeitem"
-               aria-expanded="${hasChildren ? isExpanded : undefined}"
+               ${hasChildren ? `aria-expanded="${isExpanded}"` : ''}
                aria-selected="${isSelected}"
+               aria-level="${level + 1}"
+               style="padding-left: ${0.5 + level * 1}rem"
                tabindex="${node.disabled ? -1 : 0}">
-            <span class="nx-tree-indent" style="width: ${level * 20}px"></span>
             ${hasChildren ? `
-              <button class="nx-tree-toggle ${isExpanded ? 'expanded' : ''}" 
-                      part="toggle"
-                      tabindex="-1">
-                <svg viewBox="0 0 24 24">
-                  <path d="M7 10l5 5 5-5z"/>
-                </svg>
-              </button>
+              <span class="nx-tree-toggle ${isExpanded ? 'expanded' : ''}" part="toggle" aria-hidden="true">
+                ${Icons.get('chevron-right')}
+              </span>
             ` : `
               <span class="nx-tree-toggle-placeholder"></span>
             `}
             ${checkboxes ? `
-              <input type="checkbox" 
-                     class="nx-tree-checkbox" 
+              <input type="checkbox"
+                     class="nx-tree-checkbox"
                      ${isChecked ? 'checked' : ''}
                      ${node.disabled ? 'disabled' : ''}
                      tabindex="-1">
             ` : ''}
             ${icons && node.icon ? `
-              <span class="nx-tree-icon" part="icon">${node.icon}</span>
+              <span class="nx-tree-icon" part="icon">${Icons.get(node.icon) || escapeHTML(node.icon)}</span>
             ` : ''}
-            <span class="nx-tree-text" part="text">${node.text}</span>
+            <span class="nx-tree-text" part="text">${escapeHTML(node.text)}</span>
           </div>
-          ${hasChildren ? `
-            <div class="nx-tree-children ${isExpanded ? 'expanded' : ''}" part="children">
-              ${isExpanded ? this.renderNodes(node.children!, level + 1) : ''}
+          ${isExpanded ? `
+            <div class="nx-tree-children" part="children" role="group">
+              ${this.renderNodes(node.children!, level + 1)}
             </div>
           ` : ''}
         </div>
@@ -129,15 +173,27 @@ export class NXTree extends BaseComponent {
     return `
       :host {
         display: block;
+        font-size: 0.875rem;
       }
 
       .nx-tree {
-        font-family: var(--font-family);
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
         user-select: none;
       }
 
-      .nx-tree-node {
-        position: relative;
+      .nx-tree-children {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        margin-top: 1px;
+        animation: nx-tree-open 160ms var(--transition-easing);
+      }
+
+      @keyframes nx-tree-open {
+        from { opacity: 0; transform: translateY(-2px); }
+        to { opacity: 1; transform: none; }
       }
 
       .nx-tree-node.disabled {
@@ -148,217 +204,184 @@ export class NXTree extends BaseComponent {
       .nx-tree-node-content {
         display: flex;
         align-items: center;
-        padding: 0.25rem 0.5rem;
+        gap: 0.375rem;
+        height: 2rem;
+        padding-right: 0.5rem;
+        color: var(--color-text-secondary);
         cursor: pointer;
-        border-radius: 0.25rem;
-        transition: background-color 0.2s;
+        border-radius: var(--radius-sm);
+        transition: background-color var(--transition-duration), color var(--transition-duration);
       }
 
       .nx-tree-node-content:hover {
-        background-color: var(--hover-bg, rgba(0, 0, 0, 0.04));
+        background-color: var(--color-accent);
+        color: var(--color-text);
       }
 
       .nx-tree-node-content.selected {
-        background-color: var(--selected-bg, rgba(25, 118, 210, 0.12));
-        color: var(--selected-color, #1976d2);
+        background-color: var(--color-accent);
+        color: var(--color-text);
+        font-weight: 500;
       }
 
-      .nx-tree-indent {
+      .nx-tree-node-content:focus-visible {
+        outline: 2px solid var(--color-ring);
+        outline-offset: -2px;
+      }
+
+      .nx-tree-toggle,
+      .nx-tree-toggle-placeholder {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1rem;
         flex-shrink: 0;
+        font-size: 0.875rem;
       }
 
       .nx-tree-toggle {
-        width: 1.5rem;
-        height: 1.5rem;
-        padding: 0;
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: transform 0.2s;
-      }
-
-      .nx-tree-toggle svg {
-        width: 1rem;
-        height: 1rem;
-        fill: currentColor;
+        transition: transform var(--transition-duration) var(--transition-easing);
       }
 
       .nx-tree-toggle.expanded {
-        transform: rotate(180deg);
-      }
-
-      .nx-tree-toggle-placeholder {
-        width: 1.5rem;
-        flex-shrink: 0;
+        transform: rotate(90deg);
       }
 
       .nx-tree-checkbox {
-        margin: 0 0.5rem;
+        margin: 0;
+        accent-color: var(--color-primary);
       }
 
       .nx-tree-icon {
-        margin-right: 0.5rem;
+        display: inline-flex;
         flex-shrink: 0;
+        font-size: 1rem;
       }
 
       .nx-tree-text {
         flex: 1;
-      }
-
-      .nx-tree-children {
         overflow: hidden;
-        max-height: 0;
-        transition: max-height 0.3s ease-out;
-      }
-
-      .nx-tree-children.expanded {
-        max-height: none;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     `;
   }
 
   protected afterRender(): void {
-    // Node click handler
+    // Re-renders replace the DOM; keep keyboard focus on the same node
+    const focusId = this.getState<string | null>('focusId', null);
+    if (focusId !== null) {
+      const node = Array.from(this.$$('.nx-tree-node')).find(el => (el as HTMLElement).dataset.nodeId === focusId);
+      (node?.querySelector(':scope > .nx-tree-node-content') as HTMLElement | null)?.focus();
+    }
+
     this.on(this.shadow!, 'click', (e: Event) => {
       const target = e.target as HTMLElement;
-      const nodeContent = target.closest('.nx-tree-node-content');
-      const toggleBtn = target.closest('.nx-tree-toggle');
-      const checkbox = target.closest('.nx-tree-checkbox');
+      const nodeEl = target.closest('.nx-tree-node') as HTMLElement | null;
+      if (!nodeEl) return;
+      const nodeId = nodeEl.dataset.nodeId!;
 
-      if (toggleBtn) {
-        this.handleToggle(e);
-      } else if (checkbox) {
-        this.handleCheck(e);
-      } else if (nodeContent) {
-        this.handleSelect(e);
+      if (target.closest('.nx-tree-checkbox')) {
+        this.toggleChecked(nodeId, (target as HTMLInputElement).checked);
+      } else if (target.closest('.nx-tree-toggle')) {
+        this.toggleNode(nodeId);
+      } else if (target.closest('.nx-tree-node-content')) {
+        this.selectNode(nodeId, e as MouseEvent);
+        const node = this.findNode(nodeId);
+        if (node?.children?.length && this.getProp('expand-on-click', true)) {
+          this.toggleNode(nodeId);
+        }
       }
     });
 
-    // Keyboard navigation
-    this.on(this.shadow!, 'keydown', (e: Event) => {
-      const keyEvent = e as KeyboardEvent;
-      this.handleKeyboard(keyEvent);
-    });
+    this.on(this.shadow!, 'keydown', (e: Event) => this.handleKeyboard(e as KeyboardEvent));
   }
 
-  private handleToggle(e: Event): void {
-    e.stopPropagation();
-    const toggle = e.target as HTMLElement;
-    const node = toggle.closest('.nx-tree-node') as HTMLElement;
-    const nodeId = node.dataset.nodeId!;
-    const expanded = this.getState<Set<string | number>>('expandedNodes', new Set());
-    
-    if (expanded.has(nodeId)) {
-      expanded.delete(nodeId);
-    } else {
-      expanded.add(nodeId);
-    }
-    
-    this.setState('expandedNodes', new Set(expanded));
-    this.emit('toggle', { nodeId, expanded: !expanded.has(nodeId) });
+  /** Expand or collapse a node. */
+  toggleNode(nodeId: string | number, force?: boolean): void {
+    const id = String(nodeId);
+    const expanded = new Set(this.getState<Set<string>>('expandedNodes', new Set()));
+    const expand = force ?? !expanded.has(id);
+    if (expand === expanded.has(id)) return;
+    expand ? expanded.add(id) : expanded.delete(id);
+    this.setState('expandedNodes', expanded);
+    this.emit('toggle', { nodeId: id, node: this.findNode(id), expanded: expand });
   }
 
-  private handleSelect(e: Event): void {
-    const nodeContent = (e.target as HTMLElement).closest('.nx-tree-node-content') as HTMLElement;
-    const node = nodeContent.closest('.nx-tree-node') as HTMLElement;
-    const nodeId = node.dataset.nodeId!;
+  private selectNode(nodeId: string, e?: MouseEvent | KeyboardEvent): void {
     const multiSelect = this.getProp('multi-select', false);
-    const selected = this.getState<Set<string | number>>('selectedNodes', new Set());
-    
-    if (multiSelect && ((e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey)) {
-      if (selected.has(nodeId)) {
-        selected.delete(nodeId);
-      } else {
-        selected.add(nodeId);
-      }
+    const selected = new Set(this.getState<Set<string>>('selectedNodes', new Set()));
+
+    if (multiSelect && e && (e.ctrlKey || e.metaKey)) {
+      selected.has(nodeId) ? selected.delete(nodeId) : selected.add(nodeId);
     } else {
       selected.clear();
       selected.add(nodeId);
     }
-    
-    this.setState('selectedNodes', new Set(selected));
-    this.emit('select', { nodeId, selected: Array.from(selected) });
+
+    this.updateState({ selectedNodes: selected, focusId: nodeId });
+    this.emit('select', {
+      nodeId,
+      node: this.findNode(nodeId),
+      selected: Array.from(selected)
+    });
   }
 
-  private handleCheck(e: Event): void {
-    const checkbox = e.target as HTMLInputElement;
-    const node = checkbox.closest('.nx-tree-node') as HTMLElement;
-    const nodeId = node.dataset.nodeId!;
-    const checked = this.getState<Set<string | number>>('checkedNodes', new Set());
-    
-    if (checkbox.checked) {
-      checked.add(nodeId);
-    } else {
-      checked.delete(nodeId);
-    }
-    
-    this.setState('checkedNodes', new Set(checked));
-    this.emit('check', { nodeId, checked: checkbox.checked });
+  private toggleChecked(nodeId: string, isChecked: boolean): void {
+    const checked = new Set(this.getState<Set<string>>('checkedNodes', new Set()));
+    isChecked ? checked.add(nodeId) : checked.delete(nodeId);
+    this.setState('checkedNodes', checked);
+    this.emit('check', { nodeId, node: this.findNode(nodeId), checked: isChecked });
   }
 
   private handleKeyboard(e: KeyboardEvent): void {
     const target = e.target as HTMLElement;
     if (!target.classList.contains('nx-tree-node-content')) return;
+    const nodeEl = target.closest('.nx-tree-node') as HTMLElement;
+    const nodeId = nodeEl.dataset.nodeId!;
+    const node = this.findNode(nodeId);
+    const all = Array.from(this.$$('.nx-tree-node-content[tabindex="0"]')) as HTMLElement[];
+    const index = all.indexOf(target);
+
+    const focus = (el?: HTMLElement) => {
+      if (!el) return;
+      this[ComponentState].set('focusId', (el.closest('.nx-tree-node') as HTMLElement).dataset.nodeId);
+      el.focus();
+    };
 
     switch (e.key) {
       case 'ArrowUp':
         e.preventDefault();
-        this.focusPrevious(target);
+        focus(all[index - 1]);
         break;
       case 'ArrowDown':
         e.preventDefault();
-        this.focusNext(target);
+        focus(all[index + 1]);
         break;
       case 'ArrowLeft':
         e.preventDefault();
-        this.collapseNode(target);
+        if (node?.children?.length && this.getState<Set<string>>('expandedNodes', new Set()).has(nodeId)) {
+          this[ComponentState].set('focusId', nodeId);
+          this.toggleNode(nodeId, false);
+        } else {
+          const parent = nodeEl.parentElement?.closest('.nx-tree-node');
+          focus(parent?.querySelector(':scope > .nx-tree-node-content') as HTMLElement | undefined);
+        }
         break;
       case 'ArrowRight':
         e.preventDefault();
-        this.expandNode(target);
+        if (node?.children?.length) {
+          this[ComponentState].set('focusId', nodeId);
+          this.toggleNode(nodeId, true);
+        }
         break;
       case 'Enter':
       case ' ':
         e.preventDefault();
-        this.handleSelect(e);
+        this.selectNode(nodeId, e);
         break;
-    }
-  }
-
-  private focusPrevious(current: HTMLElement): void {
-    const allNodes = Array.from(this.shadowRoot!.querySelectorAll('.nx-tree-node-content:not([disabled])'));
-    const currentIndex = allNodes.indexOf(current);
-    if (currentIndex > 0) {
-      (allNodes[currentIndex - 1] as HTMLElement).focus();
-    }
-  }
-
-  private focusNext(current: HTMLElement): void {
-    const allNodes = Array.from(this.shadowRoot!.querySelectorAll('.nx-tree-node-content:not([disabled])'));
-    const currentIndex = allNodes.indexOf(current);
-    if (currentIndex < allNodes.length - 1) {
-      (allNodes[currentIndex + 1] as HTMLElement).focus();
-    }
-  }
-
-  private expandNode(nodeContent: HTMLElement): void {
-    const node = nodeContent.closest('.nx-tree-node') as HTMLElement;
-    const toggle = node.querySelector('.nx-tree-toggle');
-    if (toggle && !toggle.classList.contains('expanded')) {
-      toggle.dispatchEvent(new Event('click', { bubbles: true }));
-    }
-  }
-
-  private collapseNode(nodeContent: HTMLElement): void {
-    const node = nodeContent.closest('.nx-tree-node') as HTMLElement;
-    const toggle = node.querySelector('.nx-tree-toggle');
-    if (toggle && toggle.classList.contains('expanded')) {
-      toggle.dispatchEvent(new Event('click', { bubbles: true }));
     }
   }
 }
 
-customElements.define('nx-tree', NXTree);
+define('nx-tree', NXTree);

@@ -1,0 +1,293 @@
+/**
+ * @file @/components/ui/form/field.ts
+ * @copyright Copyright (c) 2025 fool@nexaro.cloud
+ *
+ * Shared base for form fields: label, helper/error text, validation and
+ * form association. Fields render once and then patch the DOM in place, so
+ * typing never re-renders (and never loses focus).
+ */
+import { BaseComponent, escapeHTML } from '@/components/abstracts/base';
+
+export type Validator = (value: any, field: NXField) => string | true | null | undefined | void;
+
+export interface FieldConfig {
+  name?: string;
+  label?: string;
+  helperText?: string;
+  required?: boolean;
+  disabled?: boolean;
+  /** Return an error message, or nothing when valid */
+  validator?: Validator;
+  onChange?: (e: CustomEvent<{ value: any }>) => void;
+}
+
+type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
+let fieldSeq = 0;
+
+export abstract class NXField extends BaseComponent {
+  static formAssociated = true;
+
+  protected internals: ElementInternals | null = null;
+  protected touched = false;
+  protected readonly fieldId = `f${++fieldSeq}`;
+
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open', delegatesFocus: true });
+    try {
+      const internals = this.attachInternals();
+      // Partial implementations (older browsers, jsdom) lack the form APIs
+      this.internals = typeof internals.setFormValue === 'function' ? internals : null;
+    } catch {
+      this.internals = null;
+    }
+  }
+
+  protected initializeState(): void {}
+
+  /** Current value */
+  abstract get value(): any;
+  abstract set value(value: any);
+
+  /** The native control inside the shadow root */
+  protected control(): Control | null {
+    return this.$('input, select, textarea') as Control | null;
+  }
+
+  get name(): string {
+    return this.getAttribute('name') ?? '';
+  }
+
+  getValue(): any {
+    return this.value;
+  }
+
+  setValue(value: any): void {
+    this.value = value;
+  }
+
+  setValidator(validator: Validator): void {
+    this.setProp('validator', validator);
+  }
+
+  /** Run validation, show the error (if any) and return validity. */
+  validate(): boolean {
+    this.touched = true;
+    const message = this.validationMessage();
+    this.showError(message);
+    return !message;
+  }
+
+  /** Validation message without touching the UI; '' when valid. */
+  validationMessage(): string {
+    const control = this.control();
+    const validator = this.getProp<Validator>('validator');
+    const custom = typeof validator === 'function' ? validator(this.value, this) : null;
+    const customMessage = typeof custom === 'string' ? custom : '';
+
+    if (control) {
+      control.setCustomValidity(customMessage);
+      if (!control.checkValidity()) {
+        this.internals?.setValidity({ customError: true }, control.validationMessage, control);
+        return control.validationMessage || 'Invalid value';
+      }
+    } else if (customMessage) {
+      return customMessage;
+    }
+
+    this.internals?.setValidity({});
+    return '';
+  }
+
+  /** Clear value and validation state. */
+  reset(): void {
+    this.touched = false;
+    this.value = this.defaultValue();
+    this.showError('');
+  }
+
+  protected defaultValue(): any {
+    return '';
+  }
+
+  focus(options?: FocusOptions): void {
+    this.control()?.focus(options);
+  }
+
+  blur(): void {
+    this.control()?.blur();
+  }
+
+  /** Forms call this when their `reset()` runs. */
+  formResetCallback(): void {
+    this.reset();
+  }
+
+  formDisabledCallback(disabled: boolean): void {
+    this.toggleAttribute('disabled', disabled);
+  }
+
+  protected syncFormValue(): void {
+    const value = this.value;
+    this.internals?.setFormValue(
+      value === null || value === undefined ? null : Array.isArray(value) ? value.join(',') : String(value)
+    );
+  }
+
+  /** Called by subclasses when the user changed the value. */
+  protected changed(): void {
+    this.syncFormValue();
+    if (this.touched) this.showError(this.validationMessage());
+    this.emit('change', { value: this.value });
+  }
+
+  protected showError(message: string): void {
+    const helper = this.$('.nx-field-helper') as HTMLElement | null;
+    const wrapper = this.$('.nx-field');
+    const helperText = this.getProp<string>('helper-text', '');
+    const errorText = this.getProp<string>('error-text', '');
+    const text = errorText || message || helperText;
+    wrapper?.classList.toggle('invalid', !!(errorText || message));
+    this.control()?.setAttribute('aria-invalid', String(!!(errorText || message)));
+    if (helper) {
+      helper.textContent = text;
+      helper.hidden = !text;
+    }
+  }
+
+  /** Wrap the control markup with label and helper text. */
+  protected renderField(controlHtml: string, options: { inlineLabel?: boolean } = {}): string {
+    const label = this.getProp<string>('label');
+    const required = this.getProp('required', false);
+    const helperText = this.getProp<string>('helper-text', '');
+    const errorText = this.getProp<string>('error-text', '');
+    const text = errorText || helperText;
+
+    return `
+      <div class="nx-field ${errorText ? 'invalid' : ''} ${this.getProp('disabled', false) ? 'disabled' : ''}" part="field">
+        ${label && !options.inlineLabel ? `
+          <label class="nx-field-label" part="label" for="${this.fieldId}">
+            ${escapeHTML(label)}${required ? '<span class="required" aria-hidden="true">*</span>' : ''}
+          </label>
+        ` : ''}
+        ${controlHtml}
+        <div class="nx-field-helper" part="helper" id="${this.fieldId}-help" ${text ? '' : 'hidden'}>${escapeHTML(text)}</div>
+      </div>
+    `;
+  }
+
+  protected afterRender(): void {
+    this.syncFormValue();
+    this.on(this.shadow!, 'focusout', () => {
+      this.touched = true;
+      this.showError(this.validationMessage());
+    });
+  }
+
+  protected fieldStyles(): string {
+    return `
+      :host {
+        display: block;
+        font-size: 0.875rem;
+      }
+
+      .nx-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+      }
+
+      .nx-field-label {
+        font-weight: 500;
+        color: var(--color-text);
+        line-height: 1.25;
+      }
+
+      .required {
+        margin-left: 0.125rem;
+        color: var(--color-error);
+      }
+
+      .nx-field-helper {
+        font-size: 0.8125rem;
+        color: var(--color-text-secondary);
+      }
+
+      .nx-field-helper[hidden] {
+        display: none;
+      }
+
+      .invalid .nx-field-helper {
+        color: var(--color-error);
+      }
+
+      .disabled {
+        opacity: 0.6;
+      }
+
+      .nx-control {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: 2.25rem;
+        padding: 0 0.75rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        background: var(--color-background);
+        color: var(--color-text);
+        box-shadow: var(--shadow-sm);
+        transition: border-color var(--transition-duration), box-shadow var(--transition-duration);
+      }
+
+      .nx-control:focus-within {
+        border-color: var(--color-ring);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ring) 25%, transparent);
+      }
+
+      .invalid .nx-control {
+        border-color: var(--color-error);
+      }
+
+      .invalid .nx-control:focus-within {
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-error) 20%, transparent);
+      }
+
+      .disabled .nx-control {
+        cursor: not-allowed;
+        background: var(--color-muted);
+      }
+
+      .nx-control input,
+      .nx-control select,
+      .nx-control textarea {
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        min-height: 2.125rem;
+        padding: 0;
+        border: none;
+        outline: none;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+      }
+
+      .nx-control :disabled {
+        cursor: not-allowed;
+      }
+
+      .nx-control-icon {
+        display: inline-flex;
+        flex-shrink: 0;
+        color: var(--color-text-secondary);
+        font-size: 1rem;
+      }
+
+      .size-sm .nx-control { min-height: 2rem; font-size: 0.8125rem; }
+      .size-sm .nx-control :is(input, select) { min-height: 1.875rem; }
+      .size-lg .nx-control { min-height: 2.75rem; font-size: 0.9375rem; }
+      .size-lg .nx-control :is(input, select) { min-height: 2.625rem; }
+    `;
+  }
+}

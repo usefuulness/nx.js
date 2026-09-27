@@ -1,4 +1,5 @@
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
 import type { MenuItem } from '@/components/ui/menu';
 
 export interface MenuBarConfig {
@@ -308,4 +309,4 @@ export class NXMenuBar extends BaseComponent {
   }
 }
 
-customElements.define('nx-menubar', NXMenuBar);
+define('nx-menubar', NXMenuBar);

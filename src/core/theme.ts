@@ -1,14 +1,29 @@
 // src/core/theme.ts
 
 export interface ThemeColors {
+  /** Brand / primary action background */
   primary: string;
+  /** Primary hover */
   primaryDark: string;
+  /** Text on top of `primary` */
+  primaryForeground: string;
+  /** Secondary action background */
   secondary: string;
+  /** Text on top of `secondary` */
+  secondaryForeground: string;
+  /** Page background */
   background: string;
+  /** Cards, panels, popovers */
   surface: string;
+  /** Subtle backgrounds (headers, table heads, tracks) */
+  muted: string;
+  /** Hover / selected backgrounds */
+  accent: string;
   text: string;
   textSecondary: string;
   border: string;
+  /** Focus ring */
+  ring: string;
   error: string;
   success: string;
   warning: string;
@@ -54,36 +69,46 @@ export interface ThemeConfig {
 const lightTheme: ThemeConfig = {
   name: 'light',
   colors: {
-    primary: '#3b82f6',
-    primaryDark: '#2563eb',
-    secondary: '#8b5cf6',
+    primary: '#18181b',
+    primaryDark: '#27272a',
+    primaryForeground: '#fafafa',
+    secondary: '#f4f4f5',
+    secondaryForeground: '#18181b',
     background: '#ffffff',
-    surface: '#f9fafb',
-    text: '#111827',
-    textSecondary: '#6b7280',
-    border: '#e5e7eb',
-    error: '#ef4444',
-    success: '#10b981',
-    warning: '#f59e0b',
-    info: '#3b82f6'
+    surface: '#ffffff',
+    muted: '#f4f4f5',
+    accent: '#f4f4f5',
+    text: '#09090b',
+    textSecondary: '#71717a',
+    border: '#e4e4e7',
+    ring: '#a1a1aa',
+    error: '#dc2626',
+    success: '#16a34a',
+    warning: '#d97706',
+    info: '#2563eb'
   }
 };
 
 const darkTheme: ThemeConfig = {
   name: 'dark',
   colors: {
-    primary: '#60a5fa',
-    primaryDark: '#3b82f6',
-    secondary: '#a78bfa',
-    background: '#111827',
-    surface: '#1f2937',
-    text: '#f9fafb',
-    textSecondary: '#9ca3af',
-    border: '#374151',
-    error: '#f87171',
-    success: '#34d399',
-    warning: '#fbbf24',
-    info: '#60a5fa'
+    primary: '#fafafa',
+    primaryDark: '#e4e4e7',
+    primaryForeground: '#18181b',
+    secondary: '#27272a',
+    secondaryForeground: '#fafafa',
+    background: '#09090b',
+    surface: '#0f0f11',
+    muted: '#18181b',
+    accent: '#27272a',
+    text: '#fafafa',
+    textSecondary: '#a1a1aa',
+    border: '#27272a',
+    ring: '#71717a',
+    error: '#ef4444',
+    success: '#22c55e',
+    warning: '#f59e0b',
+    info: '#3b82f6'
   }
 };
 
@@ -92,18 +117,34 @@ const midnightTheme: ThemeConfig = {
   colors: {
     primary: '#818cf8',
     primaryDark: '#6366f1',
-    secondary: '#f472b6',
-    background: '#0f172a',
-    surface: '#1e293b',
+    primaryForeground: '#0b1020',
+    secondary: '#1e293b',
+    secondaryForeground: '#f8fafc',
+    background: '#020617',
+    surface: '#0b1224',
+    muted: '#0f172a',
+    accent: '#1e293b',
     text: '#f8fafc',
     textSecondary: '#94a3b8',
-    border: '#334155',
+    border: '#1e293b',
+    ring: '#818cf8',
     error: '#fb7185',
     success: '#4ade80',
     warning: '#facc15',
     info: '#38bdf8'
   }
 };
+
+/**
+ * Perceived-lightness check for a #rgb / #rrggbb color.
+ */
+function isDarkColor(hex: string): boolean {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h.slice(0, 6);
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(full.slice(i, i + 2), 16));
+  if ([r, g, b].some(Number.isNaN)) return false;
+  return (0.299 * r + 0.587 * g + 0.114 * b) < 128;
+}
 
 /**
  * Theme manager for handling application themes
@@ -117,25 +158,50 @@ export class ThemeManager {
 
   private static currentTheme = 'light';
   private static root = document.documentElement;
-  private static mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  private static mediaQuery: MediaQueryList = typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-color-scheme: dark)')
+    : ({ matches: false, addEventListener: () => {} } as unknown as MediaQueryList);
   private static listeners: Set<(theme: string) => void> = new Set();
+  private static defaultTheme: string | null = null;
+  private static initialized = false;
 
   /**
    * Initialize theme manager
    */
   static initialize(): void {
-    // Load saved theme or use system preference
-    const savedTheme = localStorage.getItem('nx-theme');
-    const systemTheme = this.mediaQuery.matches ? 'dark' : 'light';
-    
-    this.setTheme(savedTheme || systemTheme);
+    if (this.initialized) return;
+    this.initialized = true;
 
-    // Listen for system theme changes
+    // Saved choice, else the app default, else the OS preference
+    const savedTheme = this.saved();
+    const systemTheme = this.mediaQuery.matches ? 'dark' : 'light';
+    this.setTheme(savedTheme && this.themes.has(savedTheme) ? savedTheme : this.defaultTheme ?? systemTheme, { persist: false });
+
+    // Follow OS changes until the user picks a theme
     this.mediaQuery.addEventListener('change', (e) => {
-      if (!localStorage.getItem('nx-theme')) {
-        this.setTheme(e.matches ? 'dark' : 'light');
+      if (!this.saved() && !this.defaultTheme) {
+        this.setTheme(e.matches ? 'dark' : 'light', { persist: false });
       }
     });
+  }
+
+  /**
+   * Set the theme used when the user hasn't picked one yet.
+   */
+  static setDefault(themeName: string): void {
+    this.defaultTheme = themeName;
+    const saved = this.saved();
+    if (!saved || !this.themes.has(saved)) {
+      this.setTheme(themeName, { persist: false });
+    }
+  }
+
+  private static saved(): string | null {
+    try {
+      return localStorage.getItem('nx-theme');
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -148,7 +214,7 @@ export class ThemeManager {
   /**
    * Set the active theme
    */
-  static setTheme(themeName: string): void {
+  static setTheme(themeName: string, options: { persist?: boolean } = {}): void {
     const theme = this.themes.get(themeName);
     if (!theme) {
       console.warn(`Theme "${themeName}" not found`);
@@ -158,8 +224,14 @@ export class ThemeManager {
     this.currentTheme = themeName;
     this.applyTheme(theme);
     
-    // Save preference
-    localStorage.setItem('nx-theme', themeName);
+    // Save preference (explicit user choices only)
+    if (options.persist !== false) {
+      try {
+        localStorage.setItem('nx-theme', themeName);
+      } catch {
+        // storage unavailable (private mode, sandboxed iframe)
+      }
+    }
     
     // Notify listeners
     this.listeners.forEach(listener => listener(themeName));
@@ -199,10 +271,10 @@ export class ThemeManager {
       });
     } else {
       // Default radius
-      this.root.style.setProperty('--radius-sm', '0.25rem');
-      this.root.style.setProperty('--radius-md', '0.375rem');
-      this.root.style.setProperty('--radius-lg', '0.5rem');
-      this.root.style.setProperty('--radius-xl', '0.75rem');
+      this.root.style.setProperty('--radius-sm', '0.375rem');
+      this.root.style.setProperty('--radius-md', '0.5rem');
+      this.root.style.setProperty('--radius-lg', '0.75rem');
+      this.root.style.setProperty('--radius-xl', '1rem');
       this.root.style.setProperty('--radius-full', '9999px');
     }
 
@@ -214,9 +286,9 @@ export class ThemeManager {
     } else {
       // Default shadows
       this.root.style.setProperty('--shadow-sm', '0 1px 2px 0 rgb(0 0 0 / 0.05)');
-      this.root.style.setProperty('--shadow-md', '0 4px 6px -1px rgb(0 0 0 / 0.1)');
-      this.root.style.setProperty('--shadow-lg', '0 10px 15px -3px rgb(0 0 0 / 0.1)');
-      this.root.style.setProperty('--shadow-xl', '0 20px 25px -5px rgb(0 0 0 / 0.1)');
+      this.root.style.setProperty('--shadow-md', '0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06)');
+      this.root.style.setProperty('--shadow-lg', '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.08)');
+      this.root.style.setProperty('--shadow-xl', '0 20px 25px -5px rgb(0 0 0 / 0.12), 0 8px 10px -6px rgb(0 0 0 / 0.08)');
     }
 
     // Apply font family
@@ -259,79 +331,129 @@ export class ThemeManager {
    * Get theme-specific CSS
    */
   private static getThemeStyles(themeName: string): string {
-    const isDark = themeName === 'dark' || themeName === 'midnight';
+    const isDark = isDarkColor(this.themes.get(themeName)?.colors.background ?? '#ffffff');
 
     return `
-      /* Scrollbar styling */
+      /* Design tokens: component-facing aliases of the theme colors.
+         :where() keeps specificity at zero so apps can override anything. */
+      :where(:root) {
+        color-scheme: ${isDark ? 'dark' : 'light'};
+        --font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        --transition-duration: 150ms;
+        --transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+
+        --color-danger: var(--color-error);
+        --bg-color: var(--color-background);
+        --surface-color: var(--color-surface);
+        --border-color: var(--color-border);
+        --text-color: var(--color-text);
+        --text-color-secondary: var(--color-text-secondary);
+        --hover-bg: var(--color-accent);
+        --active-bg: var(--color-muted);
+        --selected-bg: var(--color-accent);
+        --selected-color: var(--color-text);
+        --backdrop-bg: rgb(0 0 0 / ${isDark ? '0.7' : '0.5'});
+        --modal-bg: var(--color-surface);
+        --modal-shadow: var(--shadow-xl);
+        --drawer-bg: var(--color-surface);
+        --drawer-shadow: var(--shadow-xl);
+        --skeleton-base: var(--color-muted);
+        --spinner-color: var(--color-primary);
+        --spinner-track-color: var(--color-muted);
+        --loader-color: var(--color-primary);
+        --progress-color: var(--color-primary);
+        --progress-bg: var(--color-muted);
+        --nx-grid-border: var(--color-border);
+        --nx-grid-header-bg: var(--color-muted);
+        --nx-grid-row-hover: var(--color-accent);
+        --nx-grid-row-selected: var(--color-accent);
+      }
+
+      :where(html, body) {
+        margin: 0;
+        height: 100%;
+      }
+
+      :where(body) {
+        font-family: var(--font-family);
+        font-size: 14px;
+        line-height: 1.5;
+        background: var(--color-background);
+        color: var(--color-text);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      /* Scrollbars */
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-border) transparent;
+      }
+
       ::-webkit-scrollbar {
-        width: 12px;
-        height: 12px;
+        width: 10px;
+        height: 10px;
       }
 
       ::-webkit-scrollbar-track {
-        background: var(--color-background);
+        background: transparent;
       }
 
       ::-webkit-scrollbar-thumb {
         background: var(--color-border);
-        border-radius: var(--radius-md);
-        border: 3px solid var(--color-background);
+        border-radius: 9999px;
+        border: 2px solid transparent;
+        background-clip: content-box;
       }
 
       ::-webkit-scrollbar-thumb:hover {
-        background: var(--color-text-secondary);
+        background-color: var(--color-text-secondary);
       }
 
-      /* Selection colors */
       ::selection {
-        background: var(--color-primary);
-        color: white;
+        background: color-mix(in srgb, var(--color-info) 30%, transparent);
       }
 
-      /* Focus styles */
       :focus-visible {
-        outline: 2px solid var(--color-primary);
+        outline: 2px solid var(--color-ring);
         outline-offset: 2px;
       }
 
-      /* Form input styles */
-      input, textarea, select {
-        background: var(--color-surface);
-        color: var(--color-text);
-        border-color: var(--color-border);
-      }
-
-      /* Placeholder text */
       ::placeholder {
         color: var(--color-text-secondary);
         opacity: 0.8;
       }
 
-      /* Disabled elements */
-      :disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-
-      /* Code blocks */
       code, pre {
-        background: ${isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.05)'};
+        font-family: var(--font-mono);
+        background: var(--color-muted);
         border-radius: var(--radius-sm);
       }
 
-      /* Links */
+      code {
+        padding: 0.125rem 0.375rem;
+        font-size: 0.875em;
+      }
+
       a {
-        color: var(--color-primary);
+        color: inherit;
+        text-underline-offset: 4px;
       }
 
-      a:hover {
-        color: var(--color-primary-dark);
+      /* Responsive helpers (outer styles beat :host, so these always apply) */
+      @media (min-width: 769px) {
+        .nx-mobile-only { display: none !important; }
       }
 
-      /* Animations */
-      @media (prefers-reduced-motion: no-preference) {
-        * {
-          scroll-behavior: smooth;
+      @media (max-width: 768px) {
+        .nx-desktop-only { display: none !important; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
         }
       }
     `;
@@ -387,7 +509,11 @@ export class ThemeManager {
   /**
    * Create a theme from a base theme
    */
-  static createTheme(name: string, base: string, overrides: Partial<ThemeConfig>): ThemeConfig | null {
+  static createTheme(
+    name: string,
+    base: string,
+    overrides: Partial<Omit<ThemeConfig, 'colors'>> & { colors?: Partial<ThemeColors> } = {}
+  ): ThemeConfig | null {
     const baseTheme = this.themes.get(base);
     if (!baseTheme) {
       console.warn(`Base theme "${base}" not found`);
@@ -485,10 +611,7 @@ export class ThemeManager {
 }
 
 // Initialize on load
+// Initialize right away so design tokens exist before the first component renders
 if (typeof window !== 'undefined') {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => ThemeManager.initialize());
-  } else {
-    ThemeManager.initialize();
-  }
+  ThemeManager.initialize();
 }

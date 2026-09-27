@@ -1,12 +1,14 @@
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
 
 export interface ViewportConfig {
-  layout?: 'border' | 'card' | 'fit';
+  /** `border` (default, also accepts `viewport`) | `card` | `fit` */
+  layout?: 'border' | 'viewport' | 'card' | 'fit';
 }
 
 export class NXViewport extends BaseComponent {
   static get observedAttributes(): string[] {
-    return ['layout'];
+    return ['layout', 'breakpoint'];
   }
 
   protected initializeState(): void {
@@ -19,7 +21,8 @@ export class NXViewport extends BaseComponent {
   }
 
   protected render(): string {
-    const layout = this.getProp<string>('layout', 'border');
+    let layout = this.getProp<string>('layout', 'border');
+    if (!['border', 'card', 'fit'].includes(layout)) layout = 'border';
 
     return `
       <div class="nx-viewport nx-viewport-${layout}" part="container">
@@ -32,6 +35,7 @@ export class NXViewport extends BaseComponent {
 
   private renderBorderLayout(): string {
     return `
+      <div class="nx-region-backdrop" part="backdrop"></div>
       <div class="nx-region-north" part="north">
         <slot name="north"></slot>
       </div>
@@ -75,6 +79,9 @@ export class NXViewport extends BaseComponent {
         display: block;
         width: 100%;
         height: 100%;
+        overflow: hidden;
+        background: var(--color-background);
+        color: var(--color-text);
       }
 
       .nx-viewport {
@@ -89,25 +96,86 @@ export class NXViewport extends BaseComponent {
         overflow: hidden;
       }
 
-      .nx-region-north:not(:empty),
-      .nx-region-south:not(:empty) {
+      .nx-region-north,
+      .nx-region-south {
         flex-shrink: 0;
       }
 
       .nx-region-center-container {
         flex: 1;
         display: flex;
+        min-height: 0;
         overflow: hidden;
       }
 
-      .nx-region-west:not(:empty),
-      .nx-region-east:not(:empty) {
+      .nx-region-west,
+      .nx-region-east {
         flex-shrink: 0;
+        display: flex;
+        min-height: 0;
+      }
+
+      .nx-region-west ::slotted(*),
+      .nx-region-east ::slotted(*) {
+        height: 100%;
       }
 
       .nx-region-center {
         flex: 1;
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
         overflow: auto;
+      }
+
+      .nx-region-center ::slotted(*) {
+        flex: 1;
+        min-height: 0;
+      }
+
+      /* Narrow screens: side regions become off-canvas drawers (see toggleRegion) */
+      .nx-region-backdrop { display: none; }
+
+      @media (max-width: ${this.getProp('breakpoint', 768)}px) {
+        .nx-region-west,
+        .nx-region-east {
+          position: fixed;
+          top: 0;
+          bottom: 0;
+          z-index: 60;
+          max-width: 85vw;
+          background: var(--color-surface);
+          box-shadow: var(--shadow-xl);
+          visibility: hidden;
+          transition: transform 250ms var(--transition-easing), visibility 0s linear 250ms;
+        }
+
+        .nx-region-west { left: 0; transform: translateX(-100%); }
+        .nx-region-east { right: 0; transform: translateX(100%); }
+
+        .nx-region-west.open,
+        .nx-region-east.open {
+          transform: none;
+          visibility: visible;
+          transition: transform 250ms var(--transition-easing), visibility 0s;
+        }
+
+        .nx-region-backdrop {
+          display: block;
+          position: fixed;
+          inset: 0;
+          z-index: 59;
+          background: var(--backdrop-bg);
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 250ms var(--transition-easing);
+        }
+
+        .nx-region-backdrop.open {
+          opacity: 1;
+          pointer-events: auto;
+        }
       }
 
       /* Card Layout */
@@ -126,28 +194,9 @@ export class NXViewport extends BaseComponent {
         position: relative;
       }
 
-      .nx-fit-container > ::slotted(*) {
+      .nx-fit-container ::slotted(*) {
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-      }
-
-      /* Handle slotted panels */
-      ::slotted([slot="north"]),
-      ::slotted([slot="south"]) {
-        width: 100%;
-      }
-
-      ::slotted([slot="west"]),
-      ::slotted([slot="east"]) {
-        height: 100%;
-      }
-
-      ::slotted([slot="center"]) {
-        width: 100%;
-        height: 100%;
+        inset: 0;
       }
     `;
   }
@@ -155,6 +204,47 @@ export class NXViewport extends BaseComponent {
   protected afterRender(): void {
     // Set up region management
     this.setupRegions();
+
+    const backdrop = this.$('.nx-region-backdrop');
+    if (backdrop) this.on(backdrop, 'click', () => this.closeRegions());
+
+    // Picking something in an off-canvas nav closes it
+    ['west', 'east'].forEach(region => {
+      const el = this.$(`.nx-region-${region}`);
+      if (el) this.on(el, 'select', () => this.closeRegions());
+    });
+
+    this.on(document, 'keydown', (e: Event) => {
+      if ((e as KeyboardEvent).key === 'Escape') this.closeRegions();
+    });
+  }
+
+  /** True when side regions are rendered as off-canvas drawers. */
+  isNarrow(): boolean {
+    return window.matchMedia(`(max-width: ${this.getProp('breakpoint', 768)}px)`).matches;
+  }
+
+  /**
+   * Show/hide a side region. On narrow screens it slides in as a drawer;
+   * on wide screens a collapsible panel in that region is toggled instead.
+   */
+  toggleRegion(region: 'west' | 'east' = 'west', force?: boolean): void {
+    if (!this.isNarrow()) {
+      const panel = this.getRegion(region)[0] as (Element & { toggle?: () => void }) | undefined;
+      panel?.toggle?.();
+      return;
+    }
+    const el = this.$(`.nx-region-${region}`);
+    const open = force ?? !el?.classList.contains('open');
+    this.closeRegions();
+    if (open) {
+      el?.classList.add('open');
+      this.$('.nx-region-backdrop')?.classList.add('open');
+    }
+  }
+
+  closeRegions(): void {
+    this.$$('.open').forEach(el => el.classList.remove('open'));
   }
 
   private setupRegions(): void {
@@ -321,5 +411,5 @@ export class NXRegion extends BaseComponent {
   }
 }
 
-customElements.define('nx-viewport', NXViewport);
-customElements.define('nx-region', NXRegion);
+define('nx-viewport', NXViewport);
+define('nx-region', NXRegion);

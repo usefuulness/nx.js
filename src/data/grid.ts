@@ -1,1118 +1,798 @@
-// src/components/data/grid.ts
-import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+/**
+ * @file @/data/grid.ts
+ * @copyright Copyright (c) 2025 fool@nexaro.cloud
+ */
+import { BaseComponent, escapeHTML } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
+import { Icons } from '@/core/icons';
+import { Store } from '@/data/store';
+
+export type BadgeTone = 'neutral' | 'info' | 'success' | 'warning' | 'error';
 
 export interface GridColumn<T = any> {
+  /** Property of the row to display (supports dot paths: `address.city`) */
   field: keyof T | string;
-  header: string;
+  /** Header label (alias: `text`) */
+  header?: string;
+  text?: string;
+  /** Fixed width (px number or CSS length) */
   width?: number | string;
-  flex?: number;
-  sortable?: boolean;
-  filterable?: boolean;
-  resizable?: boolean;
-  formatter?: (value: any, row: T) => string;
-  renderer?: (value: any, row: T, column: GridColumn<T>) => string;
-  editor?: 'text' | 'number' | 'date' | 'select' | 'checkbox';
-  editorConfig?: any;
   align?: 'left' | 'center' | 'right';
-  headerAlign?: 'left' | 'center' | 'right';
+  /** Defaults to true */
+  sortable?: boolean;
   hidden?: boolean;
-  locked?: boolean;
-  aggregator?: 'sum' | 'avg' | 'min' | 'max' | 'count';
+  /**
+   * Built-in cell types:
+   * - `number`, `currency`, `percent`, `date`, `boolean`
+   * - `badge`: a pill; set tones with `badges: { Active: 'success' }`
+   */
+  type?: 'text' | 'number' | 'currency' | 'percent' | 'date' | 'boolean' | 'badge';
+  badges?: Record<string, BadgeTone>;
+  /** Currency code for `type: 'currency'` (default USD) */
+  currency?: string;
+  /** Return plain text (escaped for you) */
+  formatter?: (value: any, row: T) => string;
+  /** Return HTML (not escaped — you own it) */
+  renderer?: (value: any, row: T, column: GridColumn<T>) => string;
 }
 
-export interface GridConfig<T = any> {
+export interface GridConfig<T extends Record<string, any> = any> {
   columns: GridColumn<T>[];
+  /** Inline rows… */
   data?: T[];
+  /** …or a Store instance / registered store name */
+  store?: string | Store<T>;
+  title?: string;
+  /** Show a search box that filters across all visible columns */
+  search?: boolean;
   striped?: boolean;
-  bordered?: boolean;
   hoverable?: boolean;
+  dense?: boolean;
+  bordered?: boolean;
   selectable?: boolean | 'single' | 'multiple';
   checkboxSelection?: boolean;
-  rowHeight?: number;
-  headerHeight?: number;
-  virtualScroll?: boolean;
+  /** Rows per page; omit for no paging */
   pageSize?: number;
-  groupField?: keyof T;
-  showFooter?: boolean;
-  showToolbar?: boolean;
-  editable?: boolean;
-  autoHeight?: boolean;
+  emptyText?: string;
 }
 
-interface VirtualScrollState {
-  scrollTop: number;
-  visibleStart: number;
-  visibleEnd: number;
-  totalHeight: number;
-}
+const cssSize = (value: unknown): string =>
+  typeof value === 'number' || /^\d+(\.\d+)?$/.test(String(value)) ? `${value}px` : String(value);
+
+const isNumeric = (col: GridColumn): boolean =>
+  col.type === 'number' || col.type === 'currency' || col.type === 'percent';
 
 /**
- * Advanced data grid with virtual scrolling, sorting, filtering, and editing capabilities.
+ * Data grid: sorting, search, selection, paging, store binding.
+ *
+ * @example
+ * ```typescript
+ * {
+ *   xtype: 'grid',
+ *   title: 'Users',
+ *   store: 'users',
+ *   search: true,
+ *   pageSize: 10,
+ *   selectable: 'multiple',
+ *   columns: [
+ *     { field: 'name', header: 'Name' },
+ *     { field: 'role', header: 'Role', type: 'badge', badges: { Admin: 'info' } },
+ *     { field: 'revenue', header: 'Revenue', type: 'currency' }
+ *   ],
+ *   onRowClick: (e) => console.log(e.detail.row)
+ * }
+ * ```
+ *
+ * Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`.
  */
 export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   static get observedAttributes(): string[] {
-    return ['striped', 'bordered', 'hoverable', 'selectable', 'virtual-scroll', 'editable'];
+    return [
+      'title', 'search', 'striped', 'hoverable', 'dense', 'bordered',
+      'selectable', 'checkbox-selection', 'page-size', 'empty-text'
+    ];
   }
 
-  private data: T[] = [];
+  private rows: T[] = [];
   private columns: GridColumn<T>[] = [];
-  private filteredData: T[] = [];
-  private virtualScrollState: VirtualScrollState = {
-    scrollTop: 0,
-    visibleStart: 0,
-    visibleEnd: 0,
-    totalHeight: 0
+  private store: Store<T> | null = null;
+  private storeRef: string | Store<T> | null = null;
+  private selected = new Set<T>();
+  private sortField: string | null = null;
+  private sortDirection: 'asc' | 'desc' = 'asc';
+  private query = '';
+  private page = 1;
+  private readonly onStoreChange = () => {
+    if (this.store) this.setRowsInternal(this.store.getData());
   };
 
-  protected initializeState(): void {
-    this[ComponentState].set('sortField', null);
-    this[ComponentState].set('sortDirection', 'asc');
-    this[ComponentState].set('selectedRows', new Set<number>());
-    this[ComponentState].set('filters', new Map<string, any>());
-    this[ComponentState].set('editingCell', null);
-    this[ComponentState].set('columnWidths', new Map<string, number>());
-  }
+  protected initializeState(): void {}
 
   constructor(config?: GridConfig<T>) {
     super();
     this.attachShadow({ mode: 'open' });
-    if (config) {
-      this.configure(config);
-    }
+    if (config) this.configure(config);
   }
 
-  configure(config: GridConfig<T>): void {
-    this.columns = config.columns || [];
-    this.data = config.data || [];
-    this.filteredData = [...this.data];
-    
-    Object.entries(config).forEach(([key, value]) => {
-      if (key !== 'columns' && key !== 'data') {
-        this.setAttribute(key.replace(/([A-Z])/g, '-$1').toLowerCase(), String(value));
-      }
-    });
-    
-    this.update();
-  }
-
-  setData(data: T[]): void {
-    this.data = data;
-    this.applyFiltersAndSort();
-    this.update();
-  }
+  // ────────── Config setters (picked up by configure()) ──────────
 
   setColumns(columns: GridColumn<T>[]): void {
     this.columns = columns;
-    this.update();
+    this.scheduleUpdate();
+  }
+
+  setData(data: T[]): void {
+    this.setRowsInternal(data);
+  }
+
+  setStore(store: string | Store<T>): void {
+    this.storeRef = store;
+    this.bindStore();
+  }
+
+  private bindStore(): void {
+    if (!this.storeRef) return;
+    const store = Store.lookup<T>(this.storeRef) ?? null;
+    if (store === this.store) return;
+    this.store?.off('datachanged', this.onStoreChange);
+    this.store = store;
+    if (store) {
+      store.on('datachanged', this.onStoreChange);
+      this.setRowsInternal(store.getData());
+    }
+  }
+
+  private setRowsInternal(rows: T[]): void {
+    this.rows = rows;
+    // Drop selections that no longer exist
+    const present = new Set(rows);
+    this.selected.forEach(row => present.has(row) || this.selected.delete(row));
+    this.refresh();
+  }
+
+  protected afterConnect(): void {
+    // A named store may be registered after the grid was configured
+    if (!this.store) this.bindStore();
+    else this.store.on('datachanged', this.onStoreChange);
+  }
+
+  protected cleanup(): void {
+    this.store?.off('datachanged', this.onStoreChange);
+  }
+
+  // ────────── Public API ──────────
+
+  getData(): T[] {
+    return this.rows;
+  }
+
+  /** Rows after search + sort (all pages). */
+  getVisibleRows(): T[] {
+    let rows = this.rows;
+
+    if (this.query) {
+      const q = this.query.toLowerCase();
+      const cols = this.visibleColumns();
+      rows = rows.filter(row =>
+        cols.some(col => String(this.value(row, col.field) ?? '').toLowerCase().includes(q))
+      );
+    }
+
+    if (this.sortField) {
+      const field = this.sortField;
+      const dir = this.sortDirection === 'asc' ? 1 : -1;
+      rows = [...rows].sort((a, b) => {
+        const av = this.value(a, field);
+        const bv = this.value(b, field);
+        if (av === bv) return 0;
+        if (av === null || av === undefined) return 1;
+        if (bv === null || bv === undefined) return -1;
+        if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+        return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' }) * dir;
+      });
+    }
+
+    return rows;
+  }
+
+  getSelected(): T[] {
+    return this.rows.filter(row => this.selected.has(row));
+  }
+
+  select(rows: T | T[], append = false): void {
+    if (!append) this.selected.clear();
+    (Array.isArray(rows) ? rows : [rows]).forEach(row => this.selected.add(row));
+    this.selectionChanged();
+  }
+
+  clearSelection(): void {
+    this.selected.clear();
+    this.selectionChanged();
+  }
+
+  selectAll(): void {
+    this.getVisibleRows().forEach(row => this.selected.add(row));
+    this.selectionChanged();
+  }
+
+  sort(field: keyof T | string, direction?: 'asc' | 'desc'): void {
+    const key = String(field);
+    this.sortDirection = direction ?? (this.sortField === key && this.sortDirection === 'asc' ? 'desc' : 'asc');
+    this.sortField = key;
+    this.emit('sort-change', { field: key, direction: this.sortDirection });
+    this.refresh();
+  }
+
+  /** Filter rows by a search string (same as typing in the search box). */
+  setFilter(query: string): void {
+    this.query = query;
+    this.page = 1;
+    const input = this.$('.nx-grid-search input') as HTMLInputElement | null;
+    if (input && input.value !== query) input.value = query;
+    this.refresh();
+  }
+
+  clearFilters(): void {
+    this.setFilter('');
+  }
+
+  setPage(page: number): void {
+    this.page = Math.max(1, Math.min(page, this.pageCount()));
+    this.refresh();
+  }
+
+  /** Re-render the rows only (keeps the toolbar and search box focus intact). */
+  refresh(): void {
+    const body = this.$('.nx-grid-body');
+    if (!body) {
+      this.scheduleUpdate();
+      return;
+    }
+    body.innerHTML = this.renderTable();
+    const footer = this.$('.nx-grid-footer');
+    if (footer) footer.outerHTML = this.renderFooter();
+    this.syncIndeterminate();
+  }
+
+  /** Download visible rows as CSV. */
+  exportCSV(filename = 'export.csv'): void {
+    const cols = this.visibleColumns();
+    const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const lines = [
+      cols.map(c => escape(this.headerText(c))).join(','),
+      ...this.getVisibleRows().map(row => cols.map(c => escape(this.value(row, c.field))).join(','))
+    ];
+    const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ────────── Rendering ──────────
+
+  private visibleColumns(): GridColumn<T>[] {
+    return this.columns.filter(col => !col.hidden);
+  }
+
+  private headerText(col: GridColumn<T>): string {
+    return col.header ?? col.text ?? String(col.field);
+  }
+
+  private value(row: T, field: keyof T | string): any {
+    const path = String(field);
+    if (!path.includes('.')) return row[path];
+    return path.split('.').reduce<any>((obj, key) => obj?.[key], row);
+  }
+
+  private pageSize(): number {
+    return Number(this.getProp('page-size', 0)) || 0;
+  }
+
+  private pageCount(): number {
+    const perPage = this.pageSize();
+    return perPage ? Math.max(1, Math.ceil(this.getVisibleRows().length / perPage)) : 1;
+  }
+
+  private currentPageRows(all: T[]): T[] {
+    const perPage = this.pageSize();
+    return perPage ? all.slice((this.page - 1) * perPage, this.page * perPage) : all;
+  }
+
+  private isSelectable(): boolean {
+    return !!this.getProp<any>('selectable', false) || !!this.getProp('checkbox-selection', false);
+  }
+
+  private isMulti(): boolean {
+    return this.getProp<unknown>('selectable', false) === 'multiple' || !!this.getProp('checkbox-selection', false);
+  }
+
+  private align(col: GridColumn<T>): string {
+    return `align-${col.align ?? (isNumeric(col) ? 'right' : 'left')}`;
   }
 
   protected render(): string {
-    const virtualScroll = this.getProp('virtual-scroll', false);
-    const showToolbar = this.getProp('show-toolbar', true);
+    const title = this.getProp<string>('title');
+    const search = this.getProp('search', false);
+    const hasToolbar = title || search || this.querySelector('[slot="toolbar"]');
+    const classes = [
+      'nx-grid',
+      this.getProp('bordered', true) ? 'bordered' : '',
+      this.getProp('dense', false) ? 'dense' : ''
+    ].filter(Boolean).join(' ');
 
     return `
-      <div class="nx-grid" part="grid">
-        ${showToolbar ? this.renderToolbar() : ''}
-        <div class="nx-grid-container">
-          <div class="nx-grid-header" part="header">
-            ${this.renderHeader()}
-          </div>
-          <div class="nx-grid-body" part="body" ${virtualScroll ? 'data-virtual="true"' : ''}>
-            ${virtualScroll ? this.renderVirtualBody() : this.renderBody()}
-          </div>
-          ${this.getProp('show-footer', false) ? this.renderFooter() : ''}
-        </div>
-        ${this.renderContextMenu()}
-      </div>
-    `;
-  }
-
-  private renderToolbar(): string {
-    return `
-      <div class="nx-grid-toolbar" part="toolbar">
-        <div class="nx-grid-toolbar-left">
-          <slot name="toolbar-left"></slot>
-        </div>
-        <div class="nx-grid-toolbar-right">
-          <button class="nx-grid-tool" data-action="refresh" title="Refresh">
-            <svg class="nx-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-            </svg>
-          </button>
-          <button class="nx-grid-tool" data-action="export" title="Export">
-            <svg class="nx-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-            </svg>
-          </button>
-          <button class="nx-grid-tool" data-action="settings" title="Settings">
-            <svg class="nx-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"/>
-            </svg>
-          </button>
-          <slot name="toolbar-right"></slot>
-        </div>
-      </div>
-    `;
-  }
-
-  private renderHeader(): string {
-    const sortField = this.getState('sortField');
-    const sortDirection = this.getState('sortDirection', 'asc');
-    const selectable = this.getProp('selectable');
-    const checkboxSelection = this.getProp('checkbox-selection', false);
-
-    return `
-      <table class="nx-grid-table">
-        <thead>
-          <tr>
-            ${checkboxSelection && selectable ? `
-              <th class="nx-grid-checkbox-cell">
-                <input type="checkbox" class="nx-grid-checkbox-all" />
-              </th>
+      <div class="${classes}" part="grid">
+        ${hasToolbar ? `
+          <div class="nx-grid-toolbar" part="toolbar">
+            ${title ? `<div class="nx-grid-title" part="title">${escapeHTML(title)}</div>` : ''}
+            <slot name="toolbar"></slot>
+            ${search ? `
+              <label class="nx-grid-search">
+                ${Icons.get('search')}
+                <input type="search" placeholder="Search…" value="${escapeHTML(this.query)}" aria-label="Search rows">
+              </label>
             ` : ''}
-            ${this.columns.filter(col => !col.hidden).map((col, index) => `
-              <th class="nx-grid-header-cell ${col.sortable ? 'sortable' : ''} ${col.align || 'left'}"
-                  data-field="${String(col.field)}"
-                  data-index="${index}"
-                  style="${col.width ? `width: ${col.width}px` : ''}${col.flex ? `flex: ${col.flex}` : ''}">
-                <div class="nx-grid-header-content">
-                  <span class="nx-grid-header-text">${col.header}</span>
-                  ${col.sortable && sortField === col.field ? `
-                    <svg class="nx-sort-icon ${sortDirection}" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M7 10l5 5 5-5z"/>
-                    </svg>
-                  ` : ''}
-                  ${col.filterable ? `
-                    <button class="nx-filter-btn" data-field="${String(col.field)}">
-                      <svg class="nx-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
-                      </svg>
-                    </button>
-                  ` : ''}
-                </div>
-                ${col.resizable !== false ? `
-                  <div class="nx-column-resizer" data-index="${index}"></div>
-                ` : ''}
-              </th>
-            `).join('')}
-          </tr>
-        </thead>
-      </table>
-    `;
-  }
-
-  private renderBody(): string {
-    const selectedRows = this.getState('selectedRows', new Set<number>());
-    const checkboxSelection = this.getProp('checkbox-selection', false);
-    const selectable = this.getProp('selectable');
-    const striped = this.getProp('striped', false);
-    const hoverable = this.getProp('hoverable', true);
-
-    return `
-      <table class="nx-grid-table">
-        <tbody>
-          ${this.filteredData.map((row, rowIndex) => `
-            <tr class="nx-grid-row 
-                ${striped && rowIndex % 2 === 1 ? 'striped' : ''} 
-                ${hoverable ? 'hoverable' : ''}
-                ${selectedRows.has(rowIndex) ? 'selected' : ''}"
-                data-row-index="${rowIndex}">
-              ${checkboxSelection && selectable ? `
-                <td class="nx-grid-checkbox-cell">
-                  <input type="checkbox" class="nx-grid-checkbox" 
-                         data-index="${rowIndex}"
-                         ${selectedRows.has(rowIndex) ? 'checked' : ''} />
-                </td>
-              ` : ''}
-              ${this.columns.filter(col => !col.hidden).map(col => 
-                this.renderCell(row, col, rowIndex)
-              ).join('')}
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-      ${this.filteredData.length === 0 ? this.renderEmptyState() : ''}
-    `;
-  }
-
-  private renderVirtualBody(): string {
-    const rowHeight = this.getProp('row-height', 40);
-    const totalHeight = this.filteredData.length * rowHeight;
-    const { visibleStart, visibleEnd } = this.virtualScrollState;
-
-    return `
-      <div class="nx-virtual-scroller" style="height: ${totalHeight}px">
-        <table class="nx-grid-table" style="transform: translateY(${visibleStart * rowHeight}px)">
-          <tbody>
-            ${this.filteredData.slice(visibleStart, visibleEnd).map((row, index) => {
-              const rowIndex = visibleStart + index;
-              return this.renderRow(row, rowIndex);
-            }).join('')}
-          </tbody>
-        </table>
+          </div>
+        ` : ''}
+        <div class="nx-grid-body" part="body">${this.renderTable()}</div>
+        ${this.renderFooter()}
       </div>
     `;
   }
 
-  private renderRow(row: T, rowIndex: number): string {
-    const selectedRows = this.getState('selectedRows', new Set<number>());
-    const checkboxSelection = this.getProp('checkbox-selection', false);
-    const selectable = this.getProp('selectable');
+  private renderTable(): string {
+    const cols = this.visibleColumns();
+    const all = this.getVisibleRows();
+    this.page = Math.min(this.page, this.pageCount());
+    const rows = this.currentPageRows(all);
+
+    const checkbox = !!this.getProp('checkbox-selection', false);
+    const allChecked = rows.length > 0 && rows.every(row => this.selected.has(row));
+    const someChecked = rows.some(row => this.selected.has(row));
     const striped = this.getProp('striped', false);
     const hoverable = this.getProp('hoverable', true);
+    const selectable = this.isSelectable();
 
-    return `
-      <tr class="nx-grid-row 
-          ${striped && rowIndex % 2 === 1 ? 'striped' : ''} 
-          ${hoverable ? 'hoverable' : ''}
-          ${selectedRows.has(rowIndex) ? 'selected' : ''}"
-          data-row-index="${rowIndex}">
-        ${checkboxSelection && selectable ? `
-          <td class="nx-grid-checkbox-cell">
-            <input type="checkbox" class="nx-grid-checkbox" 
-                   data-index="${rowIndex}"
-                   ${selectedRows.has(rowIndex) ? 'checked' : ''} />
-          </td>
-        ` : ''}
-        ${this.columns.filter(col => !col.hidden).map(col => 
-          this.renderCell(row, col, rowIndex)
-        ).join('')}
-      </tr>
+    const colgroup = `
+      <colgroup>
+        ${checkbox ? '<col style="width: 3rem">' : ''}
+        ${cols.map(col => `<col${col.width ? ` style="width: ${cssSize(col.width)}"` : ''}>`).join('')}
+      </colgroup>
     `;
+
+    const head = `
+      <thead>
+        <tr>
+          ${checkbox ? `
+            <th class="check">
+              <input type="checkbox" class="check-all" aria-label="Select all"
+                     ${allChecked ? 'checked' : ''} ${someChecked && !allChecked ? 'data-indeterminate' : ''}>
+            </th>` : ''}
+          ${cols.map(col => {
+            const sortable = col.sortable !== false;
+            const active = this.sortField === String(col.field);
+            return `
+              <th class="${this.align(col)} ${sortable ? 'sortable' : ''} ${active ? 'sorted' : ''}"
+                  data-field="${escapeHTML(String(col.field))}"
+                  ${active ? `aria-sort="${this.sortDirection === 'asc' ? 'ascending' : 'descending'}"` : ''}>
+                <span class="th">
+                  ${escapeHTML(this.headerText(col))}
+                  ${sortable ? `<span class="sort-icon">${Icons.get(active && this.sortDirection === 'desc' ? 'chevron-down' : 'chevron-up')}</span>` : ''}
+                </span>
+              </th>`;
+          }).join('')}
+        </tr>
+      </thead>
+    `;
+
+    const body = rows.length ? rows.map((row, i) => {
+      const index = this.rows.indexOf(row);
+      const isSelected = this.selected.has(row);
+      const classes = [
+        striped && i % 2 ? 'striped' : '',
+        hoverable ? 'hoverable' : '',
+        isSelected ? 'selected' : '',
+        selectable ? 'clickable' : ''
+      ].filter(Boolean).join(' ');
+      return `
+        <tr class="${classes}" data-index="${index}" ${selectable ? `aria-selected="${isSelected}"` : ''}>
+          ${checkbox ? `<td class="check"><input type="checkbox" class="check-row" aria-label="Select row" ${isSelected ? 'checked' : ''}></td>` : ''}
+          ${cols.map(col => `<td class="${this.align(col)}">${this.renderCell(row, col)}</td>`).join('')}
+        </tr>`;
+    }).join('') : `
+      <tr class="empty"><td colspan="${cols.length + (checkbox ? 1 : 0)}">
+        <div class="nx-grid-empty">
+          ${Icons.get(this.query ? 'search' : 'table')}
+          <span>${escapeHTML(this.query ? `No results for “${this.query}”` : this.getProp('empty-text', 'No data to display'))}</span>
+        </div>
+      </td></tr>
+    `;
+
+    // Auto-width columns get at least 10rem; below that the body scrolls sideways
+    const fixed = cols.filter(c => c.width).map(c => cssSize(c.width));
+    const autoCount = cols.length - fixed.length;
+    const minWidth = `calc(${[...fixed, `${autoCount * 10}rem`, checkbox ? '3rem' : '0px'].join(' + ')})`;
+
+    return `<table class="nx-grid-table" part="table" style="min-width: ${minWidth}">${colgroup}${head}<tbody>${body}</tbody></table>`;
   }
 
-  private renderCell(row: T, column: GridColumn<T>, rowIndex: number): string {
-    const value = this.getCellValue(row, column.field);
-    const editingCell = this.getState('editingCell');
-    const isEditing = editingCell?.row === rowIndex && editingCell?.field === column.field;
-    const editable = this.getProp('editable', false) && column.editor;
+  private renderCell(row: T, col: GridColumn<T>): string {
+    const value = this.value(row, col.field);
+    if (col.renderer) return col.renderer(value, row, col);
+    if (col.formatter) return escapeHTML(col.formatter(value, row));
+    if (value === null || value === undefined || value === '') return '<span class="muted">—</span>';
 
-    let content: string;
-    if (isEditing) {
-      content = this.renderCellEditor(value, column);
-    } else if (column.renderer) {
-      content = column.renderer(value, row, column);
-    } else if (column.formatter) {
-      content = column.formatter(value, row);
-    } else {
-      content = String(value ?? '');
-    }
-
-    return `
-      <td class="nx-grid-cell ${column.align || 'left'} ${editable ? 'editable' : ''}"
-          data-row="${rowIndex}"
-          data-field="${String(column.field)}">
-        ${content}
-      </td>
-    `;
-  }
-
-  private renderCellEditor(value: any, column: GridColumn<T>): string {
-    switch (column.editor) {
-      case 'text':
-        return `<input type="text" class="nx-cell-editor" value="${value ?? ''}" />`;
+    switch (col.type) {
       case 'number':
-        return `<input type="number" class="nx-cell-editor" value="${value ?? ''}" />`;
-      case 'date':
-        return `<input type="date" class="nx-cell-editor" value="${value ?? ''}" />`;
-      case 'checkbox':
-        return `<input type="checkbox" class="nx-cell-editor" ${value ? 'checked' : ''} />`;
-      case 'select':
-        const options = column.editorConfig?.options || [];
-        return `
-          <select class="nx-cell-editor">
-            ${options.map((opt: any) => `
-              <option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>
-                ${opt.text}
-              </option>
-            `).join('')}
-          </select>
-        `;
+        return escapeHTML(Number(value).toLocaleString());
+      case 'currency':
+        return escapeHTML(Number(value).toLocaleString(undefined, { style: 'currency', currency: col.currency ?? 'USD' }));
+      case 'percent':
+        return escapeHTML(`${Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`);
+      case 'date': {
+        const date = value instanceof Date ? value : new Date(value);
+        return escapeHTML(isNaN(date.getTime())
+          ? String(value)
+          : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }));
+      }
+      case 'boolean':
+        return value
+          ? `<span class="bool yes" aria-label="Yes">${Icons.get('check')}</span>`
+          : `<span class="bool no" aria-label="No">${Icons.get('minus')}</span>`;
+      case 'badge': {
+        const tone = col.badges?.[String(value)] ?? 'neutral';
+        return `<span class="badge tone-${tone}">${escapeHTML(value)}</span>`;
+      }
       default:
-        return String(value ?? '');
+        return escapeHTML(value);
     }
   }
 
   private renderFooter(): string {
+    const perPage = this.pageSize();
+    const total = this.getVisibleRows().length;
+    const selectedCount = this.selected.size;
+    if (!perPage && !selectedCount) return '<div class="nx-grid-footer" hidden></div>';
+
+    const pages = this.pageCount();
+    const from = total ? (this.page - 1) * (perPage || total) + 1 : 0;
+    const to = perPage ? Math.min(total, this.page * perPage) : total;
+
     return `
       <div class="nx-grid-footer" part="footer">
-        <div class="nx-grid-footer-left">
-          <slot name="footer-left"></slot>
-        </div>
-        <div class="nx-grid-footer-right">
-          <span class="nx-grid-record-count">
-            ${this.filteredData.length} records
-            ${this.filteredData.length < this.data.length ? 
-              ` (filtered from ${this.data.length})` : ''}
+        <span class="info">
+          ${selectedCount ? `${selectedCount} of ${this.rows.length} selected` : `${from}–${to} of ${total}`}
+        </span>
+        ${perPage ? `
+          <span class="pager">
+            <span class="info">Page ${this.page} of ${pages}</span>
+            <button class="page-btn" data-page="prev" aria-label="Previous page" ${this.page <= 1 ? 'disabled' : ''}>${Icons.get('chevron-left')}</button>
+            <button class="page-btn" data-page="next" aria-label="Next page" ${this.page >= pages ? 'disabled' : ''}>${Icons.get('chevron-right')}</button>
           </span>
-        </div>
+        ` : ''}
       </div>
     `;
   }
 
-  private renderEmptyState(): string {
-    return `
-      <div class="nx-grid-empty">
-        <svg class="nx-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-          <line x1="9" y1="9" x2="15" y2="15"/>
-          <line x1="15" y1="9" x2="9" y2="15"/>
-        </svg>
-        <p class="nx-empty-text">No data to display</p>
-      </div>
-    `;
+  private syncIndeterminate(): void {
+    this.$$('input[data-indeterminate]').forEach(el => ((el as HTMLInputElement).indeterminate = true));
   }
 
-  private renderContextMenu(): string {
-    return `
-      <div class="nx-context-menu" part="context-menu">
-        <div class="nx-menu-item" data-action="copy">Copy</div>
-        <div class="nx-menu-item" data-action="copy-all">Copy All</div>
-        <div class="nx-menu-divider"></div>
-        <div class="nx-menu-item" data-action="export-csv">Export as CSV</div>
-        <div class="nx-menu-item" data-action="export-json">Export as JSON</div>
-      </div>
-    `;
+  private selectionChanged(): void {
+    this.refresh();
+    this.emit('selection-change', { selected: this.getSelected() });
+  }
+
+  protected afterRender(): void {
+    this.syncIndeterminate();
+    const root = this.shadow!;
+
+    this.on(root, 'input', (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      if (target.closest('.nx-grid-search')) {
+        this.query = target.value;
+        this.page = 1;
+        this.refresh();
+      }
+    });
+
+    this.on(root, 'change', (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      if (target.classList.contains('check-all')) {
+        this.currentPageRows(this.getVisibleRows())
+          .forEach(row => target.checked ? this.selected.add(row) : this.selected.delete(row));
+        this.selectionChanged();
+      } else if (target.classList.contains('check-row')) {
+        const row = this.rowFromEvent(e);
+        if (row) {
+          target.checked ? this.selected.add(row) : this.selected.delete(row);
+          this.selectionChanged();
+        }
+      }
+    });
+
+    this.on(root, 'click', (e: Event) => {
+      const target = e.target as HTMLElement;
+
+      const th = target.closest('th.sortable') as HTMLElement | null;
+      if (th) {
+        this.sort(th.dataset.field!);
+        return;
+      }
+
+      const pageBtn = target.closest('.page-btn') as HTMLElement | null;
+      if (pageBtn) {
+        this.setPage(this.page + (pageBtn.dataset.page === 'next' ? 1 : -1));
+        return;
+      }
+
+      if (target.closest('input[type="checkbox"]')) return;
+
+      const row = this.rowFromEvent(e);
+      if (!row) return;
+
+      if (this.isSelectable()) {
+        const mouse = e as MouseEvent;
+        if (this.isMulti() && (mouse.metaKey || mouse.ctrlKey || this.getProp('checkbox-selection', false))) {
+          this.selected.has(row) ? this.selected.delete(row) : this.selected.add(row);
+        } else {
+          const onlyThis = this.selected.size === 1 && this.selected.has(row);
+          this.selected.clear();
+          if (!onlyThis) this.selected.add(row);
+        }
+        this.selectionChanged();
+      }
+
+      this.emit('row-click', { row, index: this.rows.indexOf(row) });
+    });
+
+    this.on(root, 'dblclick', (e: Event) => {
+      const row = this.rowFromEvent(e);
+      if (row) this.emit('row-dblclick', { row, index: this.rows.indexOf(row) });
+    });
+  }
+
+  private rowFromEvent(e: Event): T | null {
+    const tr = (e.target as HTMLElement).closest('tr[data-index]') as HTMLElement | null;
+    return tr ? this.rows[Number(tr.dataset.index)] ?? null : null;
   }
 
   protected styles(): string {
     return `
       :host {
-        --nx-grid-border: var(--color-border);
-        --nx-grid-header-bg: var(--color-background);
-        --nx-grid-row-hover: var(--color-surface);
-        --nx-grid-row-selected: rgba(59, 130, 246, 0.1);
-        --nx-grid-row-height: 40px;
-        --nx-grid-header-height: 48px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        font-size: 0.875rem;
       }
 
       .nx-grid {
         display: flex;
         flex-direction: column;
-        height: 100%;
+        flex: 1;
+        min-height: 0;
         background: var(--color-surface);
-        border: 1px solid var(--nx-grid-border);
-        border-radius: var(--radius-lg);
         overflow: hidden;
       }
 
-      .nx-grid-container {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
+      .nx-grid.bordered {
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
       }
 
       /* Toolbar */
       .nx-grid-toolbar {
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        gap: 0.5rem;
         padding: 0.75rem 1rem;
-        border-bottom: 1px solid var(--nx-grid-border);
-        background: var(--nx-grid-header-bg);
+        border-bottom: 1px solid var(--color-border);
       }
 
-      .nx-grid-toolbar-left,
-      .nx-grid-toolbar-right {
+      .nx-grid-title {
+        flex: 1;
+        font-weight: 600;
+        font-size: 0.9375rem;
+        letter-spacing: -0.01em;
+      }
+
+      .nx-grid-search {
         display: flex;
         align-items: center;
         gap: 0.5rem;
-      }
-
-      .nx-grid-tool {
-        padding: 0.5rem;
-        background: none;
-        border: none;
-        cursor: pointer;
+        height: 2.25rem;
+        width: min(16rem, 100%);
+        margin-left: auto;
+        padding: 0 0.75rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        background: var(--color-background);
         color: var(--color-text-secondary);
-        border-radius: var(--radius-sm);
-        transition: all 0.2s;
+        transition: border-color var(--transition-duration), box-shadow var(--transition-duration);
       }
 
-      .nx-grid-tool:hover {
-        background: var(--color-surface);
+      .nx-grid-search:focus-within {
+        border-color: var(--color-ring);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ring) 25%, transparent);
+      }
+
+      .nx-grid-search input {
+        flex: 1;
+        min-width: 0;
+        border: none;
+        outline: none;
+        background: transparent;
         color: var(--color-text);
+        font: inherit;
       }
 
-      /* Header */
-      .nx-grid-header {
-        background: var(--nx-grid-header-bg);
-        border-bottom: 1px solid var(--nx-grid-border);
-        overflow: hidden;
+      /* Table */
+      .nx-grid-body {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
       }
 
       .nx-grid-table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: separate;
+        border-spacing: 0;
         table-layout: fixed;
       }
 
-      .nx-grid-header-cell {
-        padding: 0.75rem 1rem;
+      th, td {
+        height: 3rem;
+        padding: 0 1rem;
         text-align: left;
-        font-weight: 600;
-        color: var(--color-text);
-        position: relative;
-        user-select: none;
-        height: var(--nx-grid-header-height);
-      }
-
-      .nx-grid-header-cell.sortable {
-        cursor: pointer;
-      }
-
-      .nx-grid-header-cell.sortable:hover {
-        background: var(--color-surface);
-      }
-
-      .nx-grid-header-content {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-      }
-
-      .nx-sort-icon {
-        width: 1rem;
-        height: 1rem;
-        transition: transform 0.2s;
-      }
-
-      .nx-sort-icon.desc {
-        transform: rotate(180deg);
-      }
-
-      .nx-filter-btn {
-        padding: 0.25rem;
-        background: none;
-        border: none;
-        cursor: pointer;
-        color: var(--color-text-secondary);
-        border-radius: var(--radius-sm);
-        opacity: 0;
-        transition: all 0.2s;
-      }
-
-      .nx-grid-header-cell:hover .nx-filter-btn {
-        opacity: 1;
-      }
-
-      .nx-filter-btn:hover {
-        background: var(--color-surface);
-        color: var(--color-primary);
-      }
-
-      .nx-column-resizer {
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 4px;
-        height: 100%;
-        cursor: col-resize;
-        background: transparent;
-      }
-
-      .nx-column-resizer:hover,
-      .nx-column-resizer.resizing {
-        background: var(--color-primary);
-      }
-
-      /* Body */
-      .nx-grid-body {
-        flex: 1;
-        overflow: auto;
-        position: relative;
-      }
-
-      .nx-grid-body[data-virtual="true"] {
-        overflow-y: scroll;
-      }
-
-      .nx-virtual-scroller {
-        position: relative;
-      }
-
-      .nx-grid-row {
-        transition: background-color 0.15s;
-        height: var(--nx-grid-row-height);
-      }
-
-      .nx-grid-row.hoverable:hover {
-        background: var(--nx-grid-row-hover);
-      }
-
-      .nx-grid-row.selected {
-        background: var(--nx-grid-row-selected);
-      }
-
-      .nx-grid-row.striped {
-        background: rgba(0, 0, 0, 0.02);
-      }
-
-      .nx-grid-cell {
-        padding: 0.5rem 1rem;
-        border-bottom: 1px solid var(--nx-grid-border);
-        height: var(--nx-grid-row-height);
+        border-bottom: 1px solid var(--color-border);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
 
-      .nx-grid-cell.center {
-        text-align: center;
-      }
+      .dense th, .dense td { height: 2.25rem; padding: 0 0.75rem; }
 
-      .nx-grid-cell.right {
-        text-align: right;
-      }
-
-      .nx-grid-cell.editable {
-        cursor: pointer;
-      }
-
-      .nx-grid-cell.editable:hover {
-        background: var(--color-background);
-      }
-
-      .nx-grid-checkbox-cell {
-        width: 40px;
-        text-align: center;
-        padding: 0.5rem;
-      }
-
-      .nx-grid-checkbox {
-        cursor: pointer;
-      }
-
-      /* Cell Editor */
-      .nx-cell-editor {
-        width: 100%;
-        padding: 0.25rem 0.5rem;
-        border: 2px solid var(--color-primary);
-        border-radius: var(--radius-sm);
-        outline: none;
-        background: var(--color-surface);
-        color: var(--color-text);
-      }
-
-      /* Footer */
-      .nx-grid-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.75rem 1rem;
-        border-top: 1px solid var(--nx-grid-border);
-        background: var(--nx-grid-header-bg);
-        font-size: 0.875rem;
+      th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        height: 2.5rem;
+        background: var(--color-muted);
         color: var(--color-text-secondary);
+        font-weight: 500;
+        font-size: 0.8125rem;
+        user-select: none;
       }
 
-      /* Empty State */
+      th.sortable { cursor: pointer; }
+      th.sortable:hover, th.sorted { color: var(--color-text); }
+
+      .th {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+      }
+
+      .sort-icon {
+        display: inline-flex;
+        opacity: 0;
+        transition: opacity var(--transition-duration);
+      }
+
+      th.sortable:hover .sort-icon { opacity: 0.5; }
+      th.sorted .sort-icon { opacity: 1; }
+
+      .align-right { text-align: right; }
+      .align-center { text-align: center; }
+      .align-right .th { flex-direction: row-reverse; }
+
+      .check {
+        width: 3rem;
+        padding: 0 0 0 1rem;
+      }
+
+      input[type="checkbox"] {
+        width: 1rem;
+        height: 1rem;
+        margin: 0;
+        vertical-align: middle;
+        accent-color: var(--color-primary);
+        cursor: pointer;
+      }
+
+      tbody tr { transition: background-color var(--transition-duration); }
+      tbody tr:last-child td { border-bottom: none; }
+      tr.striped { background: color-mix(in srgb, var(--color-muted) 50%, transparent); }
+      tr.hoverable:hover { background: var(--color-accent); }
+      tr.clickable { cursor: pointer; }
+      tr.selected { background: var(--color-accent); }
+      tr.selected td:first-child { box-shadow: inset 2px 0 0 var(--color-primary); }
+
+      .muted { color: var(--color-text-secondary); }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        height: 1.375rem;
+        padding: 0 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        border: 1px solid transparent;
+      }
+
+      .tone-neutral { background: var(--color-muted); color: var(--color-text); border-color: var(--color-border); }
+      .tone-info { background: color-mix(in srgb, var(--color-info) 14%, transparent); color: var(--color-info); }
+      .tone-success { background: color-mix(in srgb, var(--color-success) 14%, transparent); color: var(--color-success); }
+      .tone-warning { background: color-mix(in srgb, var(--color-warning) 16%, transparent); color: var(--color-warning); }
+      .tone-error { background: color-mix(in srgb, var(--color-error) 14%, transparent); color: var(--color-error); }
+
+      .bool { display: inline-flex; font-size: 1rem; }
+      .bool.yes { color: var(--color-success); }
+      .bool.no { color: var(--color-text-secondary); }
+
+      tr.empty td { height: auto; border-bottom: none; }
+
       .nx-grid-empty {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        padding: 3rem;
+        gap: 0.5rem;
+        padding: 3rem 1rem;
         color: var(--color-text-secondary);
+        white-space: normal;
       }
 
-      .nx-empty-icon {
-        width: 3rem;
-        height: 3rem;
-        margin-bottom: 1rem;
-        opacity: 0.5;
+      .nx-grid-empty svg { width: 1.75rem; height: 1.75rem; opacity: 0.6; }
+
+      /* Footer */
+      .nx-grid-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        min-height: 3rem;
+        padding: 0 0.75rem 0 1rem;
+        border-top: 1px solid var(--color-border);
+        color: var(--color-text-secondary);
+        font-size: 0.8125rem;
       }
 
-      .nx-empty-text {
-        margin: 0;
+      .nx-grid-footer[hidden] { display: none; }
+
+      .pager {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
       }
 
-      /* Context Menu */
-      .nx-context-menu {
-        position: fixed;
-        background: var(--color-surface);
-        border: 1px solid var(--nx-grid-border);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-lg);
-        padding: 0.5rem 0;
-        min-width: 150px;
-        display: none;
-        z-index: 1000;
-      }
+      .pager .info { margin-right: 0.5rem; }
 
-      .nx-context-menu.show {
-        display: block;
-      }
-
-      .nx-menu-item {
-        padding: 0.5rem 1rem;
+      .page-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        padding: 0;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        background: var(--color-background);
+        color: var(--color-text);
         cursor: pointer;
-        transition: background-color 0.15s;
       }
 
-      .nx-menu-item:hover {
-        background: var(--color-background);
-      }
-
-      .nx-menu-divider {
-        height: 1px;
-        background: var(--nx-grid-border);
-        margin: 0.5rem 0;
-      }
-
-      /* Icons */
-      .nx-icon {
-        width: 1.25rem;
-        height: 1.25rem;
-      }
-
-      /* Scrollbar */
-      .nx-grid-body::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-
-      .nx-grid-body::-webkit-scrollbar-track {
-        background: var(--color-background);
-      }
-
-      .nx-grid-body::-webkit-scrollbar-thumb {
-        background: var(--color-border);
-        border-radius: 4px;
-      }
-
-      .nx-grid-body::-webkit-scrollbar-thumb:hover {
-        background: var(--color-text-secondary);
-      }
+      .page-btn:hover:not(:disabled) { background: var(--color-accent); }
+      .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     `;
-  }
-
-  protected afterRender(): void {
-    this.setupHeaderEvents();
-    this.setupBodyEvents();
-    this.setupVirtualScroll();
-    this.setupColumnResize();
-    this.setupContextMenu();
-  }
-
-  private setupHeaderEvents(): void {
-    // Sorting
-    this.$$('.nx-grid-header-cell.sortable').forEach(cell => {
-      cell.addEventListener('click', (e) => {
-        if ((e.target as HTMLElement).closest('.nx-filter-btn')) return;
-        
-        const field = (cell as HTMLElement).dataset.field;
-        const currentSort = this.getState('sortField');
-        const currentDirection = this.getState('sortDirection', 'asc');
-        
-        if (currentSort === field) {
-          this.setState('sortDirection', currentDirection === 'asc' ? 'desc' : 'asc');
-        } else {
-          this.setState('sortField', field);
-          this.setState('sortDirection', 'asc');
-        }
-        
-        this.applyFiltersAndSort();
-      });
-    });
-
-    // Select all checkbox
-    const selectAll = this.$('.nx-grid-checkbox-all') as HTMLInputElement;
-    if (selectAll) {
-      selectAll.addEventListener('change', () => {
-        const selectedRows = new Set<number>();
-        if (selectAll.checked) {
-          this.filteredData.forEach((_, index) => selectedRows.add(index));
-        }
-        this.setState('selectedRows', selectedRows);
-      });
-    }
-  }
-
-  private setupBodyEvents(): void {
-    // Row selection
-    const selectable = this.getProp('selectable');
-    if (selectable) {
-      this.$$('.nx-grid-row').forEach(row => {
-        row.addEventListener('click', (e) => {
-          const target = e.target as HTMLElement;
-          if (target.classList.contains('nx-grid-checkbox')) return;
-          
-          const rowIndex = parseInt((row as HTMLElement).dataset.rowIndex!);
-          const mouseEvent = e as MouseEvent;
-          this.handleRowSelection(rowIndex, mouseEvent.ctrlKey || mouseEvent.metaKey);
-        });
-      });
-    }
-
-    // Checkbox selection
-    this.$$('.nx-grid-checkbox').forEach(checkbox => {
-      checkbox.addEventListener('change', (e) => {
-        const index = parseInt((checkbox as HTMLElement).dataset.index!);
-        const selectedRows = new Set(this.getState('selectedRows', new Set<number>()));
-        
-        if ((e.target as HTMLInputElement).checked) {
-          selectedRows.add(index);
-        } else {
-          selectedRows.delete(index);
-        }
-        
-        this.setState('selectedRows', selectedRows);
-      });
-    });
-
-    // Cell editing
-    if (this.getProp('editable')) {
-      this.$$('.nx-grid-cell.editable').forEach(cell => {
-        cell.addEventListener('dblclick', () => {
-          const row = parseInt((cell as HTMLElement).dataset.row!);
-          const field = (cell as HTMLElement).dataset.field!;
-          this.startCellEdit(row, field);
-        });
-      });
-    }
-  }
-
-  private setupVirtualScroll(): void {
-    if (!this.getProp('virtual-scroll')) return;
-
-    const body = this.$('.nx-grid-body');
-    if (!body) return;
-
-    const rowHeight = this.getProp('row-height', 40);
-    const viewportHeight = body.clientHeight;
-    const totalRows = this.filteredData.length;
-    const visibleRows = Math.ceil(viewportHeight / rowHeight) + 1;
-
-    this.virtualScrollState = {
-      scrollTop: 0,
-      visibleStart: 0,
-      visibleEnd: Math.min(visibleRows, totalRows),
-      totalHeight: totalRows * rowHeight
-    };
-
-    body.addEventListener('scroll', () => {
-      const scrollTop = body.scrollTop;
-      const visibleStart = Math.floor(scrollTop / rowHeight);
-      const visibleEnd = Math.min(visibleStart + visibleRows, totalRows);
-
-      if (visibleStart !== this.virtualScrollState.visibleStart) {
-        this.virtualScrollState = {
-          ...this.virtualScrollState,
-          scrollTop,
-          visibleStart,
-          visibleEnd
-        };
-        this.updateVirtualRows();
-      }
-    });
-  }
-
-  private setupColumnResize(): void {
-    this.$$('.nx-column-resizer').forEach(resizer => {
-      resizer.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        const index = parseInt((resizer as HTMLElement).dataset.index!);
-        this.startColumnResize(e as MouseEvent, index);
-      });
-    });
-  }
-
-  private setupContextMenu(): void {
-    const menu = this.$('.nx-context-menu');
-    if (!menu) return;
-
-    this.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      const target = e.target as HTMLElement;
-      
-      if (target.closest('.nx-grid-cell')) {
-        menu.classList.add('show');
-        (menu as HTMLElement).style.left = `${e.clientX}px`;
-        (menu as HTMLElement).style.top = `${e.clientY}px`;
-      }
-    });
-
-    document.addEventListener('click', () => {
-      menu.classList.remove('show');
-    });
-
-    menu.addEventListener('click', (e) => {
-      const action = (e.target as HTMLElement).dataset.action;
-      if (action) {
-        this.handleContextMenuAction(action);
-        menu.classList.remove('show');
-      }
-    });
-  }
-
-  private handleRowSelection(rowIndex: number, multiSelect: boolean): void {
-    const selectedRows = new Set(this.getState('selectedRows', new Set<number>()));
-    const selectable = this.getProp('selectable');
-
-    if (selectable === 'single' || !multiSelect) {
-      selectedRows.clear();
-    }
-
-    if (selectedRows.has(rowIndex)) {
-      selectedRows.delete(rowIndex);
-    } else {
-      selectedRows.add(rowIndex);
-    }
-
-    this.setState('selectedRows', selectedRows);
-    this.dispatchEvent(new CustomEvent('selectionchange', {
-      detail: {
-        selected: Array.from(selectedRows).map(i => this.filteredData[i]),
-        indices: Array.from(selectedRows)
-      }
-    }));
-  }
-
-  private startCellEdit(row: number, field: string): void {
-    this.setState('editingCell', { row, field });
-    this.update();
-
-    requestAnimationFrame(() => {
-      const editor = this.$('.nx-cell-editor') as HTMLInputElement;
-      if (editor) {
-        editor.focus();
-        editor.select();
-
-        const finishEdit = (save: boolean) => {
-          if (save) {
-            const column = this.columns.find(col => col.field === field);
-            if (column) {
-              const value = column.editor === 'checkbox' 
-                ? editor.checked 
-                : editor.value;
-              
-              this.setCellValue(this.filteredData[row], field, value);
-              this.dispatchEvent(new CustomEvent('celledit', {
-                detail: { row, field, value, data: this.filteredData[row] }
-              }));
-            }
-          }
-          this.setState('editingCell', null);
-        };
-
-        editor.addEventListener('blur', () => finishEdit(true));
-        editor.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') finishEdit(true);
-          if (e.key === 'Escape') finishEdit(false);
-        });
-      }
-    });
-  }
-
-  private startColumnResize(e: MouseEvent, columnIndex: number): void {
-    const startX = e.clientX;
-    const headerCell = this.$$('.nx-grid-header-cell')[columnIndex] as HTMLElement;
-    const startWidth = headerCell.offsetWidth;
-
-    const doResize = (e: MouseEvent) => {
-      const diff = e.clientX - startX;
-      const newWidth = Math.max(50, startWidth + diff);
-      headerCell.style.width = `${newWidth}px`;
-      
-      // Update all cells in this column
-      this.$$(`[data-field="${headerCell.dataset.field}"]`).forEach(cell => {
-        (cell as HTMLElement).style.width = `${newWidth}px`;
-      });
-    };
-
-    const stopResize = () => {
-      document.removeEventListener('mousemove', doResize);
-      document.removeEventListener('mouseup', stopResize);
-      
-      const column = this.columns[columnIndex];
-      if (column) {
-        column.width = headerCell.offsetWidth;
-        this.dispatchEvent(new CustomEvent('columnresize', {
-          detail: { column, width: column.width }
-        }));
-      }
-    };
-
-    document.addEventListener('mousemove', doResize);
-    document.addEventListener('mouseup', stopResize);
-  }
-
-  private handleContextMenuAction(action: string): void {
-    switch (action) {
-      case 'copy':
-        // Copy selected cells
-        break;
-      case 'copy-all':
-        // Copy all data
-        break;
-      case 'export-csv':
-        this.exportData('csv');
-        break;
-      case 'export-json':
-        this.exportData('json');
-        break;
-    }
-  }
-
-  private getCellValue(row: T, field: keyof T | string): any {
-    if (typeof field === 'string' && field.includes('.')) {
-      return field.split('.').reduce((obj, key) => obj?.[key], row as any);
-    }
-    return row[field as keyof T];
-  }
-
-  private setCellValue(row: T, field: string, value: any): void {
-    if (field.includes('.')) {
-      const keys = field.split('.');
-      const lastKey = keys.pop()!;
-      const target = keys.reduce((obj, key) => obj[key], row as any);
-      target[lastKey] = value;
-    } else {
-      (row as any)[field] = value;
-    }
-  }
-
-  private applyFiltersAndSort(): void {
-    let result = [...this.data];
-
-    // Apply filters
-    const filters = this.getState('filters', new Map<string, any>());
-    filters.forEach((filterValue, field) => {
-      result = result.filter(row => {
-        const value = this.getCellValue(row, field);
-        // Implement filter logic based on filter type
-        return String(value).toLowerCase().includes(String(filterValue).toLowerCase());
-      });
-    });
-
-    // Apply sorting
-    const sortField = this.getState('sortField');
-    const sortDirection = this.getState('sortDirection', 'asc');
-    
-    if (sortField) {
-      result.sort((a, b) => {
-        const aVal = this.getCellValue(a, sortField);
-        const bVal = this.getCellValue(b, sortField);
-        const modifier = sortDirection === 'asc' ? 1 : -1;
-        
-        if (aVal < bVal) return -1 * modifier;
-        if (aVal > bVal) return 1 * modifier;
-        return 0;
-      });
-    }
-
-    this.filteredData = result;
-    this.update();
-  }
-
-  private updateVirtualRows(): void {
-    const tbody = this.$('tbody');
-    if (!tbody) return;
-
-    const { visibleStart, visibleEnd } = this.virtualScrollState;
-    const rowHeight = this.getProp('row-height', 40);
-
-    tbody.innerHTML = this.filteredData
-      .slice(visibleStart, visibleEnd)
-      .map((row, index) => this.renderRow(row, visibleStart + index))
-      .join('');
-
-    (tbody.parentElement as HTMLElement).style.transform = 
-      `translateY(${visibleStart * rowHeight}px)`;
-
-    this.setupBodyEvents();
-  }
-
-  private exportData(format: 'csv' | 'json'): void {
-    const selectedRows = this.getState('selectedRows', new Set<number>());
-    const dataToExport = selectedRows.size > 0
-      ? Array.from(selectedRows).map(i => this.filteredData[i])
-      : this.filteredData;
-
-    let content: string;
-    let mimeType: string;
-    let filename: string;
-
-    if (format === 'csv') {
-      const headers = this.columns
-        .filter(col => !col.hidden)
-        .map(col => col.header);
-      
-      const rows = dataToExport.map(row =>
-        this.columns
-          .filter(col => !col.hidden)
-          .map(col => this.getCellValue(row, col.field))
-          .map(val => `"${String(val ?? '').replace(/"/g, '""')}"`)
-          .join(',')
-      );
-
-      content = [headers.join(','), ...rows].join('\n');
-      mimeType = 'text/csv';
-      filename = 'data.csv';
-    } else {
-      content = JSON.stringify(dataToExport, null, 2);
-      mimeType = 'application/json';
-      filename = 'data.json';
-    }
-
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    this.dispatchEvent(new CustomEvent('export', {
-      detail: { format, data: dataToExport }
-    }));
-  }
-
-  // Public API
-  getSelectedRows(): T[] {
-    const selectedRows = this.getState('selectedRows', new Set<number>());
-    return Array.from(selectedRows).map(i => this.filteredData[i]);
-  }
-
-  clearSelection(): void {
-    this.setState('selectedRows', new Set<number>());
-  }
-
-  selectAll(): void {
-    const selectedRows = new Set<number>();
-    this.filteredData.forEach((_, index) => selectedRows.add(index));
-    this.setState('selectedRows', selectedRows);
-  }
-
-  refresh(): void {
-    this.applyFiltersAndSort();
-    this.dispatchEvent(new CustomEvent('refresh'));
-  }
-
-  setFilter(field: string, value: any): void {
-    const filters = new Map(this.getState('filters', new Map<string, any>()));
-    if (value === null || value === undefined || value === '') {
-      filters.delete(field);
-    } else {
-      filters.set(field, value);
-    }
-    this.setState('filters', filters);
-    this.applyFiltersAndSort();
-  }
-
-  clearFilters(): void {
-    this.setState('filters', new Map());
-    this.applyFiltersAndSort();
-  }
-
-  sort(field: keyof T | string, direction?: 'asc' | 'desc'): void {
-    this.setState('sortField', field);
-    this.setState('sortDirection', direction || 'asc');
-    this.applyFiltersAndSort();
   }
 }
 
-customElements.define('nx-grid', NXGrid);
+/**
+ * `<nx-data-table>` — kept for compatibility; identical to `<nx-grid>`.
+ */
+export class NXDataTable<T extends Record<string, any> = any> extends NXGrid<T> {}
+
+define('nx-grid', NXGrid);
+define('nx-data-table', NXDataTable);

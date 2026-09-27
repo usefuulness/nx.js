@@ -72,6 +72,23 @@ interface LoadOptions {
  * Data store for managing collections of records
  */
 export class Store<T extends Record<string, any> = any> extends EventEmitter {
+  private static registry = new Map<string, Store<any>>();
+
+  /**
+   * Register a store under a name so components can bind with `store: 'name'`.
+   */
+  static register<S extends Store<any>>(name: string, store: S): S {
+    Store.registry.set(name, store);
+    return store;
+  }
+
+  /**
+   * Look up a named store. Passing a Store instance returns it unchanged.
+   */
+  static lookup<S extends Record<string, any> = any>(nameOrStore: string | Store<any>): Store<S> | undefined {
+    return typeof nameOrStore === 'string' ? Store.registry.get(nameOrStore) : nameOrStore;
+  }
+
   private config: StoreConfig<T>;
   private records: StoreRecord<T>[] = [];
   private removedRecords: StoreRecord<T>[] = [];
@@ -347,6 +364,13 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    */
   getRange(start?: number, end?: number): StoreRecord<T>[] {
     return this.records.slice(start, end);
+  }
+
+  /**
+   * Get the plain data objects of all (filtered, sorted) records.
+   */
+  getData(): T[] {
+    return this.records.map(record => record.data);
   }
 
   /**

@@ -1,4 +1,5 @@
 import { BaseComponent } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
 
 export interface SpinnerConfig {
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -146,4 +147,4 @@ export class NXSpinner extends BaseComponent {
   }
 }
 
-customElements.define('nx-spinner', NXSpinner);
+define('nx-spinner', NXSpinner);

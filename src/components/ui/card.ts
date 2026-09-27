@@ -3,7 +3,9 @@
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
 
-import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+import { BaseComponent, ComponentState, escapeHTML } from '@/components/abstracts/base';
+import { Icons } from '@/core/icons';
+import { define } from '@/core/registry';
 
 /**
  * A flexible card component with header, body, and footer slots.
@@ -28,7 +30,7 @@ export interface CardConfig {
 
 export class NXCard extends BaseComponent {
   static get observedAttributes(): string[] {
-    return ['title', 'subtitle', 'elevation', 'padding'];
+    return ['title', 'subtitle', 'icon', 'elevation', 'padding'];
   }
 
   protected initializeState(): void {
@@ -41,18 +43,22 @@ export class NXCard extends BaseComponent {
   }
 
   protected render(): string {
-    const title = this.getProp('title');
-    const subtitle = this.getProp('subtitle');
+    const title = this.getProp<string>('title');
+    const subtitle = this.getProp<string>('subtitle');
+    const icon = this.getProp<string>('icon');
     const elevation = this.getProp('elevation', 1);
     const padding = this.getProp('padding', true);
+    const hasHeaderActions = !!this.querySelector('[slot="header-actions"]');
+    const hasFooter = !!this.querySelector('[slot="footer"]');
 
     return `
       <div class="nx-card elevation-${elevation}" part="container">
-        ${title || subtitle ? `
+        ${title || subtitle || hasHeaderActions ? `
           <div class="nx-card-header" part="header">
+            ${icon ? `<span class="nx-card-icon" part="icon">${Icons.get(icon)}</span>` : ''}
             <div class="nx-card-header-text">
-              ${title ? `<h3 class="nx-card-title" part="title">${title}</h3>` : ''}
-              ${subtitle ? `<p class="nx-card-subtitle" part="subtitle">${subtitle}</p>` : ''}
+              ${title ? `<h3 class="nx-card-title" part="title">${escapeHTML(title)}</h3>` : ''}
+              ${subtitle ? `<p class="nx-card-subtitle" part="subtitle">${escapeHTML(subtitle)}</p>` : ''}
             </div>
             <div class="nx-card-header-actions" part="header-actions">
               <slot name="header-actions"></slot>
@@ -62,9 +68,11 @@ export class NXCard extends BaseComponent {
         <div class="nx-card-content ${padding ? 'padded' : ''}" part="content">
           <slot></slot>
         </div>
-        <div class="nx-card-footer" part="footer">
-          <slot name="footer"></slot>
-        </div>
+        ${hasFooter ? `
+          <div class="nx-card-footer" part="footer">
+            <slot name="footer"></slot>
+          </div>
+        ` : ''}
       </div>
     `;
   }
@@ -73,53 +81,87 @@ export class NXCard extends BaseComponent {
     return `
       :host {
         display: block;
+        min-width: 0;
       }
 
       .nx-card {
-        background: var(--surface-color);
-        border-radius: 0.25rem;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        background: var(--color-surface);
+        color: var(--color-text);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
         overflow: hidden;
       }
 
       .elevation-0 { box-shadow: none; }
-      .elevation-1 { box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-      .elevation-2 { box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
-      .elevation-3 { box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
+      .elevation-1 { box-shadow: var(--shadow-sm); }
+      .elevation-2 { box-shadow: var(--shadow-md); }
+      .elevation-3 { box-shadow: var(--shadow-lg); }
 
       .nx-card-header {
         display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 1.25rem 1.25rem 0;
+      }
+
+      .nx-card-icon {
+        display: inline-flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 1rem;
-        border-bottom: 1px solid var(--border-color);
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        flex-shrink: 0;
+        border-radius: var(--radius-md);
+        background: var(--color-muted);
+        font-size: 1.125rem;
+      }
+
+      .nx-card-header-text {
+        flex: 1;
+        min-width: 0;
       }
 
       .nx-card-title {
         margin: 0;
-        font-size: 1.25rem;
-        font-weight: 500;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        line-height: 1.4;
       }
 
       .nx-card-subtitle {
-        margin: 0.25rem 0 0;
-        color: var(--text-color-secondary);
+        margin: 0.125rem 0 0;
+        color: var(--color-text-secondary);
         font-size: 0.875rem;
       }
 
+      .nx-card-header-actions {
+        display: flex;
+        gap: 0.25rem;
+      }
+
       .nx-card-content {
-        min-height: 2rem;
+        flex: 1;
+        min-height: 0;
+        font-size: 0.875rem;
       }
 
       .nx-card-content.padded {
-        padding: 1rem;
+        padding: 1.25rem;
       }
 
-      .nx-card-footer:not(:empty) {
-        padding: 0.75rem 1rem;
-        border-top: 1px solid var(--border-color);
+      .nx-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 0 1.25rem 1.25rem;
       }
     `;
   }
 }
 
-customElements.define('nx-card', NXCard);
+define('nx-card', NXCard);

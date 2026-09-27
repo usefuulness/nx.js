@@ -16,6 +16,39 @@ export const ComponentState = Symbol('ComponentState');
 export const ComponentProps = Symbol('ComponentProps');
 
 /**
+ * `pageSize` → `page-size`. Already-kebab names pass through unchanged.
+ */
+export function toKebab(name: string): string {
+  return name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+}
+
+/**
+ * Escape a value for safe interpolation into a template string.
+ */
+export function escapeHTML(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Styles shared by every component's shadow root.
+ * @internal
+ */
+const BASE_STYLES = `
+  :host([hidden]) { display: none !important; }
+  *, *::before, *::after { box-sizing: border-box; }
+  button { font: inherit; color: inherit; }
+  button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+`;
+
+/**
  * Component lifecycle interface defining standard Web Component lifecycle methods.
  */
 export interface ComponentLifecycle {
@@ -107,6 +140,19 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
   private cleanupFunctions: Array<() => void> = [];
 
   /**
+   * Cleanup functions registered while wiring up a render (inside afterRender).
+   * They run before every re-render so listeners never pile up.
+   * @private
+   */
+  private renderCleanupFunctions: Array<() => void> = [];
+
+  /**
+   * True while afterRender() runs; listeners added then are render-scoped.
+   * @private
+   */
+  private inRenderPhase = false;
+
+  /**
    * Flag indicating if the component has been initialized.
    * @private
    */
@@ -160,6 +206,7 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
     }
     
     // Run cleanup functions
+    this.runRenderCleanups();
     this.cleanupFunctions.forEach(cleanup => cleanup());
     this.cleanupFunctions = [];
     
@@ -269,10 +316,10 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
     if (this.shadowRoot) {
       this.shadow = this.shadowRoot;
     }
-    
+
     // Perform initial update if shadow DOM exists
     if (this.shadow) {
-      this.update();
+      this.forceUpdate();
     }
   }
 
@@ -284,16 +331,29 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
    */
   protected update(): void {
     if (!this.shadow) return;
-    
+
+    // Listeners wired to the previous render's DOM are dead weight now
+    this.runRenderCleanups();
+
     const template = this.render();
     const styles = this.styles();
-    
+
     this.shadow.innerHTML = `
-      ${styles ? `<style>${styles}</style>` : ''}
+      ${styles ? `<style>${BASE_STYLES}${styles}</style>` : ''}
       ${template}
     `;
-    
-    this.afterRender();
+
+    this.inRenderPhase = true;
+    try {
+      this.afterRender();
+    } finally {
+      this.inRenderPhase = false;
+    }
+  }
+
+  private runRenderCleanups(): void {
+    this.renderCleanupFunctions.forEach(cleanup => cleanup());
+    this.renderCleanupFunctions = [];
   }
 
   /**
@@ -339,6 +399,11 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
     // Check attribute first
     const attr = this.getAttribute(name);
     if (attr !== null) {
+      // Bare boolean attribute: <nx-button disabled>
+      if (attr === '') {
+        return (typeof defaultValue === 'string' ? '' : true) as any;
+      }
+
       // Try to parse JSON for objects/arrays
       if (attr.startsWith('{') || attr.startsWith('[')) {
         try {
@@ -359,11 +424,12 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
       return attr as any;
     }
     
-    // Check internal props
-    if (this[ComponentProps].has(name)) {
-      return this[ComponentProps].get(name);
+    // Check internal props (stored kebab-cased, see configure())
+    const key = toKebab(name);
+    if (this[ComponentProps].has(key)) {
+      return this[ComponentProps].get(key);
     }
-    
+
     return defaultValue as T;
   }
 
@@ -376,7 +442,7 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
    * @protected
    */
   protected setProp(name: string, value: any): void {
-    this[ComponentProps].set(name, value);
+    this[ComponentProps].set(toKebab(name), value);
     this.scheduleUpdate();
   }
 
@@ -388,7 +454,7 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
    * @protected
    */
   protected hasProp(name: string): boolean {
-    return this.hasAttribute(name) || this[ComponentProps].has(name);
+    return this.hasAttribute(name) || this[ComponentProps].has(toKebab(name));
   }
 
   /**
@@ -414,6 +480,131 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
     });
     
     return props;
+  }
+
+  // ────────── Config API ──────────
+
+  /**
+   * Apply a config object to this component. This is what `NX.create()` and
+   * the application builder use, and you can call it at runtime too.
+   *
+   * Rules, per key:
+   * - `id`, `cls`/`className`, `style`, `flex`, `hidden`: applied to the host element
+   * - `region`: sets both the `region` attribute and the slot (for border layouts)
+   * - `listeners: { click: fn }`, `onClick: fn`, `onTabChange: fn` → event listeners
+   *   (`onTabChange` listens to `tab-change`)
+   * - `handler: fn` → click listener
+   * - if the component has a `setXxx()` method, `xxx` is passed to it (e.g. `data` → `setData`)
+   * - primitives become attributes (`pageSize: 10` → `page-size="10"`)
+   * - objects/arrays/functions are kept as props (read them with `getProp()`)
+   *
+   * `xtype` and `items` are handled by the builder, not here.
+   *
+   * @example
+   * ```typescript
+   * button.configure({ text: 'Save', variant: 'primary', handler: () => save() });
+   * ```
+   */
+  public configure(config: Record<string, any>): this {
+    Object.entries(config).forEach(([key, value]) => this.applyConfig(key, value));
+    this.scheduleUpdate();
+    return this;
+  }
+
+  /**
+   * Set a single config value at runtime. Alias for `configure({ [key]: value })`.
+   */
+  public set(key: string, value: any): this {
+    return this.configure({ [key]: value });
+  }
+
+  /**
+   * Read a config value (attribute or prop).
+   */
+  public get<T = any>(key: string, defaultValue?: T): T {
+    return this.getProp<T>(toKebab(key), defaultValue);
+  }
+
+  /**
+   * Apply one config key. Override to special-case keys; call super for the rest.
+   * @protected
+   */
+  protected applyConfig(key: string, value: any): void {
+    switch (key) {
+      case 'xtype':
+      case 'items':
+        return;
+      case 'id':
+        this.id = String(value);
+        return;
+      case 'cls':
+      case 'className':
+        this.classList.add(...String(value).split(/\s+/).filter(Boolean));
+        return;
+      case 'style':
+        if (typeof value === 'string') this.style.cssText += `;${value}`;
+        else Object.assign(this.style, value);
+        return;
+      case 'flex':
+        this.style.flex = String(value);
+        return;
+      case 'hidden':
+        this.hidden = !!value;
+        return;
+      case 'title':
+        // Kept as a prop: a `title` attribute would show a native tooltip over the whole component
+        this.removeAttribute('title');
+        this[ComponentProps].set('title', value);
+        return;
+      case 'html':
+        // Light-DOM content, rendered into the default slot
+        this.innerHTML = String(value ?? '');
+        return;
+      case 'region':
+        this.setAttribute('region', value);
+        this.slot = value;
+        return;
+      case 'listeners':
+        Object.entries(value as Record<string, EventListener>).forEach(([event, fn]) => {
+          this.addEventListener(event, fn);
+        });
+        return;
+      case 'handler':
+        if (typeof value === 'function') this.addEventListener('click', value);
+        return;
+    }
+
+    // onSelect / onTabChange → 'select' / 'tab-change'
+    if (typeof value === 'function' && /^on[A-Z]/.test(key)) {
+      this.addEventListener(toKebab(key.slice(2)), value);
+      return;
+    }
+
+    // setData(), setColumns(), setTabs() ...
+    const setter = (this as any)[`set${key.charAt(0).toUpperCase()}${key.slice(1)}`];
+    if (typeof setter === 'function') {
+      setter.call(this, value);
+      return;
+    }
+
+    const attr = toKebab(key);
+    if (value === null || value === undefined) {
+      this.removeAttribute(attr);
+      this[ComponentProps].delete(attr);
+    } else if (value === true) {
+      this[ComponentProps].delete(attr);
+      this.setAttribute(attr, '');
+    } else if (value === false) {
+      // Keep an explicit `false` so it wins over a truthy default
+      this.removeAttribute(attr);
+      this[ComponentProps].set(attr, false);
+    } else if (typeof value === 'string' || typeof value === 'number') {
+      this[ComponentProps].delete(attr);
+      this.setAttribute(attr, String(value));
+    } else {
+      this.removeAttribute(attr);
+      this[ComponentProps].set(attr, value);
+    }
   }
 
   /**
@@ -449,8 +640,9 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
    */
   protected on(target: EventTarget, event: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions): void {
     target.addEventListener(event, handler, options);
-    
-    this.cleanupFunctions.push(() => {
+
+    // Listeners added while wiring a render are dropped on the next render
+    (this.inRenderPhase ? this.renderCleanupFunctions : this.cleanupFunctions).push(() => {
       target.removeEventListener(event, handler, options);
     });
   }

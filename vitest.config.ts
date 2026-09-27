@@ -3,18 +3,13 @@ import path from 'path';
 
 export default defineConfig({
   test: {
-    globals: true,
     environment: 'jsdom',
-    setupFiles: ['./tests/setup.ts'],
+    include: ['src/tests/unit/**/*.test.ts'],
+    setupFiles: ['./src/tests/setup.ts'],
     coverage: {
-      reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        'tests/',
-        '**/*.d.ts',
-        '**/*.config.*',
-        '**/mockData.ts'
-      ]
+      reporter: ['text', 'html'],
+      include: ['src/**/*.ts'],
+      exclude: ['src/tests/**', 'src/main.ts', '**/*.d.ts']
     }
   },
   resolve: {

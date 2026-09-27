@@ -1,17 +1,5 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Store } from '@/data/store';
-
-// Mock test utilities
-const describe = (name: string, fn: () => void) => {};
-const it = (name: string, fn: () => void | Promise<void>) => {};
-const expect = (value: any) => ({
-  toBe: (expected: any) => {},
-  toBeDefined: () => {},
-  toHaveBeenCalled: () => {}
-});
-const beforeEach = (fn: () => void) => {};
-const vi = {
-  fn: () => ({ mock: { calls: [] } })
-};
 
 describe('Store', () => {
   let store: Store<{ id: number; name: string }>;
@@ -25,68 +13,45 @@ describe('Store', () => {
     });
   });
 
-  describe('initialization', () => {
-    it('should load initial data', () => {
-      expect(store.getCount()).toBe(2);
-      expect(store.getAt(0)?.data.name).toBe('Item 1');
-    });
-
-    it('should create store with proxy', () => {
-      const proxyStore = new Store({
-        proxy: {
-          type: 'memory'
-        }
-      });
-      expect(proxyStore).toBeDefined();
-    });
+  it('loads initial data', () => {
+    expect(store.getCount()).toBe(2);
+    expect(store.getAt(0)?.data.name).toBe('Item 1');
+    expect(store.getData().map(d => d.id)).toEqual([1, 2]);
   });
 
-  describe('CRUD operations', () => {
-    it('should add records', () => {
-      const records = store.add({ id: 3, name: 'Item 3' });
-      expect(store.getCount()).toBe(3);
-      expect(records[0].phantom).toBe(true);
-    });
+  it('adds, updates and removes records', () => {
+    const [record] = store.add({ id: 3, name: 'Item 3' });
+    expect(store.getCount()).toBe(3);
+    expect(record.phantom).toBe(true);
 
-    it('should remove records', () => {
-      const record = store.getAt(0)!;
-      store.remove(record);
-      expect(store.getCount()).toBe(1);
-    });
+    const first = store.getAt(0)!;
+    store.update(first, { name: 'Updated' });
+    expect(first.data.name).toBe('Updated');
+    expect(first.dirty).toBe(true);
 
-    it('should update records', () => {
-      const record = store.getAt(0)!;
-      store.update(record, { name: 'Updated Item' });
-      expect(record.data.name).toBe('Updated Item');
-      expect(record.dirty).toBe(true);
-    });
+    store.remove(first);
+    expect(store.getCount()).toBe(2);
   });
 
-  describe('filtering and sorting', () => {
-    it('should sort records', () => {
-      store.sort({ property: 'name', direction: 'DESC' });
-      expect(store.getAt(0)?.data.name).toBe('Item 2');
-    });
-
-    it('should filter records', () => {
-      store.filter({ property: 'name', value: 'Item 1' });
-      expect(store.getCount()).toBe(2); // Filter not implemented in base
-    });
+  it('sorts', () => {
+    store.sort({ property: 'name', direction: 'DESC' });
+    expect(store.getAt(0)?.data.name).toBe('Item 2');
   });
 
-  describe('events', () => {
-    it('should emit load event', () => {
-      const handler = vi.fn();
-      store.on('load', handler);
-      store.loadData([{ id: 3, name: 'Item 3' }]);
-      expect(handler).toHaveBeenCalled();
-    });
+  it('emits load and datachanged', () => {
+    const load = vi.fn();
+    const changed = vi.fn();
+    store.on('load', load);
+    store.on('datachanged', changed);
+    store.loadData([{ id: 3, name: 'Item 3' }]);
+    store.add({ id: 4, name: 'Item 4' });
+    expect(load).toHaveBeenCalledOnce();
+    expect(changed).toHaveBeenCalledTimes(2);
+  });
 
-    it('should emit datachanged event', () => {
-      const handler = vi.fn();
-      store.on('datachanged', handler);
-      store.add({ id: 3, name: 'Item 3' });
-      expect(handler).toHaveBeenCalled();
-    });
+  it('registers and looks up named stores', () => {
+    Store.register('things', store);
+    expect(Store.lookup('things')).toBe(store);
+    expect(Store.lookup(store)).toBe(store);
   });
 });

@@ -1,4 +1,5 @@
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
 
 export interface LoaderConfig {
   type?: 'spinner' | 'dots' | 'bars' | 'pulse';
@@ -287,4 +288,4 @@ export class NXLoader extends BaseComponent {
   }
 }
 
-customElements.define('nx-loader', NXLoader);
+define('nx-loader', NXLoader);

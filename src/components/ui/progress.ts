@@ -1,5 +1,6 @@
 // src/components/ui/progress.ts
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
 
 export interface ProgressConfig {
   value?: number;
@@ -35,13 +36,6 @@ export class NXProgress extends BaseComponent {
     if (config) {
       this.configure(config);
     }
-  }
-
-  configure(config: ProgressConfig): void {
-    Object.entries(config).forEach(([key, value]) => {
-      const attrName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-      this.setAttribute(attrName, String(value));
-    });
   }
 
   protected render(): string {
@@ -93,8 +87,8 @@ export class NXProgress extends BaseComponent {
   protected styles(): string {
     return `
       :host {
-        --progress-height: 1rem;
-        --progress-bg: var(--color-background);
+        --progress-height: 0.5rem;
+        --progress-bg: var(--color-muted);
         --progress-color: var(--color-primary);
         --progress-radius: var(--radius-full);
         display: block;
@@ -108,13 +102,13 @@ export class NXProgress extends BaseComponent {
 
       /* Sizes */
       .nx-progress-sm {
-        --progress-height: 0.5rem;
+        --progress-height: 0.375rem;
         font-size: 0.75rem;
       }
 
       .nx-progress-lg {
-        --progress-height: 1.5rem;
-        font-size: 1rem;
+        --progress-height: 1rem;
+        font-size: 0.75rem;
       }
 
       /* Track */
@@ -130,8 +124,9 @@ export class NXProgress extends BaseComponent {
       /* Bar */
       .nx-progress-bar {
         height: 100%;
+        border-radius: inherit;
         background: var(--progress-color);
-        transition: width 0.3s ease;
+        transition: width 0.4s var(--transition-easing);
         position: relative;
         display: flex;
         align-items: center;
@@ -197,7 +192,7 @@ export class NXProgress extends BaseComponent {
 
       /* Label */
       .nx-progress-label {
-        color: white;
+        color: var(--color-primary-foreground);
         font-size: 0.75em;
         font-weight: 500;
         padding: 0 0.5rem;
@@ -221,6 +216,13 @@ export class NXProgress extends BaseComponent {
         }
       }
     `;
+  }
+
+  protected onAttributeChange(name: string, _old: string | null, value: string | null): void {
+    // Keep HTML usage (<nx-progress value="40">) in sync with state
+    if ((name === 'value' || name === 'max') && value !== null && !isNaN(Number(value))) {
+      this[ComponentState].set(name, Number(value));
+    }
   }
 
   // Public API
@@ -259,4 +261,4 @@ export class NXProgress extends BaseComponent {
   }
 }
 
-customElements.define('nx-progress', NXProgress);
+define('nx-progress', NXProgress);

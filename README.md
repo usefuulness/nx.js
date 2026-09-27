@@ -1,404 +1,396 @@
-# Nexaro Framework - Modern Web Component Framework
+# Nexaro
 
-## Overview
+Declarative web components with an ExtJS-style config API and a shadcn-style look.
+Zero runtime dependencies, works with any framework or none, light and dark themes built in.
 
-Transform your codebase into a modern, shadcn-like component library with zero dependencies (except Tailwind CSS). This framework provides a complete solution for building web applications with a declarative, component-based approach similar to ExtJS but using modern web standards.
+```ts
+import { NX } from 'nx.js';
 
-## Core Architecture
-
-### 1. Application Structure
-
-```typescript
-// src/core/application.ts
-export class NXApplication extends BaseComponent {
-  private router: NXRouter;
-  private layout: NXLayout;
-  
-  static create(config: AppConfig): NXApplication {
-    const app = new NXApplication();
-    app.configure(config);
-    return app;
-  }
-  
-  configure(config: AppConfig): void {
-    // Set up routing, layout, theme, etc.
-  }
-  
-  launch(): void {
-    // Initialize app
-  }
-}
-```
-
-### 2. Layout System
-
-```typescript
-// src/layouts/index.ts
-export class NXLayout extends BaseComponent {
-  static layouts = {
-    'border': NXBorderLayout,
-    'flex': NXFlexLayout,
-    'grid': NXGridLayout,
-    'dock': NXDockLayout
-  };
-}
-
-// Border Layout (ExtJS-like)
-export class NXBorderLayout extends NXLayout {
-  regions = ['north', 'south', 'east', 'west', 'center'];
-  
-  render(): string {
-    return `
-      <div class="nx-border-layout">
-        <div class="nx-north"><slot name="north"></slot></div>
-        <div class="nx-center-wrapper">
-          <div class="nx-west"><slot name="west"></slot></div>
-          <div class="nx-center"><slot name="center"></slot></div>
-          <div class="nx-east"><slot name="east"></slot></div>
-        </div>
-        <div class="nx-south"><slot name="south"></slot></div>
-      </div>
-    `;
-  }
-}
-```
-
-### 3. Component Registry
-
-```typescript
-// src/core/registry.ts
-export class ComponentRegistry {
-  private static components = new Map<string, typeof BaseComponent>();
-  
-  static register(name: string, component: typeof BaseComponent): void {
-    this.components.set(name, component);
-    customElements.define(name, component);
-  }
-  
-  static create(name: string, config?: any): BaseComponent {
-    const Component = this.components.get(name);
-    if (!Component) throw new Error(`Component ${name} not found`);
-    return new Component(config);
-  }
-}
-```
-
-### 4. Data Management
-
-```typescript
-// src/data/store.ts
-export class NXStore<T> extends EventTarget {
-  private data: T[] = [];
-  private filters: Filter[] = [];
-  private sorters: Sorter[] = [];
-  
-  load(data: T[]): void {
-    this.data = data;
-    this.refresh();
-  }
-  
-  filter(fn: FilterFn<T>): void {
-    this.filters.push(fn);
-    this.refresh();
-  }
-  
-  sort(field: keyof T, direction: 'asc' | 'desc'): void {
-    // Sorting logic
-  }
-  
-  getFiltered(): T[] {
-    // Apply filters and sorters
-  }
-}
-```
-
-## Component Library
-
-### Core Components
-
-1. **Layout Components**
-   - `nx-viewport` - Main application container
-   - `nx-panel` - Configurable panel with header/footer
-   - `nx-tabpanel` - Tab container
-   - `nx-accordion` - Collapsible panels
-   - `nx-splitter` - Resizable split panels
-
-2. **Form Components**
-   - `nx-form` - Form container with validation
-   - `nx-field` - Form field wrapper
-   - `nx-textfield` - Text input
-   - `nx-numberfield` - Number input
-   - `nx-datefield` - Date picker
-   - `nx-select` - Dropdown select
-   - `nx-checkbox` - Checkbox
-   - `nx-radio` - Radio button
-   - `nx-toggle` - Toggle switch
-   - `nx-slider` - Range slider
-
-3. **Data Components**
-   - `nx-grid` - Advanced data grid with virtual scrolling
-   - `nx-tree` - Tree view component
-   - `nx-list` - List view with templates
-   - `nx-dataview` - Custom data templates
-
-4. **Navigation**
-   - `nx-menu` - Menu bar/dropdown
-   - `nx-toolbar` - Toolbar with actions
-   - `nx-breadcrumb` - Breadcrumb navigation
-   - `nx-sidenav` - Side navigation
-
-5. **Feedback Components**
-   - `nx-modal` - Modal dialog
-   - `nx-drawer` - Slide-out drawer
-   - `nx-notification` - Notification system
-   - `nx-progress` - Progress indicators
-   - `nx-skeleton` - Loading skeletons
-
-### Component Example - Advanced Modal
-
-```typescript
-// src/components/ui/modal.ts
-export class NXModal extends BaseComponent {
-  static get observedAttributes() {
-    return ['open', 'title', 'size', 'closable', 'backdrop'];
-  }
-  
-  protected render(): string {
-    const open = this.getProp('open', false);
-    const size = this.getProp('size', 'md');
-    
-    return `
-      <div class="modal-backdrop ${open ? 'open' : ''}" part="backdrop">
-        <div class="modal-container modal-${size}" part="container">
-          <div class="modal-header" part="header">
-            <h3 class="modal-title"><slot name="title">${this.getProp('title', '')}</slot></h3>
-            ${this.getProp('closable', true) ? `
-              <button class="modal-close" aria-label="Close">
-                <svg>...</svg>
-              </button>
-            ` : ''}
-          </div>
-          <div class="modal-body" part="body">
-            <slot></slot>
-          </div>
-          <div class="modal-footer" part="footer">
-            <slot name="footer"></slot>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-}
-```
-
-## Modern Features
-
-### 1. Reactive Forms
-
-```typescript
-export class NXForm extends BaseComponent {
-  private formData = reactive({});
-  private validators = new Map();
-  
-  validate(): ValidationResult {
-    // Run validators
-  }
-  
-  submit(): void {
-    if (this.validate().valid) {
-      this.dispatchEvent(new CustomEvent('submit', {
-        detail: this.formData
-      }));
-    }
-  }
-}
-```
-
-### 2. Virtual Scrolling for Data Grid
-
-```typescript
-export class NXGrid extends NXDataComponent {
-  private virtualScroller: VirtualScroller;
-  
-  protected renderRows(): string {
-    const visibleRows = this.virtualScroller.getVisibleItems();
-    return visibleRows.map(row => this.renderRow(row)).join('');
-  }
-}
-```
-
-### 3. Theme System
-
-```typescript
-// src/theme/index.ts
-export class ThemeManager {
-  static themes = {
-    'light': lightTheme,
-    'dark': darkTheme,
-    'midnight': midnightTheme
-  };
-  
-  static apply(theme: string): void {
-    const root = document.documentElement;
-    const themeVars = this.themes[theme];
-    Object.entries(themeVars).forEach(([key, value]) => {
-      root.style.setProperty(key, value);
-    });
-  }
-}
-```
-
-### 4. Animation System
-
-```typescript
-export class AnimationManager {
-  static transitions = {
-    'fade': { in: 'fadeIn', out: 'fadeOut' },
-    'slide': { in: 'slideIn', out: 'slideOut' },
-    'scale': { in: 'scaleIn', out: 'scaleOut' }
-  };
-  
-  static animate(element: Element, animation: string): Promise<void> {
-    return new Promise(resolve => {
-      element.addEventListener('animationend', resolve, { once: true });
-      element.classList.add(animation);
-    });
-  }
-}
-```
-
-## Application Example
-
-```typescript
-// app.ts
-import { NXApplication } from '@nexaro/core';
-
-const app = NXApplication.create({
-  viewport: {
-    layout: 'border',
-    items: [
-      {
-        region: 'north',
-        xtype: 'toolbar',
-        items: [
-          { xtype: 'button', text: 'File' },
-          { xtype: 'button', text: 'Edit' },
-          '->', // spacer
-          { xtype: 'textfield', placeholder: 'Search...' }
-        ]
-      },
-      {
-        region: 'west',
-        xtype: 'treepanel',
-        title: 'Navigation',
-        width: 250,
-        collapsible: true,
-        store: {
-          root: {
-            children: [
-              { text: 'Dashboard', icon: 'dashboard' },
-              { text: 'Users', icon: 'users' },
-              { text: 'Settings', icon: 'settings' }
-            ]
-          }
-        }
-      },
-      {
-        region: 'center',
-        xtype: 'tabpanel',
-        items: [
-          {
-            title: 'Dashboard',
-            xtype: 'dashboard',
-            items: [
-              { xtype: 'chart', type: 'line' },
-              { xtype: 'grid', store: 'sales' }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  
-  stores: {
-    sales: {
-      model: 'Sale',
-      proxy: {
-        type: 'rest',
-        url: '/api/sales'
-      },
-      autoLoad: true
-    }
-  }
-});
-
-app.launch();
-```
-
-## Component Creation Pattern
-
-```typescript
-// Simple component creation
-const button = NX.create('button', {
-  text: 'Click me',
-  variant: 'primary',
-  handler: () => console.log('Clicked!')
-});
-
-// Complex component with configuration
-const grid = NX.create('grid', {
-  title: 'Users',
-  store: 'users',
-  columns: [
-    { text: 'Name', dataIndex: 'name', flex: 1 },
-    { text: 'Email', dataIndex: 'email', width: 200 },
-    { text: 'Actions', xtype: 'actioncolumn', items: [...] }
+NX.app({
+  title: 'Admin',
+  stores: { users: { data: users } },
+  items: [
+    { xtype: 'toolbar', region: 'north', title: 'Admin', items: ['->', { xtype: 'button', icon: 'moon', handler: () => NX.theme.toggle() }] },
+    { xtype: 'panel', region: 'west', width: 240, items: [{ xtype: 'tree', data: nav }] },
+    { xtype: 'outlet' } // routes render here
   ],
-  features: {
-    filtering: true,
-    sorting: true,
-    grouping: true
-  }
+  router: [
+    { path: '/', title: 'Users', view: { xtype: 'grid', store: 'users', search: true, pageSize: 20, columns } }
+  ]
 });
 ```
 
-## Build Configuration
+That is a complete app: responsive shell, routing, a searchable, sortable, paged grid bound to a store, and persisted theme switching.
 
-### Vite Plugin for Component Registration
+## Contents
 
-```typescript
-// vite-plugin-nexaro.ts
-export default function nexaroPlugin() {
-  return {
-    name: 'vite-plugin-nexaro',
-    transform(code, id) {
-      if (id.includes('/components/')) {
-        // Auto-register components
-        code += `\nComponentRegistry.register('${tagName}', ${className});`;
-      }
-      return code;
-    }
-  };
+- [Getting started](#getting-started)
+- [The config model](#the-config-model)
+- [App shell and routing](#app-shell-and-routing)
+- [Layout](#layout)
+- [Components](#components)
+- [Data grid and stores](#data-grid-and-stores)
+- [Forms](#forms)
+- [Dialogs and toasts](#dialogs-and-toasts)
+- [Theming](#theming)
+- [Icons](#icons)
+- [Custom components](#custom-components)
+- [Using it from HTML](#using-it-from-html)
+- [Development](#development)
+
+## Getting started
+
+```bash
+pnpm install
+pnpm dev        # demo app at http://localhost:5173
+pnpm build      # library → dist/ (ESM, UMD, .d.ts)
+```
+
+**ES modules:**
+
+```ts
+import { NX } from 'nx.js';
+
+NX.render({ xtype: 'button', text: 'Hello', handler: () => NX.toast('Hi!') }, '#root');
+```
+
+**Script tag** (UMD build):
+
+```html
+<div id="root"></div>
+<script src="dist/nx.umd.cjs"></script>
+<script>
+  NX.render({ xtype: 'button', text: 'Hello', handler: () => NX.toast('Hi!') }, '#root');
+</script>
+```
+
+No CSS import is needed. Design tokens and base styles are injected on load.
+
+## The config model
+
+Everything is a plain object with an `xtype`:
+
+```ts
+const button = NX.create({
+  xtype: 'button',        // which component ('button', 'nx-button', or any HTML tag like 'div')
+  id: 'save',             // host element id → NX.get('save')
+  text: 'Save',           // primitives become attributes (camelCase → kebab-case)
+  icon: 'save',
+  variant: 'primary',
+  handler: () => save(),  // click
+  onFocus: e => {},       // onXxx → listens to 'xxx' ('onTabChange' → 'tab-change')
+  listeners: { blur: e => {} },
+  cls: 'my-class',
+  style: { marginTop: '1rem' },   // or a CSS string
+  flex: 1,
+  hidden: false
+});
+```
+
+The rules:
+
+| Key | Effect |
+| --- | --- |
+| `xtype` | Component to create. Defaults to `html` when `html`/`text` is given, else `container`. |
+| `items` | Children, recursively built. Containers decide what items mean (the tab panel makes tabs, a menu takes data). |
+| `id`, `cls`, `style`, `flex`, `hidden`, `region` | Applied to the host element. |
+| `handler` | Click listener. |
+| `onXxx`, `listeners` | Event listeners. |
+| `html` | Light-DOM content. |
+| anything with a `setXxx()` method | Passed to it (`data` → `setData()`, `columns` → `setColumns()`, `options` → `setOptions()`). |
+| other primitives | Attributes (`pageSize: 10` → `page-size="10"`). |
+| other objects and functions | Props, read with `getProp()`. |
+
+Items can also be shorthand strings: `'->'` is a flexible spacer, `'-'` or `'|'` is a separator, and any other string is HTML. `null` and `false` are skipped, so `cond && {...}` works.
+
+Change things at runtime with `set()` / `configure()`:
+
+```ts
+NX.get('save').set('loading', true);
+NX.get('save').configure({ text: 'Saved', icon: 'check', loading: false });
+```
+
+## App shell and routing
+
+`NX.app()` builds a full-screen border layout. Put items in regions with `region: 'north' | 'south' | 'west' | 'east' | 'center'`. Items without a region go to the center.
+
+```ts
+const app = NX.app({
+  el: '#app',               // default: document.body
+  title: 'Admin',           // document title; route titles become "Users · Admin"
+  theme: 'dark',            // default theme; a theme the user picked wins
+  stores: { users: { data } },
+  items: [...],
+  router: [
+    { path: '/', view: { xtype: 'html', html: '<h1>Home</h1>' } },
+    { path: '/users/:id', title: 'User', view: route => userView(route.params.id) }, // may be async
+    { path: '*', view: { html: 'Not found' } }
+  ],
+  ready: app => {}
+});
+
+app.navigate('/users/42');
+app.toggleRegion('west');   // open the side nav on phones, collapse a collapsible panel on desktop
+```
+
+- Routes render their `view` into the `{ xtype: 'outlet' }` component.
+- Tree nodes with a `route` navigate when clicked, and the tree highlights the node for the current route.
+- Below 768px, `west`/`east` regions turn into off-canvas drawers. Add a menu button with `cls: 'nx-mobile-only'` that calls `app.toggleRegion('west')`. `nx-desktop-only` hides things on phones.
+
+## Layout
+
+```ts
+{ xtype: 'hbox', gap: 8, align: 'center', items: [...] }            // row
+{ xtype: 'vbox', gap: 16, padding: 24, items: [...] }                // column
+{ xtype: 'container', layout: 'grid', columns: 3, gap: 16, items }   // fixed grid
+{ xtype: 'container', layout: 'grid', minColumnWidth: 240, items }   // responsive grid
+{ xtype: 'panel', title: 'Details', icon: 'file', collapsible: true, closable: true, bodyPadding: 0, items }
+{ xtype: 'card', title: 'Revenue', subtitle: 'Last 30 days', icon: 'chart', items }
+```
+
+`align` (`start` | `center` | `end` | `stretch` | `baseline`) and `pack` (`start` | `center` | `end` | `between` | `around` | `evenly`) map to flexbox alignment.
+
+## Components
+
+| xtype | Highlights |
+| --- | --- |
+| `button` | `text`, `icon`, `variant` (`primary` `secondary` `outline` `ghost` `danger` `link`), `size` (`sm` `md` `lg`), `loading`, `disabled`, `href`, `tooltip`, `iconPosition`, `fullWidth`. Icon-only buttons become square automatically. |
+| `toolbar` | Items are components; buttons default to `ghost`. `'->'` pushes items right. Arrow-key navigation. |
+| `panel` | `title`, `icon`, `collapsible`, `collapsed`, `closable`, `resizable`, `width`, `height`, `bodyPadding`, `border`. In a region it draws only the inner edge. West/east panels collapse to a rail. |
+| `card` | `title`, `subtitle`, `icon`, `elevation`, `padding`. Slots: `header-actions`, `footer`. |
+| `tabpanel` | Each item is a tab: `title`, `icon`, `closable`, `disabled`; the rest of the item is the tab body. `variant` (`default` `pills` `underlined`), `position`. Events: `tab-change`, `tab-close`. |
+| `tree` | `data: TreeNode[]` (`text`, `icon`, `children`, `expanded`, `route`, …), `checkboxes`, `multiSelect`. Full keyboard support. Events: `select`, `toggle`, `check` (detail includes the `node`). |
+| `grid` | See [below](#data-grid-and-stores). |
+| `form`, `textfield`, `select`, `checkbox`, `switch` | See [Forms](#forms). |
+| `modal` | See [Dialogs](#dialogs-and-toasts). |
+| `progress` | `value`, `max`, `variant`, `size`, `indeterminate`, `striped`. |
+| `accordion`, `breadcrumb`, `menu`, `menubar` | `items` as data. |
+| `drawer` | `position`, `size`; `open()`, `close()`. |
+| `spinner`, `loader`, `skeleton` | Loading states. |
+| `divider`, `spacer`, `separator` | Rules and spacing. |
+| `outlet` | Router outlet. |
+
+Any unknown `xtype` without a dash (`'section'`, `'h1'`) creates that plain element; `text`, `html`, attributes and listeners still apply.
+
+## Data grid and stores
+
+```ts
+{
+  xtype: 'grid',
+  title: 'Users',
+  store: 'users',              // a registered store name or a Store; or use `data: [...]`
+  search: true,                // quick filter across columns
+  pageSize: 20,
+  checkboxSelection: true,     // or selectable: 'single' | 'multiple'
+  striped: true, dense: false,
+  columns: [
+    { field: 'name', header: 'Name' },
+    { field: 'address.city', header: 'City' },                  // dot paths
+    { field: 'role', header: 'Role', type: 'badge', badges: { Admin: 'info', Banned: 'error' } },
+    { field: 'revenue', header: 'Revenue', type: 'currency', width: 120 }, // number | currency | percent | date | boolean
+    { field: 'name', header: '', sortable: false, width: 60,
+      renderer: (v, row) => `<a href="#/users/${row.id}">Open</a>` } // renderer returns HTML; formatter returns text (escaped)
+  ],
+  onRowClick: e => console.log(e.detail.row),
+  onSelectionChange: e => console.log(e.detail.selected)
 }
 ```
 
-## Best Practices
+The grid API: `getSelected()`, `select(rows)`, `selectAll()`, `clearSelection()`, `sort(field, dir)`, `setFilter(text)`, `setPage(n)`, `setData(rows)`, `exportCSV(filename)`. Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`. Cell values are HTML-escaped unless you use a `renderer`.
 
-1. **Component Naming**: Use `nx-` prefix for all components
-2. **Props vs State**: Props for configuration, State for runtime changes
-3. **Event Naming**: Use standard event names (submit, change, select)
-4. **Styling**: Use CSS custom properties for theming
-5. **Performance**: Implement virtual scrolling for large datasets
-6. **Accessibility**: Include ARIA attributes and keyboard navigation
+Stores hold records and notify bound components:
 
-## Migration Path
+```ts
+const users = NX.store('users', { data: [...] });   // create and register
+NX.store('users').add({ name: 'Ada' });             // look up and add; bound grids update
+users.remove(users.getRange().filter(r => r.data.banned));
+users.sort({ property: 'name', direction: 'ASC' });
 
-1. Start with core components (Button, Form, Grid)
-2. Build layout system
-3. Add data management
-4. Implement routing
-5. Create theme system
-6. Add advanced components
-7. Build developer tools
+// Remote data
+NX.store('orders', { proxy: { type: 'rest', url: '/api/orders' }, autoLoad: true });
+```
 
-This framework provides a modern, dependency-free solution for building sophisticated web applications with a familiar API for developers coming from ExtJS or similar frameworks.
+## Forms
+
+```ts
+{
+  xtype: 'form',
+  id: 'profile',
+  columns: 2,                                   // collapses to 1 column on phones
+  values: { first: 'Ada', newsletter: true },
+  items: [
+    { xtype: 'textfield', name: 'first', label: 'First name', required: true },
+    { xtype: 'email', name: 'email', label: 'Email', icon: 'mail', helperText: 'We never share it.' },
+    { xtype: 'password', name: 'password', label: 'Password', minLength: 8,
+      validator: v => !v || /\d/.test(v) || 'Include a number' },
+    { xtype: 'select', name: 'role', label: 'Role', options: ['Admin', 'Editor'] },
+    { xtype: 'numberfield', name: 'age', label: 'Age', min: 0 },
+    { xtype: 'textarea', name: 'bio', label: 'Bio', style: 'grid-column: 1 / -1' },
+    { xtype: 'switch', name: 'newsletter', label: 'Newsletter', description: 'Weekly, no spam.' },
+    { xtype: 'checkbox', name: 'terms', label: 'I accept the terms', required: true }
+  ],
+  buttons: [
+    { xtype: 'button', text: 'Reset', type: 'reset', variant: 'ghost' },
+    { xtype: 'button', text: 'Save', type: 'submit' }
+  ],
+  onSubmit: e => save(e.detail.values)     // only fires when every field is valid
+}
+```
+
+- Field xtypes: `textfield` (set `type` for `url`, `tel`, `time`, …), `textarea`, `email`, `password`, `numberfield`, `datefield`, `search`, `select`, `checkbox`, `switch`.
+- Common field options: `name`, `label`, `helperText`, `errorText`, `required`, `disabled`, `placeholder`, `icon`, `clearable`, `validator`, `size`.
+- The form API: `getValues()`, `setValues()`, `validate()`, `isValid()`, `submit()`, `reset()`, `getField(name)`.
+- Errors appear after a field is touched or on submit. Enter in a single-line field submits.
+- Fields are form-associated custom elements, so they also work inside a native `<form>`.
+
+## Dialogs and toasts
+
+Everything returns a promise:
+
+```ts
+await NX.alert('Saved.');
+if (await NX.confirm('Delete 3 users?', { title: 'Are you sure?', confirmText: 'Delete', danger: true })) { … }
+const name = await NX.prompt('Project name', { defaultValue: 'Untitled' });   // null when cancelled
+
+const values = await NX.dialog({
+  title: 'Invite',
+  description: 'They will get an email.',
+  size: 'md',                                 // sm | md | lg | xl | full
+  items: [{ xtype: 'form', id: 'invite', items: [...] }],
+  buttons: [
+    { text: 'Cancel', variant: 'outline' },
+    { text: 'Send', variant: 'primary', handler: modal => {
+        const v = NX.get('invite').submit();
+        if (v) modal.close(v);
+        return false;                          // false keeps the dialog open
+    } }
+  ]
+});
+```
+
+Dialogs use the native `<dialog>` element, so focus trapping, Escape handling and the inert background come from the browser.
+
+```ts
+NX.toast('Event created', { description: 'Sunday at 9:00' });
+NX.toast.success('Saved');
+NX.toast.error('Upload failed', { action: { text: 'Retry', handler: retry }, duration: 0 });
+```
+
+## Theming
+
+Three themes ship built in: `light`, `dark` and `midnight`. The user's choice persists in localStorage. With no choice saved, the app's `theme` applies, then the OS preference.
+
+```ts
+NX.theme.toggle();
+NX.theme.set('midnight');
+NX.theme.onChange(name => …);
+
+NX.theme.extend('brand', 'light', { colors: { primary: '#7c3aed', primaryDark: '#6d28d9', ring: '#a78bfa' } });
+NX.theme.set('brand');
+```
+
+Components only read CSS custom properties, so you can also override them yourself:
+
+```css
+:root {
+  --color-primary: #7c3aed;
+  --radius-md: 0.75rem;
+  --font-family: 'Inter', sans-serif;
+}
+```
+
+Tokens: `--color-{primary,primary-dark,primary-foreground,secondary,secondary-foreground,background,surface,muted,accent,text,text-secondary,border,ring,error,success,warning,info}`, `--radius-{sm,md,lg,xl,full}`, `--shadow-{sm,md,lg,xl}`, `--font-family`, `--font-mono`.
+
+Every component also exposes `::part()`s (`button`, `header`, `body`, `input`, …) for deeper styling.
+
+## Icons
+
+About 60 icons are built in, all 24px stroke icons: `menu`, `close`, `plus`, `trash`, `edit`, `save`, `search`, `settings`, `users`, `user`, `dashboard`, `chart`, `mail`, `bell`, `sun`, `moon`, `check`, the chevrons, `info`, `success`, `warning`, `error` and more. The full list is `NX.icons.names()`.
+
+```ts
+NX.icons.register('rocket', '<path d="…"/>');   // inner markup of a 24x24 stroke icon, or a full <svg>
+{ xtype: 'button', icon: 'rocket' }
+{ xtype: 'button', icon: '<svg>…</svg>' }        // raw SVG works anywhere too
+```
+
+## Custom components
+
+For quick components, use `NX.define`:
+
+```ts
+NX.define('stat', {
+  observedAttributes: ['label', 'value'],
+  render() {
+    return `<div class="label">${this.getProp('label')}</div><div class="value">${this.getProp('value')}</div>`;
+  },
+  styles() {
+    return `.value { font-size: 1.75rem; font-weight: 700; }`;
+  }
+});
+
+{ xtype: 'stat', label: 'Revenue', value: '$45k' }
+```
+
+For full control, write a class:
+
+```ts
+import { BaseComponent, define, escapeHTML } from 'nx.js';
+
+class Counter extends BaseComponent {
+  static get observedAttributes() { return ['label']; }
+  constructor() { super(); this.attachShadow({ mode: 'open' }); }
+  protected initializeState() { this.setState('count', 0); }
+  protected render() {
+    return `<button>${escapeHTML(this.getProp('label', 'Clicks'))}: ${this.getState('count')}</button>`;
+  }
+  protected afterRender() {
+    // listeners added here are removed automatically before the next render
+    this.on(this.$('button')!, 'click', () => this.setState('count', this.getState('count') + 1));
+  }
+}
+define('x-counter', Counter);   // also registers xtype 'x-counter'
+```
+
+`setState` batches re-renders to one per animation frame. Implement `setXxx()` methods to receive config keys, and `applyItems(items, build)` to control how `items` are built.
+
+## Using it from HTML
+
+Every component is a custom element:
+
+```html
+<nx-card title="Welcome">
+  <p>Plain HTML works too.</p>
+  <nx-button slot="footer" variant="outline" icon="plus">New</nx-button>
+</nx-card>
+
+<nx-container layout="hbox" gap="8">
+  <nx-textfield label="Name" name="name" required></nx-textfield>
+  <nx-select label="Role" name="role">
+    <option>Admin</option><option selected>Editor</option>
+  </nx-select>
+</nx-container>
+```
+
+## Development
+
+```bash
+pnpm dev          # demo with HMR (src/main.ts)
+pnpm test         # unit tests (Vitest + jsdom)
+pnpm test:e2e     # end-to-end tests against the demo (Playwright)
+pnpm typecheck
+pnpm build        # library → dist/
+pnpm build:demo   # demo → dist-demo/
+```
+
+```
+src/
+  index.ts              public entry point (exports + element definitions)
+  app.ts                NX facade, application, router outlet
+  core/                 registry/builder, theme, icons, router
+  components/abstracts  BaseComponent
+  components/ui         buttons, tabs, tree, dialogs, toasts, form fields …
+  layout/               container, panel, viewport
+  data/                 store, grid
+  main.ts               demo app
+  tests/                unit + e2e
+```

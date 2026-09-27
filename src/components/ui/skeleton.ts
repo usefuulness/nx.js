@@ -1,4 +1,5 @@
 import { BaseComponent } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
 
 export interface SkeletonConfig {
   variant?: 'text' | 'circular' | 'rectangular';
@@ -114,4 +115,4 @@ export class NXSkeleton extends BaseComponent {
   }
 }
 
-customElements.define('nx-skeleton', NXSkeleton);
+define('nx-skeleton', NXSkeleton);

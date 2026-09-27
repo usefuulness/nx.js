@@ -1,185 +1,264 @@
-import { BaseComponent, ComponentState } from "@/components/abstracts/base";
+/**
+ * @file @/components/ui/form/checkbox.ts
+ * @copyright Copyright (c) 2025 fool@nexaro.cloud
+ */
+import { escapeHTML } from '@/components/abstracts/base';
+import { ComponentRegistry, define } from '@/core/registry';
+import { NXField, type FieldConfig } from '@/components/ui/form/field';
 
-export interface CheckboxConfig {
-  name?: string;
-  value?: string;
+export interface CheckboxConfig extends FieldConfig {
   checked?: boolean;
-  label?: string;
-  disabled?: boolean;
+  /** Value submitted when checked (default `'on'`); `form.getValues()` reports a boolean unless set */
+  value?: string;
   indeterminate?: boolean;
-  size?: 'sm' | 'md' | 'lg';
-  onChange?: (checked: boolean) => void;
+  /** Render as a toggle switch (also: `xtype: 'switch'`) */
+  switch?: boolean;
+  description?: string;
 }
 
 /**
- * Checkbox component
+ * Checkbox or toggle switch.
+ *
+ * @example
+ * ```typescript
+ * { xtype: 'checkbox', name: 'terms', label: 'I accept the terms', required: true }
+ * { xtype: 'switch', name: 'notifications', label: 'Email notifications', checked: true }
+ * ```
+ *
+ * `change` detail: `{ value, checked }`.
  */
-export class NXCheckbox extends BaseComponent {
+export class NXCheckbox extends NXField {
   static get observedAttributes(): string[] {
-    return ['name', 'value', 'checked', 'label', 'disabled', 'indeterminate', 'size'];
+    return ['name', 'label', 'description', 'disabled', 'required', 'indeterminate', 'switch', 'checked', 'helper-text', 'error-text'];
   }
 
-  protected initializeState(): void {
-    this[ComponentState].set('checked', false);
-    this[ComponentState].set('indeterminate', false);
+  private isChecked = false;
+
+  get checked(): boolean {
+    return this.isChecked;
+  }
+
+  set checked(checked: boolean) {
+    this.isChecked = !!checked;
+    const input = this.control() as HTMLInputElement | null;
+    if (input) {
+      input.checked = this.isChecked;
+      input.indeterminate = false;
+    }
+    this.syncFormValue();
+  }
+
+  /** `true`/`false`, or the configured `value` string when checked (`''` when not). */
+  get value(): any {
+    const onValue = this.getAttribute('value');
+    if (onValue === null) return this.isChecked;
+    return this.isChecked ? onValue : '';
+  }
+
+  set value(value: any) {
+    // Setting a boolean toggles; a string sets the submitted value
+    if (typeof value === 'boolean') this.checked = value;
+    else if (value !== null && value !== undefined) this.setAttribute('value', String(value));
+  }
+
+  toggle(force?: boolean): void {
+    this.checked = force ?? !this.isChecked;
+    this.changed();
+  }
+
+  setChecked(checked: boolean): void {
+    this.checked = checked;
+  }
+
+  protected defaultValue(): any {
+    return false;
+  }
+
+  reset(): void {
+    super.reset();
+    this.checked = false;
+  }
+
+  protected syncFormValue(): void {
+    this.internals?.setFormValue(this.isChecked ? (this.getAttribute('value') ?? 'on') : null);
+  }
+
+  protected changed(): void {
+    this.syncFormValue();
+    if (this.touched) this.showError(this.validationMessage());
+    this.emit('change', { value: this.value, checked: this.isChecked });
+  }
+
+  protected onAttributeChange(name: string, _old: string | null, value: string | null): void {
+    if (name === 'checked') this.checked = value !== null && value !== 'false';
   }
 
   protected render(): string {
-    const name = this.getProp('name', '');
-    const value = this.getProp('value', '');
-    const label = this.getProp('label', '');
+    const label = this.getProp<string>('label', '');
+    const description = this.getProp<string>('description', '');
+    const isSwitch = this.getProp('switch', false);
     const disabled = this.getProp('disabled', false);
-    const size = this.getProp('size', 'md');
-    
-    const checked = this.getState('checked', this.getProp('checked', false));
-    const indeterminate = this.getState('indeterminate', this.getProp('indeterminate', false));
 
-    return `
-      <label class="nx-checkbox nx-checkbox-${size} ${disabled ? 'disabled' : ''}" part="checkbox">
-        <input type="checkbox"
-               class="nx-checkbox-input"
-               name="${name}"
-               value="${value}"
-               ${checked ? 'checked' : ''}
+    return this.renderField(`
+      <label class="nx-check ${isSwitch ? 'switch' : 'box'}" part="control">
+        <input type="checkbox" id="${this.fieldId}" part="input"
+               ${isSwitch ? 'role="switch"' : ''}
+               ${this.isChecked ? 'checked' : ''}
                ${disabled ? 'disabled' : ''}
-               ${indeterminate ? 'indeterminate' : ''}>
-        <span class="nx-checkbox-box">
-          <svg class="nx-checkbox-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-            ${indeterminate ? 
-              '<path d="M5 12h14"/>' : 
-              '<path d="M20 6L9 17l-5-5"/>'
-            }
-          </svg>
+               ${this.getProp('required', false) ? 'required' : ''}
+               aria-describedby="${this.fieldId}-help">
+        <span class="indicator" aria-hidden="true">
+          ${isSwitch ? '<span class="thumb"></span>' : `
+            <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <svg class="dash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M5 12h14"/></svg>
+          `}
         </span>
-        ${label ? `<span class="nx-checkbox-label">${label}</span>` : ''}
+        ${label || description ? `
+          <span class="text">
+            ${label ? `<span class="label" part="label">${escapeHTML(label)}</span>` : ''}
+            ${description ? `<span class="description" part="description">${escapeHTML(description)}</span>` : ''}
+          </span>
+        ` : '<slot></slot>'}
       </label>
-    `;
+    `, { inlineLabel: true });
+  }
+
+  protected afterRender(): void {
+    super.afterRender();
+    const input = this.control() as HTMLInputElement;
+    if (this.getProp('indeterminate', false) && !this.isChecked) input.indeterminate = true;
+    this.on(input, 'change', () => {
+      this.isChecked = input.checked;
+      this.changed();
+    });
   }
 
   protected styles(): string {
     return `
-      :host {
-        --checkbox-size: 1.25rem;
-        display: inline-block;
-      }
+      ${this.fieldStyles()}
 
-      .nx-checkbox {
+      :host { display: block; }
+
+      .nx-check {
         display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
+        align-items: flex-start;
+        gap: 0.625rem;
         cursor: pointer;
         user-select: none;
       }
 
-      .nx-checkbox.disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
+      .disabled .nx-check { cursor: not-allowed; }
 
-      /* Sizes */
-      .nx-checkbox-sm {
-        --checkbox-size: 1rem;
-        font-size: 0.875rem;
-      }
-
-      .nx-checkbox-lg {
-        --checkbox-size: 1.5rem;
-        font-size: 1rem;
-      }
-
-      .nx-checkbox-input {
+      input {
         position: absolute;
         opacity: 0;
+        width: 1px;
+        height: 1px;
+        margin: 0;
         pointer-events: none;
       }
 
-      .nx-checkbox-box {
-        width: var(--checkbox-size);
-        height: var(--checkbox-size);
-        border: 2px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        background: var(--color-surface);
-        display: flex;
+      .indicator {
+        position: relative;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.2s;
         flex-shrink: 0;
+        margin-top: 0.0625rem;
+        transition: background var(--transition-duration), border-color var(--transition-duration), box-shadow var(--transition-duration);
       }
 
-      .nx-checkbox-input:checked + .nx-checkbox-box {
+      input:focus-visible + .indicator {
+        box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px var(--color-ring);
+      }
+
+      /* Checkbox */
+      .box .indicator {
+        width: 1.125rem;
+        height: 1.125rem;
+        border: 1px solid var(--color-border);
+        border-radius: 0.3rem;
+        background: var(--color-background);
+        color: var(--color-primary-foreground);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .box:hover .indicator { border-color: var(--color-text-secondary); }
+
+      .box input:checked + .indicator,
+      .box input:indeterminate + .indicator {
         background: var(--color-primary);
         border-color: var(--color-primary);
       }
 
-      .nx-checkbox-input:focus + .nx-checkbox-box {
-        outline: 2px solid var(--color-primary);
-        outline-offset: 2px;
-      }
-
-      .nx-checkbox-check {
-        width: calc(var(--checkbox-size) - 6px);
-        height: calc(var(--checkbox-size) - 6px);
-        color: white;
+      .tick, .dash {
+        position: absolute;
+        width: 0.75rem;
+        height: 0.75rem;
         opacity: 0;
-        transform: scale(0);
-        transition: all 0.2s;
+        transform: scale(0.6);
+        transition: opacity var(--transition-duration), transform var(--transition-duration);
       }
 
-      .nx-checkbox-input:checked + .nx-checkbox-box .nx-checkbox-check,
-      .nx-checkbox-input:indeterminate + .nx-checkbox-box .nx-checkbox-check {
+      input:checked + .indicator .tick,
+      input:indeterminate + .indicator .dash {
         opacity: 1;
-        transform: scale(1);
+        transform: none;
       }
 
-      .nx-checkbox-label {
-        color: var(--color-text);
+      /* Switch */
+      .switch .indicator {
+        width: 2.25rem;
+        height: 1.25rem;
+        padding: 0.125rem;
+        justify-content: flex-start;
+        border-radius: 9999px;
+        background: var(--color-border);
       }
+
+      .switch input:checked + .indicator {
+        background: var(--color-primary);
+      }
+
+      .thumb {
+        width: 1rem;
+        height: 1rem;
+        border-radius: 9999px;
+        background: var(--color-background);
+        box-shadow: var(--shadow-md);
+        transition: transform 200ms var(--transition-easing);
+      }
+
+      .switch input:checked + .indicator .thumb {
+        transform: translateX(1rem);
+      }
+
+      .text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+      }
+
+      .label {
+        font-weight: 500;
+        line-height: 1.25rem;
+      }
+
+      .description {
+        color: var(--color-text-secondary);
+        font-size: 0.8125rem;
+      }
+
+      .invalid .box .indicator { border-color: var(--color-error); }
     `;
-  }
-
-  protected afterRender(): void {
-    const input = this.$('.nx-checkbox-input') as HTMLInputElement;
-    if (!input) return;
-
-    // Set indeterminate state
-    const indeterminate = this.getState('indeterminate', false);
-    if (indeterminate) {
-      input.indeterminate = true;
-    }
-
-    input.addEventListener('change', (e) => {
-      const checked = (e.target as HTMLInputElement).checked;
-      this.setState('checked', checked);
-      this.setState('indeterminate', false);
-      
-      const onChange = this.getState('onChange');
-      if (onChange) onChange(checked);
-      
-      this.dispatchEvent(new CustomEvent('change', { detail: { checked } }));
-    });
-  }
-
-  // Public API
-  isChecked(): boolean {
-    return this.getState('checked', false);
-  }
-
-  setChecked(checked: boolean): void {
-    this.setState('checked', checked);
-    this.setState('indeterminate', false);
-    const input = this.$('.nx-checkbox-input') as HTMLInputElement;
-    if (input) input.checked = checked;
-  }
-
-  setIndeterminate(indeterminate: boolean): void {
-    this.setState('indeterminate', indeterminate);
-    const input = this.$('.nx-checkbox-input') as HTMLInputElement;
-    if (input) input.indeterminate = indeterminate;
-  }
-
-  toggle(): void {
-    this.setChecked(!this.isChecked());
   }
 }
 
-customElements.define('nx-checkbox', NXCheckbox);
+define('nx-checkbox', NXCheckbox);
+
+ComponentRegistry.registerFactory('switch', ({ items: _items, ...config } = {}) =>
+  ComponentRegistry.build({ ...config, switch: true, xtype: 'checkbox' }) as any
+);
+ComponentRegistry.registerFactory('toggle', ({ items: _items, ...config } = {}) =>
+  ComponentRegistry.build({ ...config, switch: true, xtype: 'checkbox' }) as any
+);

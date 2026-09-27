@@ -1,4 +1,6 @@
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
+import { Icons } from '@/core/icons';
 
 export interface DrawerConfig {
   position?: 'left' | 'right' | 'top' | 'bottom';
@@ -56,15 +58,8 @@ export class NXDrawer extends BaseComponent {
       ` : ''}
       <div class="${drawerClasses}" part="drawer" style="--drawer-size: ${size}">
         ${!persistent ? `
-          <button 
-            class="nx-drawer-close" 
-            part="close"
-            aria-label="Close drawer"
-            type="button"
-          >
-            <svg viewBox="0 0 24 24">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-            </svg>
+          <button class="nx-drawer-close" part="close" aria-label="Close drawer" type="button">
+            ${Icons.get('close')}
           </button>
         ` : ''}
         <div class="nx-drawer-content" part="content">
@@ -77,14 +72,8 @@ export class NXDrawer extends BaseComponent {
   protected styles(): string {
     return `
       :host {
-        --drawer-size: 300px;
-        --drawer-bg: var(--surface-color, #fff);
-        --drawer-shadow: 0 8px 10px -5px rgba(0,0,0,0.2),
-                        0 16px 24px 2px rgba(0,0,0,0.14),
-                        0 6px 30px 5px rgba(0,0,0,0.12);
-        --backdrop-bg: rgba(0, 0, 0, 0.5);
-        --transition-duration: 225ms;
-        --transition-easing: cubic-bezier(0, 0, 0.2, 1);
+        --drawer-size: 320px;
+        --drawer-duration: 250ms;
       }
 
       :host([hidden]) {
@@ -100,7 +89,7 @@ export class NXDrawer extends BaseComponent {
         background: var(--backdrop-bg);
         z-index: 998;
         opacity: 0;
-        transition: opacity var(--transition-duration) var(--transition-easing);
+        transition: opacity var(--drawer-duration) var(--transition-easing);
       }
 
       :host([open]) .nx-drawer-backdrop {
@@ -110,11 +99,19 @@ export class NXDrawer extends BaseComponent {
       .nx-drawer {
         position: fixed;
         background: var(--drawer-bg);
-        box-shadow: var(--drawer-shadow);
+        color: var(--color-text);
+        border: 0 solid var(--color-border);
         z-index: 999;
-        transition: transform var(--transition-duration) var(--transition-easing);
+        visibility: hidden;
+        transition: transform var(--drawer-duration) var(--transition-easing),
+                    visibility 0s linear var(--drawer-duration);
         overflow: auto;
       }
+
+      .position-left { border-right-width: 1px; }
+      .position-right { border-left-width: 1px; }
+      .position-top { border-bottom-width: 1px; }
+      .position-bottom { border-top-width: 1px; }
 
       /* Position styles */
       .position-left {
@@ -152,6 +149,9 @@ export class NXDrawer extends BaseComponent {
       /* Open state */
       .nx-drawer.open {
         transform: translate(0, 0);
+        visibility: visible;
+        box-shadow: var(--drawer-shadow);
+        transition: transform var(--drawer-duration) var(--transition-easing), visibility 0s;
       }
 
       /* Close button */
@@ -159,34 +159,29 @@ export class NXDrawer extends BaseComponent {
         position: absolute;
         top: 0.5rem;
         right: 0.5rem;
-        width: 3rem;
-        height: 3rem;
-        padding: 0.75rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        padding: 0;
         border: none;
         background: transparent;
         cursor: pointer;
-        border-radius: 50%;
-        transition: background-color 150ms;
-        color: var(--text-color);
+        border-radius: var(--radius-sm);
+        color: var(--color-text-secondary);
+        font-size: 1rem;
+        transition: background-color var(--transition-duration);
       }
 
       .nx-drawer-close:hover {
-        background-color: rgba(0, 0, 0, 0.04);
-      }
-
-      .nx-drawer-close:active {
-        background-color: rgba(0, 0, 0, 0.08);
-      }
-
-      .nx-drawer-close svg {
-        width: 100%;
-        height: 100%;
-        fill: currentColor;
+        background-color: var(--color-accent);
+        color: var(--color-text);
       }
 
       /* Content */
       .nx-drawer-content {
-        padding: 1rem;
+        padding: 1.5rem;
         height: 100%;
         overflow: auto;
       }
@@ -302,4 +297,4 @@ export class NXDrawer extends BaseComponent {
 }
 
 // Register the component
-customElements.define('nx-drawer', NXDrawer);
+define('nx-drawer', NXDrawer);

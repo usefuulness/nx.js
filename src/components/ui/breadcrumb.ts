@@ -1,4 +1,5 @@
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+import { define } from '@/core/registry';
 
 export interface BreadcrumbItem {
   text: string;
@@ -120,4 +121,4 @@ export class NXBreadcrumb extends BaseComponent {
   }
 }
 
-customElements.define('nx-breadcrumb', NXBreadcrumb);
+define('nx-breadcrumb', NXBreadcrumb);
