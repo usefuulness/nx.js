@@ -5,6 +5,7 @@
 import { BaseComponent } from '@/components/abstracts/base';
 import { ComponentRegistry, define, type ItemConfig } from '@/core/registry';
 import { NXField } from '@/components/ui/form/field';
+import { submitForm } from '@/core/forms';
 
 export interface FormConfig {
   items?: ItemConfig[];
@@ -17,6 +18,11 @@ export interface FormConfig {
   buttons?: ItemConfig[];
   /** Called with the values when the form is valid and submitted */
   onSubmit?: (e: CustomEvent<{ values: Record<string, any> }>) => void;
+  /** Post to the server like a native form (after validation, unless `submit` is prevented) */
+  action?: string;
+  method?: 'get' | 'post' | 'dialog';
+  enctype?: 'application/x-www-form-urlencoded' | 'multipart/form-data' | 'text/plain';
+  target?: string;
 }
 
 type AnyField = HTMLElement & { name?: string; value?: any; validate?: () => boolean; reset?: () => void; checked?: boolean };
@@ -43,12 +49,21 @@ type AnyField = HTMLElement & { name?: string; value?: any; validate?: () => boo
  * }
  * ```
  *
- * Pressing Enter in a single-line field submits. Events: `submit` (detail: `{ values }`),
- * `invalid` (detail: `{ fields }`), `reset`, `change`.
+ * Pressing Enter in a single-line field submits. Events: `submit` (detail: `{ values }`,
+ * cancelable), `invalid` (detail: `{ fields }`), `reset`, `change`.
+ *
+ * With `action` it posts to the server like a native form (server apps, no JS
+ * handler needed); call `preventDefault()` on `submit` to handle it in JS instead:
+ * ```html
+ * <nx-form action="/users" method="post">
+ *   <nx-textfield name="email" type="email" label="Email" required></nx-textfield>
+ *   <nx-button slot="buttons" type="submit">Save</nx-button>
+ * </nx-form>
+ * ```
  */
 export class NXForm extends BaseComponent {
   static get observedAttributes(): string[] {
-    return ['columns', 'gap', 'disabled'];
+    return ['columns', 'gap', 'disabled', 'action', 'method', 'enctype', 'target'];
   }
 
   private pendingValues: Record<string, any> | null = null;
@@ -66,7 +81,7 @@ export class NXForm extends BaseComponent {
       const type = button.getAttribute('type');
       if (type === 'submit') {
         e.preventDefault();
-        this.submit();
+        this.submit(button);
       } else if (type === 'reset') {
         e.preventDefault();
         this.reset();
@@ -183,12 +198,89 @@ export class NXForm extends BaseComponent {
     );
   }
 
-  /** Validate and, if valid, fire `submit` with the values. Returns the values or null. */
-  submit(): Record<string, any> | null {
+  /**
+   * Validate and, if valid, fire `submit` with the values. Unless the event was
+   * prevented, it then posts natively: to `action`, or through the `<form>`
+   * this one sits in. Returns the values or null.
+   */
+  submit(submitter?: HTMLElement | null): Record<string, any> | null {
     if (!this.validate()) return null;
     const values = this.getValues();
-    this.emit('submit', { values });
+    const proceed = this.dispatchEvent(new CustomEvent('submit', {
+      detail: { values },
+      bubbles: true,
+      composed: true,
+      cancelable: true
+    }));
+    if (proceed) {
+      const outer = this.parentElement?.closest('form');
+      if (this.hasAttribute('action')) this.submitNative(submitter ?? null);
+      else if (outer) submitForm(outer, submitter);
+    }
     return values;
+  }
+
+  /** Entries as a native form would submit them (checked boxes only, repeated names, files). */
+  formData(submitter?: HTMLElement | null): FormData {
+    const data = new FormData();
+    this.fields().forEach(field => {
+      const name = this.fieldName(field);
+      if (!name || field.hasAttribute('disabled') || (field as HTMLInputElement).disabled) return;
+      if (field instanceof NXField) {
+        const value = field.formValue();
+        if (value instanceof FormData) value.forEach(v => data.append(name, v));
+        else if (value !== null) data.append(name, value);
+      } else if (field instanceof HTMLInputElement) {
+        if ((field.type === 'checkbox' || field.type === 'radio') && !field.checked) return;
+        if (field.type === 'file') Array.from(field.files ?? []).forEach(file => data.append(name, file));
+        else data.append(name, field.value);
+      } else if (field instanceof HTMLSelectElement) {
+        Array.from(field.selectedOptions).forEach(option => data.append(name, option.value));
+      } else {
+        data.append(name, (field as HTMLTextAreaElement).value);
+      }
+    });
+    const submitName = submitter?.getAttribute('name');
+    if (submitName) data.append(submitName, submitter!.getAttribute('value') ?? '');
+    return data;
+  }
+
+  /** Navigate like a native form submission (a temporary light-DOM <form>). */
+  private submitNative(submitter: HTMLElement | null): void {
+    const form = document.createElement('form');
+    form.hidden = true;
+    form.noValidate = true;
+    const attr = (name: string) => submitter?.getAttribute(`form${name}`) ?? this.getAttribute(name);
+    form.action = attr('action') ?? '';
+    form.method = attr('method') ?? 'get';
+    form.target = attr('target') ?? '';
+    const enctype = attr('enctype');
+    if (enctype) form.enctype = enctype;
+
+    const data = this.formData(submitter);
+    data.forEach((value, name) => {
+      const input = document.createElement('input');
+      input.name = name;
+      if (typeof value === 'string') {
+        input.type = 'hidden';
+        input.value = value;
+      } else {
+        // Files: carry them over with a file input (needs multipart)
+        input.type = 'file';
+        const transfer = new DataTransfer();
+        transfer.items.add(value);
+        input.files = transfer.files;
+        form.enctype = 'multipart/form-data';
+      }
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    try {
+      form.submit();
+    } finally {
+      form.remove();
+    }
   }
 
   reset(): void {

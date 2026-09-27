@@ -50,6 +50,17 @@ export abstract class NXField extends BaseComponent {
     } catch {
       this.internals = null;
     }
+
+    // A native <form> found this field invalid on submit: show why
+    this.addEventListener('invalid', () => {
+      this.touched = true;
+      this.showError(this.validationMessage());
+    });
+  }
+
+  /** The `<form>` this field belongs to (native forms, not `<nx-form>`). */
+  get form(): HTMLFormElement | null {
+    return this.internals?.form ?? null;
   }
 
   protected initializeState(): void {}
@@ -142,11 +153,34 @@ export abstract class NXField extends BaseComponent {
     this.toggleAttribute('disabled', disabled);
   }
 
-  protected syncFormValue(): void {
+  /** Browsers restore form state (back/forward, autofill) through this. */
+  formStateRestoreCallback(state: unknown): void {
+    if (typeof state === 'string') this.value = state;
+  }
+
+  /** What this field submits with a native form; `null` submits nothing. */
+  formValue(): string | FormData | null {
     const value = this.value;
-    this.internals?.setFormValue(
-      value === null || value === undefined ? null : Array.isArray(value) ? value.join(',') : String(value)
-    );
+    if (value === null || value === undefined) return null;
+    if (!Array.isArray(value)) return String(value);
+    // Repeated entries, like <select multiple>
+    const data = new FormData();
+    value.forEach(item => data.append(this.name, String(item)));
+    return data;
+  }
+
+  /** Keep the native form value and validity in sync, so `<form>` posts and validates it. */
+  protected syncFormValue(): void {
+    if (!this.internals) return;
+    this.internals.setFormValue(this.formValue());
+    this.validationMessage();
+  }
+
+  /** Enter in a single-line field submits the surrounding form, like native inputs. */
+  protected implicitSubmit(): void {
+    const nxForm = this.closest('nx-form');
+    if (nxForm) nxForm.dispatchEvent(new CustomEvent('nx-field-enter', { bubbles: false }));
+    else this.form?.requestSubmit();
   }
 
   /** Called by subclasses when the user changed the value. */

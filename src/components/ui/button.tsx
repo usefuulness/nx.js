@@ -7,6 +7,7 @@ import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { showMenu, type MenuItemLike, type NXMenuPopup } from '@/components/ui/menu';
 import { variants } from '@/core/variants';
+import { submitForm } from '@/core/forms';
 
 const button = variants({
   base: 'nx-button',
@@ -31,7 +32,11 @@ const SPINNER = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" s
 
 export interface ButtonConfig {
   text?: string;
+  /** `submit`/`reset` work inside `<nx-form>` and native `<form>` alike */
   type?: 'button' | 'submit' | 'reset';
+  /** Submitted with the form when this button submits it, like `<button name value>` */
+  name?: string;
+  value?: string;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'link';
   size?: 'sm' | 'md' | 'lg' | 'icon';
   /** Icon name from the built-in set (see `Icons.names()`) or raw SVG */
@@ -58,9 +63,14 @@ export interface ButtonConfig {
  * ```
  * ```html
  * <nx-button variant="outline" icon="plus">New</nx-button>
+ * <form method="post"><nx-button type="submit" name="intent" value="save">Save</nx-button></form>
  * ```
  */
 export class NXButton extends BaseComponent {
+  static formAssociated = true;
+
+  private internals: ElementInternals | null = null;
+
   static get observedAttributes(): string[] {
     return [
       'text', 'type', 'variant', 'size', 'icon', 'icon-position', 'href', 'tooltip',
@@ -81,6 +91,21 @@ export class NXButton extends BaseComponent {
         e.preventDefault();
       }
     }, { capture: true });
+
+    try {
+      this.internals = this.attachInternals();
+    } catch {
+      this.internals = null;
+    }
+
+    // type="submit"/"reset" act on a native <form> (<nx-form> handles its own buttons)
+    this.addEventListener('click', (e) => {
+      const type = this.getProp<string>('type', 'button');
+      const form = this.form;
+      if (e.defaultPrevented || !form || this.closest('nx-form')) return;
+      if (type === 'submit') submitForm(form, this);
+      else if (type === 'reset') form.reset();
+    });
 
     // `menu: [...]` turns the button into a dropdown trigger (click again to close)
     this.addEventListener('click', () => {
@@ -293,6 +318,15 @@ export class NXButton extends BaseComponent {
         to { transform: rotate(360deg); }
       }
     `;
+  }
+
+  /** The `<form>` this button belongs to (its ancestor, or `form="id"`). */
+  get form(): HTMLFormElement | null {
+    return this.internals?.form ?? null;
+  }
+
+  formDisabledCallback(disabled: boolean): void {
+    this.toggleAttribute('disabled', disabled);
   }
 
   /** Programmatically click (respects disabled/loading). */

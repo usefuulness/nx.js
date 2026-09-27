@@ -86,8 +86,12 @@ export class NXCheckbox extends NXField {
     this.checked = false;
   }
 
-  protected syncFormValue(): void {
-    this.internals?.setFormValue(this.isChecked ? (this.getAttribute('value') ?? 'on') : null);
+  formValue(): string | null {
+    return this.isChecked ? (this.getAttribute('value') ?? 'on') : null;
+  }
+
+  formStateRestoreCallback(state: unknown): void {
+    this.checked = typeof state === 'string';
   }
 
   protected changed(): void {

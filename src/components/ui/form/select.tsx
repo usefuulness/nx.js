@@ -33,6 +33,12 @@ export interface SelectConfig extends FieldConfig {
  * { xtype: 'select', name: 'role', label: 'Role', options: ['Admin', 'Editor', 'Viewer'], value: 'Editor' }
  * { xtype: 'select', options: [{ value: 1, text: 'One' }, { value: 2, text: 'Two', group: 'More' }] }
  * ```
+ * ```html
+ * <nx-select name="role" label="Role" value="Editor">
+ *   <option>Admin</option><option>Editor</option>
+ *   <optgroup label="More"><option value="ro">Viewer</option></optgroup>
+ * </nx-select>
+ * ```
  */
 export class NXSelect extends NXField {
   static get observedAttributes(): string[] {
@@ -44,6 +50,9 @@ export class NXSelect extends NXField {
 
   private options: SelectOption[] = [];
   private currentValue: string | string[] = '';
+  /** Options come from <option> children (HTML/template usage) and follow them */
+  private childOptions = false;
+  private observer: MutationObserver | null = null;
 
   constructor(config?: SelectConfig) {
     super();
@@ -51,6 +60,7 @@ export class NXSelect extends NXField {
   }
 
   setOptions(options: SelectConfig['options']): void {
+    this.childOptions = false;
     this.options = normalizeOptions(options);
     this.scheduleUpdate();
   }
@@ -68,13 +78,51 @@ export class NXSelect extends NXField {
       ? value.map(String)
       : value === null || value === undefined ? '' : String(value);
 
-    const select = this.control() as HTMLSelectElement | null;
-    if (select) {
-      const values = new Set(Array.isArray(this.currentValue) ? this.currentValue : [this.currentValue]);
-      Array.from(select.options).forEach(option => (option.selected = values.has(option.value)));
-      select.classList.toggle('placeholder', !this.currentValue.length);
-    }
+    this.syncSelection();
     this.syncFormValue();
+  }
+
+  private syncSelection(): void {
+    const select = this.control() as HTMLSelectElement | null;
+    if (!select) return;
+    const values = new Set(Array.isArray(this.currentValue) ? this.currentValue : [this.currentValue]);
+    Array.from(select.options).forEach(option => (option.selected = values.has(option.value)));
+    select.classList.toggle('placeholder', !this.currentValue.length);
+  }
+
+  /** Read `<option>`/`<optgroup>` children; they may be parsed after the element upgraded. */
+  private readChildOptions(): void {
+    if (this.options.length && !this.childOptions) return;
+    const children = Array.from(this.querySelectorAll('option'));
+    if (!children.length) return;
+    this.childOptions = true;
+    this.options = children.map(o => ({
+      value: o.value,
+      text: o.textContent ?? o.value,
+      disabled: o.disabled,
+      group: o.parentElement?.localName === 'optgroup' ? o.parentElement.getAttribute('label') ?? undefined : undefined
+    }));
+    if (!this.currentValue.length) {
+      const selected = children.filter(o => o.hasAttribute('selected')).map(o => o.value);
+      if (selected.length) this.currentValue = this.getProp('multiple', false) ? selected : selected[0];
+    }
+  }
+
+  protected afterConnect(): void {
+    this.observer ??= new MutationObserver(() => {
+      if (this.childOptions || !this.options.length) this.scheduleUpdate();
+    });
+    this.observer.observe(this, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['value', 'selected', 'disabled', 'label'] });
+  }
+
+  protected beforeDisconnect(): void {
+    this.observer?.disconnect();
+  }
+
+  protected afterRender(): void {
+    // Explicit selection: an option's `selected` set before insertion isn't kept everywhere
+    this.syncSelection();
+    super.afterRender();
   }
 
   /** The selected option object(s). */
@@ -101,18 +149,8 @@ export class NXSelect extends NXField {
   }
 
   protected render(): Node {
-    // Pick up <option> children for HTML usage: <nx-select><option>…</option></nx-select>
-    if (!this.options.length && this.querySelector('option')) {
-      this.options = Array.from(this.querySelectorAll('option')).map(o => ({
-        value: o.value,
-        text: o.textContent ?? o.value,
-        disabled: o.disabled
-      }));
-      if (!this.currentValue) {
-        const selected = this.querySelector('option[selected]') as HTMLOptionElement | null;
-        if (selected) this.currentValue = selected.value;
-      }
-    }
+    // HTML usage: <nx-select><option>…</option></nx-select>
+    this.readChildOptions();
 
     const multiple = this.getProp('multiple', false);
     const placeholder = this.getProp<string>('placeholder', multiple ? '' : 'Select…');

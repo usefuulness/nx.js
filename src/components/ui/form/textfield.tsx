@@ -132,8 +132,8 @@ export class NXTextField extends NXField {
   private onKeyDown(e: KeyboardEvent): void {
     if (e.key !== 'Enter' || (e.target as Element).tagName === 'TEXTAREA') return;
     this.emit('enter', { value: this.currentValue });
-    // Lets a surrounding <nx-form> submit on Enter
-    this.closest('nx-form')?.dispatchEvent(new CustomEvent('nx-field-enter', { bubbles: false }));
+    e.preventDefault();
+    this.implicitSubmit();
   }
 
   /** Clear the value (like the × button). */
