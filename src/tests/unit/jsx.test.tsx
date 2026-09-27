@@ -195,3 +195,11 @@ describe('cn / variants', () => {
     expect(button({ variant: 'outline', size: 'sm', class: 'x' })).toBe('btn o s os x');
   });
 });
+
+describe('variants with booleans', () => {
+  it('accepts real booleans for true/false keys', () => {
+    const v = variants({ base: 'x', variants: { active: { true: 'on', false: 'off' } }, compoundVariants: [{ active: true, class: 'both' }] });
+    expect(v({ active: true })).toBe('x on both');
+    expect(v({ active: false })).toBe('x off');
+  });
+});

@@ -2,10 +2,32 @@
  * @file @/components/ui/button.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
-import { BaseComponent, escapeHTML } from '@/components/abstracts/base';
+import { BaseComponent } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { showMenu, type MenuItemLike, type NXMenuPopup } from '@/components/ui/menu';
+import { variants } from '@/core/variants';
+
+const button = variants({
+  base: 'nx-button',
+  variants: {
+    variant: {
+      primary: 'variant-primary',
+      secondary: 'variant-secondary',
+      outline: 'variant-outline',
+      ghost: 'variant-ghost',
+      danger: 'variant-danger',
+      link: 'variant-link'
+    },
+    size: { sm: 'size-sm', md: 'size-md', lg: 'size-lg', icon: 'icon-only' },
+    iconOnly: { true: 'icon-only', false: '' },
+    loading: { true: 'loading', false: '' },
+    disabled: { true: 'disabled', false: '' }
+  },
+  defaultVariants: { variant: 'primary', size: 'md' }
+});
+
+const SPINNER = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>';
 
 export interface ButtonConfig {
   text?: string;
@@ -82,8 +104,7 @@ export class NXButton extends BaseComponent {
 
   private menuPopup: NXMenuPopup | null = null;
 
-  protected render(): string {
-    const type = this.getProp('type', 'button');
+  protected render(): Node {
     const variant = this.getProp('variant', 'primary');
     const text = this.getProp<string>('text', '');
     const icon = this.getProp<string>('icon');
@@ -92,48 +113,39 @@ export class NXButton extends BaseComponent {
     const loading = this.getProp('loading', false);
     const href = this.getProp<string>('href');
     const tooltip = this.getProp<string>('tooltip');
-    const ariaLabel = this.getProp<string>('aria-label') || tooltip || (!text ? icon : undefined);
-
     const hasLabel = !!text || this.hasLabelContent();
-    let size = this.getProp<string>('size', 'md');
-    if (icon && !hasLabel && size === 'md') size = 'icon';
+    const ariaLabel = this.getProp<string>('aria-label') || tooltip || (!hasLabel ? icon : undefined);
 
-    const classes = [
-      'nx-button',
-      `variant-${variant}`,
-      `size-${size}`,
-      loading ? 'loading' : '',
-      disabled ? 'disabled' : ''
-    ].filter(Boolean).join(' ');
+    const cls = button({
+      variant,
+      size: this.getProp('size', 'md'),
+      iconOnly: !!icon && !hasLabel,
+      loading,
+      disabled
+    });
 
-    const iconHtml = loading
-      ? `<span part="spinner" class="button-icon spinner" aria-hidden="true">${Icons.get('<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>')}</span>`
-      : icon ? `<span part="icon" class="button-icon">${Icons.get(icon)}</span>` : '';
+    const iconNode = loading
+      ? <span part="spinner" class="icon spinner" aria-hidden="true" html={SPINNER} />
+      : icon ? <span part="icon" class="icon" html={Icons.get(icon)} /> : null;
 
-    const inner = `
-      ${iconPosition === 'left' ? iconHtml : ''}
-      <span part="label" class="button-label ${hasLabel ? '' : 'empty'}"><slot>${escapeHTML(text)}</slot></span>
-      ${iconPosition === 'right' ? iconHtml : ''}
-      ${Array.isArray(this.getProp('menu')) ? `<span class="button-icon caret" aria-hidden="true">${Icons.get('chevron-down')}</span>` : ''}
-    `;
+    const inner = [
+      iconPosition === 'left' && iconNode,
+      <span part="label" class={['label', { empty: !hasLabel }]}><slot>{text}</slot></span>,
+      iconPosition === 'right' && iconNode,
+      Array.isArray(this.getProp('menu')) && <span class="icon caret" aria-hidden="true" html={Icons.get('chevron-down')} />
+    ];
 
-    const common = `
-      part="button"
-      class="${classes}"
-      ${ariaLabel ? `aria-label="${escapeHTML(ariaLabel)}"` : ''}
-      ${tooltip ? `title="${escapeHTML(tooltip)}"` : ''}
-      ${loading ? 'aria-busy="true"' : ''}
-    `;
+    const common = {
+      part: 'button',
+      class: cls,
+      'aria-label': ariaLabel,
+      title: tooltip,
+      'aria-busy': loading ? 'true' : undefined
+    };
 
-    if (href && !disabled) {
-      return `<a ${common} href="${escapeHTML(href)}">${inner}</a>`;
-    }
-
-    return `
-      <button ${common} type="${type}" ${disabled || loading ? 'disabled' : ''}>
-        ${inner}
-      </button>
-    `;
+    return href && !disabled
+      ? <a {...common} href={href}>{inner}</a>
+      : <button {...common} type={this.getProp('type', 'button')} disabled={disabled || loading}>{inner}</button>;
   }
 
   private hasLabelContent(): boolean {
@@ -191,8 +203,9 @@ export class NXButton extends BaseComponent {
       /* Sizes */
       .size-sm { height: 2rem; padding: 0 0.75rem; font-size: 0.8125rem; border-radius: var(--radius-sm); }
       .size-lg { height: 2.75rem; padding: 0 1.5rem; font-size: 0.9375rem; }
-      .size-icon { width: 2.25rem; padding: 0; }
-      .size-sm.size-icon { width: 2rem; }
+      .icon-only { width: 2.25rem; padding: 0; }
+      .size-sm.icon-only { width: 2rem; }
+      .size-lg.icon-only { width: 2.75rem; }
 
       /* Variants */
       .variant-primary {
@@ -251,17 +264,17 @@ export class NXButton extends BaseComponent {
       }
 
       /* Content */
-      .button-label.empty {
+      .label.empty {
         display: none;
       }
 
-      .button-icon {
+      .icon {
         display: inline-flex;
         flex-shrink: 0;
         font-size: 1rem;
       }
 
-      .button-icon :is(svg) {
+      .icon :is(svg) {
         width: 1em;
         height: 1em;
       }

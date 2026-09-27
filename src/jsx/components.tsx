@@ -103,6 +103,11 @@ declare module './jsx-runtime' {
     'nx-modal': Props<ModalConfig>;
     'nx-menu': Props<MenuConfig>;
     'nx-progress': Props<ProgressConfig>;
+    'nx-accordion': Props<AccordionConfig>;
+    'nx-drawer': Props<DrawerConfig>;
+    'nx-spinner': Props<SpinnerConfig>;
+    'nx-skeleton': Props<SkeletonConfig>;
+    'nx-breadcrumb': Props<BreadcrumbConfig>;
     'nx-viewport': Props<ViewportConfig>;
   }
 }
@@ -151,7 +156,10 @@ export const Menu = (props: Props<MenuConfig>) => <nx-menu {...props} />;
 export const MenuBar = (props: Props<{ items?: MenuItemLike[] }>) => <nx-menubar {...props} />;
 export const Breadcrumb = (props: Props<BreadcrumbConfig>) => <nx-breadcrumb {...props} />;
 export const Accordion = (props: Props<AccordionConfig>) => <nx-accordion {...props} />;
+export const AccordionItem = (props: Props<{ title: string; expanded?: boolean; disabled?: boolean }>) => <nx-accordion-item {...props} />;
+/** Slide-in panel (shadcn's Sheet). Open it with a ref: `drawer.open()`. */
 export const Drawer = (props: Props<DrawerConfig>) => <nx-drawer {...props} />;
+export const DrawerFooter = ({ children, ...rest }: Props<{}, HTMLDivElement>) => <div slot="footer" style="display: contents" {...rest}>{children}</div>;
 
 // ────────── Data ──────────
 

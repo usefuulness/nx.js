@@ -2,7 +2,7 @@
  * @file @/components/ui/toolbar.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
-import { BaseComponent, escapeHTML } from '@/components/abstracts/base';
+import { BaseComponent } from '@/components/abstracts/base';
 import { ComponentRegistry, define, type ItemConfig, type ItemsAware } from '@/core/registry';
 
 export interface ToolbarConfig {
@@ -56,16 +56,14 @@ export class NXToolbar extends BaseComponent implements ItemsAware {
     return child;
   }
 
-  protected render(): string {
-    const variant = this.getProp('variant', 'default');
+  protected render(): Node {
     const title = this.getProp<string>('title');
-
-    return `
-      <div class="nx-toolbar variant-${variant}" part="container" role="toolbar">
-        ${title ? `<span class="nx-toolbar-title" part="title">${escapeHTML(title)}</span>` : ''}
-        <slot></slot>
+    return (
+      <div part="container" role="toolbar" class={['nx-toolbar', `variant-${this.getProp('variant', 'default')}`]}>
+        {title && <span class="nx-toolbar-title" part="title">{title}</span>}
+        <slot />
       </div>
-    `;
+    );
   }
 
   protected styles(): string {

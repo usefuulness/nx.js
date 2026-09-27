@@ -52,7 +52,8 @@ export type { PanelConfig } from '@/layout/panel';
 export { NXViewport, NXRegion } from '@/layout/viewport';
 
 // UI
-export { NXAccordion } from '@/components/ui/accordion';
+export { NXAccordion, NXAccordionItem } from '@/components/ui/accordion';
+export type { AccordionConfig, AccordionItem as AccordionItemConfig } from '@/components/ui/accordion';
 export { NXBreadcrumb } from '@/components/ui/breadcrumb';
 export { NXBadge } from '@/components/ui/badge';
 export type { BadgeConfig } from '@/components/ui/badge';
@@ -60,6 +61,7 @@ export { NXButton } from '@/components/ui/button';
 export type { ButtonConfig } from '@/components/ui/button';
 export { NXCard } from '@/components/ui/card';
 export { NXDrawer } from '@/components/ui/drawer';
+export type { DrawerConfig } from '@/components/ui/drawer';
 export { NXLoader } from '@/components/ui/loader';
 export { NXMenu, NXMenuPopup, showMenu } from '@/components/ui/menu';
 export type { MenuItem, MenuItemLike, MenuOpenOptions } from '@/components/ui/menu';

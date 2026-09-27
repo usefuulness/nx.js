@@ -46,10 +46,10 @@ export class NXContainer extends BaseComponent {
     super.applyConfig(key, value);
   }
 
-  protected render(): string {
+  protected render(): Node {
     // Layout lives on an inner box: page-level resets (e.g. Tailwind's preflight)
     // override :host padding/margin, but can't reach inside the shadow root.
-    return '<div class="box" part="box"><slot></slot></div>';
+    return <div class="box" part="box"><slot /></div>;
   }
 
   protected styles(): string {

@@ -21,17 +21,20 @@ import { cn, type ClassValue } from '@/jsx/jsx-runtime';
 
 type VariantMap = Record<string, Record<string, ClassValue>>;
 
+/** A variant value; `true`/`false` keys also accept real booleans (like cva). */
+type VariantValue<O> = keyof O | ('true' extends keyof O ? boolean : never) | ('false' extends keyof O ? boolean : never);
+
 export interface VariantsConfig<V extends VariantMap> {
   base?: ClassValue;
   variants?: V;
-  compoundVariants?: Array<{ [K in keyof V]?: keyof V[K] | Array<keyof V[K]> } & { class?: ClassValue }>;
-  defaultVariants?: { [K in keyof V]?: keyof V[K] };
+  compoundVariants?: Array<{ [K in keyof V]?: VariantValue<V[K]> | Array<VariantValue<V[K]>> } & { class?: ClassValue }>;
+  defaultVariants?: { [K in keyof V]?: VariantValue<V[K]> };
 }
 
 export type VariantProps<F> = F extends (props?: infer P) => string ? NonNullable<P> : never;
 
 export function variants<V extends VariantMap>(config: VariantsConfig<V>) {
-  return (props: { [K in keyof V]?: keyof V[K] | null } & { class?: ClassValue } = {}): string => {
+  return (props: { [K in keyof V]?: VariantValue<V[K]> | null } & { class?: ClassValue } = {}): string => {
     const selected: Record<string, unknown> = { ...config.defaultVariants };
     Object.entries(props).forEach(([k, v]) => {
       if (v !== undefined && v !== null && k !== 'class') selected[k] = v;
@@ -44,7 +47,7 @@ export function variants<V extends VariantMap>(config: VariantsConfig<V>) {
     });
     (config.compoundVariants ?? []).forEach(({ class: cls, ...conditions }) => {
       const match = Object.entries(conditions).every(([k, v]) =>
-        Array.isArray(v) ? v.includes(selected[k] as never) : selected[k] === v
+        Array.isArray(v) ? v.map(String).includes(String(selected[k])) : String(selected[k]) === String(v)
       );
       if (match) classes.push(cls);
     });

@@ -2,9 +2,26 @@
  * @file @/layout/panel.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
-import { BaseComponent, ComponentState, escapeHTML } from '@/components/abstracts/base';
+import { BaseComponent, ComponentState } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
+import { variants } from '@/core/variants';
+
+const panel = variants({
+  base: 'nx-panel',
+  variants: {
+    region: {
+      standalone: 'standalone',
+      north: 'region region-north',
+      south: 'region region-south',
+      east: 'region region-east',
+      west: 'region region-west',
+      center: 'region region-center'
+    },
+    collapsed: { true: 'collapsed', false: '' },
+    bordered: { true: 'bordered', false: '' }
+  }
+});
 
 export interface PanelConfig {
   title?: string;
@@ -66,65 +83,46 @@ export class NXPanel extends BaseComponent {
     return state ?? !!this.getProp('collapsed', false);
   }
 
-  protected render(): string {
-    const title = this.getProp('title');
+  protected render(): Node {
+    const title = this.getProp<string>('title');
     const icon = this.getProp<string>('icon');
     const collapsible = this.getProp('collapsible', false);
     const collapsed = this.isCollapsed();
     const closable = this.getProp('closable', false);
-    const resizable = this.getProp('resizable', false);
-    const region = this.getProp<string>('region');
-    const border = this.getProp('border', true);
+    const region = this.getProp<PanelConfig['region']>('region');
     const horizontal = region === 'west' || region === 'east';
 
     this.applyHostSize(collapsed && horizontal);
-
-    const panelClasses = [
-      'nx-panel',
-      collapsed ? 'collapsed' : '',
-      region ? `region region-${region}` : 'standalone',
-      border ? 'bordered' : ''
-    ].filter(Boolean).join(' ');
 
     const toggleIcon = horizontal
       ? (region === 'west') !== collapsed ? 'chevron-left' : 'chevron-right'
       : collapsed ? 'chevron-right' : 'chevron-down';
 
-    const hasHeader = title || icon || collapsible || closable;
-
-    return `
-      <div class="${panelClasses}" part="container">
-        ${hasHeader ? `
+    return (
+      <div part="container" class={panel({ region: region ?? 'standalone', collapsed, bordered: this.getProp('border', true) })}>
+        {(title || icon || collapsible || closable) && (
           <div class="nx-panel-header" part="header">
-            ${icon ? `<span class="nx-panel-icon" part="icon">${Icons.get(icon)}</span>` : ''}
-            <h3 class="nx-panel-title" part="title">${escapeHTML(title ?? '')}</h3>
+            {icon && <span class="nx-panel-icon" part="icon" html={Icons.get(icon)} />}
+            <h3 class="nx-panel-title" part="title">{title ?? ''}</h3>
             <div class="nx-panel-tools" part="tools">
-              <slot name="tools"></slot>
-              ${collapsible ? `
-                <button class="nx-panel-tool nx-panel-toggle" part="toggle"
-                        aria-label="${collapsed ? 'Expand' : 'Collapse'} panel"
-                        aria-expanded="${!collapsed}">
-                  ${Icons.get(toggleIcon)}
-                </button>
-              ` : ''}
-              ${closable ? `
-                <button class="nx-panel-tool nx-panel-close" part="close" aria-label="Close panel">
-                  ${Icons.get('close')}
-                </button>
-              ` : ''}
+              <slot name="tools" />
+              {collapsible && (
+                <button class="nx-panel-tool" part="toggle" aria-label={`${collapsed ? 'Expand' : 'Collapse'} panel`}
+                        aria-expanded={String(!collapsed)} html={Icons.get(toggleIcon)} onClick={() => this.toggle()} />
+              )}
+              {closable && (
+                <button class="nx-panel-tool" part="close" aria-label="Close panel" html={Icons.get('close')} onClick={() => this.close()} />
+              )}
             </div>
           </div>
-        ` : ''}
-
-        <div class="nx-panel-body" part="body">
-          <slot></slot>
-        </div>
-
-        <slot name="footer"></slot>
-
-        ${resizable ? `<div class="nx-panel-resize-handle" part="resize"></div>` : ''}
+        )}
+        <div class="nx-panel-body" part="body"><slot /></div>
+        <slot name="footer" />
+        {this.getProp('resizable', false) && (
+          <div class="nx-panel-resize-handle" part="resize" onMouseDown={(e: MouseEvent) => this.startResize(e)} />
+        )}
       </div>
-    `;
+    );
   }
 
   private applyHostSize(railCollapsed: boolean): void {
@@ -290,70 +288,40 @@ export class NXPanel extends BaseComponent {
     `;
   }
 
-  protected afterRender(): void {
-    const toggleBtn = this.$('.nx-panel-toggle');
-    if (toggleBtn) {
-      this.on(toggleBtn, 'click', () => this.toggle());
-    }
+  private startResize(e: MouseEvent): void {
+    e.preventDefault();
+    const handle = e.currentTarget as HTMLElement;
+    const region = this.getProp('region');
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const rect = this.getBoundingClientRect();
+    const px = (name: string, fallback: number) => parseInt(String(this.getProp(name, fallback))) || fallback;
 
-    const closeBtn = this.$('.nx-panel-close');
-    if (closeBtn) {
-      this.on(closeBtn, 'click', () => this.close());
-    }
-
-    const resizeHandle = this.$('.nx-panel-resize-handle');
-    if (resizeHandle) {
-      this.setupResize(resizeHandle as HTMLElement);
-    }
-  }
-
-  private setupResize(handle: HTMLElement): void {
-    let startX = 0;
-    let startY = 0;
-    let startWidth = 0;
-    let startHeight = 0;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const region = this.getProp('region');
-      const minWidth = parseInt(this.getProp('min-width', '100'));
-      const maxWidth = parseInt(this.getProp('max-width', '9999'));
-      const minHeight = parseInt(this.getProp('min-height', '100'));
-      const maxHeight = parseInt(this.getProp('max-height', '9999'));
-
+    const onMove = (m: MouseEvent) => {
       if (region === 'east' || region === 'west') {
-        const deltaX = region === 'west' ? e.clientX - startX : startX - e.clientX;
-        this.style.width = `${Math.max(minWidth, Math.min(maxWidth, startWidth + deltaX))}px`;
+        const delta = region === 'west' ? m.clientX - startX : startX - m.clientX;
+        this.style.width = `${Math.max(px('min-width', 100), Math.min(px('max-width', 9999), rect.width + delta))}px`;
       } else {
-        const deltaY = region === 'north' ? e.clientY - startY : startY - e.clientY;
-        this.style.height = `${Math.max(minHeight, Math.min(maxHeight, startHeight + deltaY))}px`;
+        const delta = region === 'north' ? m.clientY - startY : startY - m.clientY;
+        this.style.height = `${Math.max(px('min-height', 100), Math.min(px('max-height', 9999), rect.height + delta))}px`;
       }
     };
 
-    const handleMouseUp = () => {
+    const onUp = () => {
       handle.classList.remove('resizing');
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
       document.body.style.userSelect = '';
-
       // Persist the size so re-renders keep it
       this[ComponentState].set('width', this.style.width || null);
       this[ComponentState].set('height', this.style.height || null);
       this.emit('resize', { width: this.style.width, height: this.style.height });
     };
 
-    this.on(handle, 'mousedown', (e: Event) => {
-      const mouseEvent = e as MouseEvent;
-      mouseEvent.preventDefault();
-      startX = mouseEvent.clientX;
-      startY = mouseEvent.clientY;
-      const rect = this.getBoundingClientRect();
-      startWidth = rect.width;
-      startHeight = rect.height;
-      handle.classList.add('resizing');
-      document.body.style.userSelect = 'none';
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    });
+    handle.classList.add('resizing');
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
   }
 
   toggle(): void {
