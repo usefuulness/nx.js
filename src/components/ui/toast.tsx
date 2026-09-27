@@ -157,6 +157,7 @@ export class NXToast extends BaseComponent {
       .content {
         flex: 1;
         min-width: 0;
+        overflow-wrap: anywhere;
         padding-top: 0.0625rem;
       }
 

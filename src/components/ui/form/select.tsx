@@ -2,7 +2,6 @@
  * @file @/components/ui/form/select.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
-import { escapeHTML } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { NXField, type FieldConfig } from '@/components/ui/form/field';
@@ -101,7 +100,7 @@ export class NXSelect extends NXField {
     super.applyConfig(key, value);
   }
 
-  protected render(): string {
+  protected render(): Node {
     // Pick up <option> children for HTML usage: <nx-select><option>…</option></nx-select>
     if (!this.options.length && this.querySelector('option')) {
       this.options = Array.from(this.querySelectorAll('option')).map(o => ({
@@ -120,8 +119,9 @@ export class NXSelect extends NXField {
     const icon = this.getProp<string>('icon');
     const values = new Set(Array.isArray(this.currentValue) ? this.currentValue : [this.currentValue]);
 
-    const option = (o: SelectOption) =>
-      `<option value="${escapeHTML(o.value)}" ${values.has(String(o.value)) ? 'selected' : ''} ${o.disabled ? 'disabled' : ''}>${escapeHTML(o.text)}</option>`;
+    const option = (o: SelectOption) => (
+      <option value={String(o.value)} selected={values.has(String(o.value))} disabled={!!o.disabled}>{o.text}</option>
+    );
 
     const groups = new Map<string, SelectOption[]>();
     const ungrouped: SelectOption[] = [];
@@ -134,39 +134,28 @@ export class NXSelect extends NXField {
       }
     });
 
-    const optionsHtml = [
-      !multiple && placeholder ? `<option value="" ${this.currentValue ? '' : 'selected'} ${this.getProp('required', false) ? 'disabled' : ''}>${escapeHTML(placeholder)}</option>` : '',
-      ...ungrouped.map(option),
-      ...Array.from(groups).map(([group, opts]) => `<optgroup label="${escapeHTML(group)}">${opts.map(option).join('')}</optgroup>`)
-    ].join('');
-
-    return this.renderField(`
-      <div class="nx-control ${multiple ? 'multiple' : ''} size-${this.getProp('size', 'md')}" part="control">
-        ${icon ? `<span class="nx-control-icon">${Icons.get(icon)}</span>` : ''}
-        <select id="${this.fieldId}" part="select"
-                ${this.name ? `name="${escapeHTML(this.name)}"` : ''}
-                ${multiple ? 'multiple' : ''}
-                ${this.getProp('required', false) ? 'required' : ''}
-                ${this.getProp('disabled', false) ? 'disabled' : ''}
-                class="${this.currentValue.length ? '' : 'placeholder'}"
-                aria-describedby="${this.fieldId}-help">
-          ${optionsHtml}
+    return this.renderField(
+      <div part="control" class={['nx-control', `size-${this.getProp('size', 'md')}`, { multiple }]}>
+        {icon && <span class="nx-control-icon" html={Icons.get(icon)} />}
+        <select id={this.fieldId} part="select" name={this.name} multiple={!!multiple}
+                required={!!this.getProp('required', false)} disabled={!!this.getProp('disabled', false)}
+                class={{ placeholder: !this.currentValue.length }} aria-describedby={`${this.fieldId}-help`}
+                onChange={(e: Event) => this.onSelectChange(e.target as HTMLSelectElement)}>
+          {!multiple && placeholder && (
+            <option value="" selected={!this.currentValue} disabled={!!this.getProp('required', false)}>{placeholder}</option>
+          )}
+          {ungrouped.map(option)}
+          {Array.from(groups).map(([group, opts]) => <optgroup label={group}>{opts.map(option)}</optgroup>)}
         </select>
-        ${multiple ? '' : `<span class="chevron" aria-hidden="true">${Icons.get('chevron-down')}</span>`}
+        {!multiple && <span class="chevron" aria-hidden="true" html={Icons.get('chevron-down')} />}
       </div>
-    `);
+    );
   }
 
-  protected afterRender(): void {
-    super.afterRender();
-    const select = this.control() as HTMLSelectElement;
-    this.on(select, 'change', () => {
-      this.currentValue = select.multiple
-        ? Array.from(select.selectedOptions).map(o => o.value)
-        : select.value;
-      select.classList.toggle('placeholder', !this.currentValue.length);
-      this.changed();
-    });
+  private onSelectChange(select: HTMLSelectElement): void {
+    this.currentValue = select.multiple ? Array.from(select.selectedOptions).map(o => o.value) : select.value;
+    select.classList.toggle('placeholder', !this.currentValue.length);
+    this.changed();
   }
 
   protected styles(): string {

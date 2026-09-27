@@ -121,15 +121,21 @@ function applyDomProps(el: HTMLElement | SVGElement, props: Record<string, any>,
     }
 
     const name = key === 'htmlFor' ? 'for' : key;
+    // undefined / null mean "not set" (like React). Assigning '' instead would e.g.
+    // turn pattern={undefined} into an empty pattern that rejects every value.
+    if (value === undefined || value === null) {
+      el.removeAttribute(name);
+      continue;
+    }
     if (!svg && !ATTRIBUTE_ONLY.has(name) && !name.includes('-') && name in el) {
       try {
-        (el as any)[name] = value ?? '';
+        (el as any)[name] = value;
         continue;
       } catch {
         // read-only property: fall through to the attribute
       }
     }
-    if (value === null || value === undefined || value === false) el.removeAttribute(name);
+    if (value === false) el.removeAttribute(name);
     else el.setAttribute(name, value === true ? '' : String(value));
   }
 }

@@ -2,7 +2,6 @@
  * @file @/components/ui/form/checkbox.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
-import { escapeHTML } from '@/components/abstracts/base';
 import { ComponentRegistry, define } from '@/core/registry';
 import { NXField, type FieldConfig } from '@/components/ui/form/field';
 
@@ -93,44 +92,41 @@ export class NXCheckbox extends NXField {
     if (name === 'checked') this.checked = value !== null && value !== 'false';
   }
 
-  protected render(): string {
+  protected render(): Node {
     const label = this.getProp<string>('label', '');
     const description = this.getProp<string>('description', '');
     const isSwitch = this.getProp('switch', false);
-    const disabled = this.getProp('disabled', false);
 
-    return this.renderField(`
-      <label class="nx-check ${isSwitch ? 'switch' : 'box'}" part="control">
-        <input type="checkbox" id="${this.fieldId}" part="input"
-               ${isSwitch ? 'role="switch"' : ''}
-               ${this.isChecked ? 'checked' : ''}
-               ${disabled ? 'disabled' : ''}
-               ${this.getProp('required', false) ? 'required' : ''}
-               aria-describedby="${this.fieldId}-help">
+    return this.renderField(
+      <label part="control" class={['nx-check', isSwitch ? 'switch' : 'box']}>
+        <input type="checkbox" id={this.fieldId} part="input" role={isSwitch ? 'switch' : undefined}
+               checked={this.isChecked} disabled={!!this.getProp('disabled', false)} required={!!this.getProp('required', false)}
+               aria-describedby={`${this.fieldId}-help`}
+               onChange={(e: Event) => {
+                 this.isChecked = (e.target as HTMLInputElement).checked;
+                 this.changed();
+               }} />
         <span class="indicator" aria-hidden="true">
-          ${isSwitch ? '<span class="thumb"></span>' : `
-            <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-            <svg class="dash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M5 12h14"/></svg>
-          `}
+          {isSwitch ? <span class="thumb" /> : [
+            <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>,
+            <svg class="dash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M5 12h14" /></svg>
+          ]}
         </span>
-        ${label || description ? `
+        {label || description ? (
           <span class="text">
-            ${label ? `<span class="label" part="label">${escapeHTML(label)}</span>` : ''}
-            ${description ? `<span class="description" part="description">${escapeHTML(description)}</span>` : ''}
+            {label && <span class="label" part="label">{label}</span>}
+            {description && <span class="description" part="description">{description}</span>}
           </span>
-        ` : '<slot></slot>'}
-      </label>
-    `, { inlineLabel: true });
+        ) : <slot />}
+      </label>,
+      { inlineLabel: true }
+    );
   }
 
   protected afterRender(): void {
     super.afterRender();
     const input = this.control() as HTMLInputElement;
     if (this.getProp('indeterminate', false) && !this.isChecked) input.indeterminate = true;
-    this.on(input, 'change', () => {
-      this.isChecked = input.checked;
-      this.changed();
-    });
   }
 
   protected styles(): string {

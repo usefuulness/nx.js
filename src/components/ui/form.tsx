@@ -205,14 +205,14 @@ export class NXForm extends BaseComponent {
     queueMicrotask(() => this.applyPendingValues());
   }
 
-  protected render(): string {
+  protected render(): Node {
     const hasButtons = !!this.querySelector(':scope > [slot="buttons"]');
-    return `
+    return (
       <form part="form" novalidate>
-        <div class="fields" part="fields"><slot></slot></div>
-        ${hasButtons ? '<div class="buttons" part="buttons"><slot name="buttons"></slot></div>' : ''}
+        <div class="fields" part="fields"><slot /></div>
+        {hasButtons && <div class="buttons" part="buttons"><slot name="buttons" /></div>}
       </form>
-    `;
+    );
   }
 
   protected styles(): string {

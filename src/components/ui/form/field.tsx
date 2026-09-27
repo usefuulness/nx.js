@@ -6,7 +6,7 @@
  * form association. Fields render once and then patch the DOM in place, so
  * typing never re-renders (and never loses focus).
  */
-import { BaseComponent, escapeHTML } from '@/components/abstracts/base';
+import { BaseComponent } from '@/components/abstracts/base';
 
 export type Validator = (value: any, field: NXField) => string | true | null | undefined | void;
 
@@ -156,33 +156,33 @@ export abstract class NXField extends BaseComponent {
     }
   }
 
-  /** Wrap the control markup with label and helper text. */
-  protected renderField(controlHtml: string, options: { inlineLabel?: boolean } = {}): string {
+  /** Wrap a control with label and helper/error text. */
+  protected renderField(control: Node, options: { inlineLabel?: boolean } = {}): Node {
     const label = this.getProp<string>('label');
-    const required = this.getProp('required', false);
     const helperText = this.getProp<string>('helper-text', '');
     const errorText = this.getProp<string>('error-text', '');
     const text = errorText || helperText;
 
-    return `
-      <div class="nx-field ${errorText ? 'invalid' : ''} ${this.getProp('disabled', false) ? 'disabled' : ''}" part="field">
-        ${label && !options.inlineLabel ? `
-          <label class="nx-field-label" part="label" for="${this.fieldId}">
-            ${escapeHTML(label)}${required ? '<span class="required" aria-hidden="true">*</span>' : ''}
+    return (
+      <div part="field" class={['nx-field', { invalid: errorText, disabled: this.getProp('disabled', false) }]}
+           // Validate once the user leaves the field
+           onFocusOut={() => {
+             this.touched = true;
+             this.showError(this.validationMessage());
+           }}>
+        {label && !options.inlineLabel && (
+          <label class="nx-field-label" part="label" for={this.fieldId}>
+            {label}{this.getProp('required', false) && <span class="required" aria-hidden="true">*</span>}
           </label>
-        ` : ''}
-        ${controlHtml}
-        <div class="nx-field-helper" part="helper" id="${this.fieldId}-help" ${text ? '' : 'hidden'}>${escapeHTML(text)}</div>
+        )}
+        {control}
+        <div class="nx-field-helper" part="helper" id={`${this.fieldId}-help`} hidden={!text}>{text}</div>
       </div>
-    `;
+    );
   }
 
   protected afterRender(): void {
     this.syncFormValue();
-    this.on(this.shadow!, 'focusout', () => {
-      this.touched = true;
-      this.showError(this.validationMessage());
-    });
   }
 
   protected fieldStyles(): string {

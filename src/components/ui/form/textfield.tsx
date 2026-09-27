@@ -2,7 +2,6 @@
  * @file @/components/ui/form/textfield.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
-import { escapeHTML } from '@/components/abstracts/base';
 import { ComponentRegistry, define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { NXField, type FieldConfig } from '@/components/ui/form/field';
@@ -85,46 +84,63 @@ export class NXTextField extends NXField {
     super.applyConfig(key, value);
   }
 
-  protected render(): string {
+  protected render(): Node {
     const multiline = this.getProp('multiline', false);
     const icon = this.getProp<string>('icon');
-    const attr = (name: string, value: unknown) =>
-      value === undefined || value === null || value === '' || value === false ? '' : value === true ? name : `${name}="${escapeHTML(value)}"`;
 
-    const common = [
-      `id="${this.fieldId}"`,
-      `part="input"`,
-      attr('name', this.getProp('name')),
-      attr('placeholder', this.getProp('placeholder')),
-      attr('required', this.getProp('required', false)),
-      attr('disabled', this.getProp('disabled', false)),
-      attr('readonly', this.getProp('readonly', false)),
-      attr('minlength', this.getProp('minlength') ?? this.getProp('min-length')),
-      attr('maxlength', this.getProp('maxlength') ?? this.getProp('max-length')),
-      attr('autocomplete', this.getProp('autocomplete')),
-      `aria-describedby="${this.fieldId}-help"`
-    ].filter(Boolean).join(' ');
+    const common = {
+      id: this.fieldId,
+      part: 'input',
+      name: this.getProp<string>('name'),
+      placeholder: this.getProp<string>('placeholder'),
+      required: !!this.getProp('required', false),
+      disabled: !!this.getProp('disabled', false),
+      readonly: !!this.getProp('readonly', false),
+      minlength: this.getProp('minlength') ?? this.getProp('min-length'),
+      maxlength: this.getProp('maxlength') ?? this.getProp('max-length'),
+      autocomplete: this.getProp<AutoFill>('autocomplete'),
+      value: this.currentValue,
+      'aria-describedby': `${this.fieldId}-help`,
+      onInput: (e: Event) => this.onInput(e.target as HTMLInputElement),
+      onChange: () => this.changed(),
+      onKeyDown: (e: KeyboardEvent) => this.onKeyDown(e)
+    };
 
-    const control = multiline
-      ? `<textarea ${common} rows="${this.getProp('rows', 3)}">${escapeHTML(this.currentValue)}</textarea>`
-      : `<input ${common}
-            type="${escapeHTML(this.getProp('type', 'text'))}"
-            value="${escapeHTML(this.currentValue)}"
-            ${attr('min', this.getProp('min'))}
-            ${attr('max', this.getProp('max'))}
-            ${attr('step', this.getProp('step'))}
-            ${attr('pattern', this.getProp('pattern'))}>`;
-
-    return this.renderField(`
-      <div class="nx-control ${multiline ? 'multiline' : ''} size-${this.getProp('size', 'md')}" part="control">
-        <slot name="prefix">${icon ? `<span class="nx-control-icon">${Icons.get(icon)}</span>` : ''}</slot>
-        ${control}
-        ${this.getProp('clearable', false) ? `
-          <button type="button" class="nx-clear" part="clear" tabindex="-1" aria-label="Clear" hidden>${Icons.get('close')}</button>
-        ` : ''}
-        <slot name="suffix"></slot>
+    return this.renderField(
+      <div part="control" class={['nx-control', `size-${this.getProp('size', 'md')}`, { multiline }]}>
+        <slot name="prefix">{icon && <span class="nx-control-icon" html={Icons.get(icon)} />}</slot>
+        {multiline
+          ? <textarea {...common} rows={this.getProp('rows', 3)} />
+          : <input {...common} type={this.getProp('type', 'text')} min={this.getProp('min')} max={this.getProp('max')}
+                   step={this.getProp('step')} pattern={this.getProp('pattern')} />}
+        {this.getProp('clearable', false) && (
+          <button type="button" class="nx-clear" part="clear" tabindex={-1} aria-label="Clear" hidden
+                  html={Icons.get('close')} onClick={() => this.clear()} />
+        )}
+        <slot name="suffix" />
       </div>
-    `);
+    );
+  }
+
+  private onInput(control: HTMLInputElement | HTMLTextAreaElement): void {
+    this.currentValue = control.value;
+    this.syncClear();
+    this.syncFormValue();
+    if (this.touched) this.showError(this.validationMessage());
+  }
+
+  private onKeyDown(e: KeyboardEvent): void {
+    if (e.key !== 'Enter' || (e.target as Element).tagName === 'TEXTAREA') return;
+    this.emit('enter', { value: this.currentValue });
+    // Lets a surrounding <nx-form> submit on Enter
+    this.closest('nx-form')?.dispatchEvent(new CustomEvent('nx-field-enter', { bubbles: false }));
+  }
+
+  /** Clear the value (like the × button). */
+  clear(): void {
+    this.value = '';
+    this.changed();
+    this.control()?.focus();
   }
 
   private syncClear(): void {
@@ -135,33 +151,6 @@ export class NXTextField extends NXField {
   protected afterRender(): void {
     super.afterRender();
     this.syncClear();
-    const control = this.control()!;
-
-    this.on(control, 'input', () => {
-      this.currentValue = control.value;
-      this.syncClear();
-      this.syncFormValue();
-      if (this.touched) this.showError(this.validationMessage());
-    });
-
-    this.on(control, 'change', () => this.changed());
-
-    this.on(control, 'keydown', (e: Event) => {
-      const key = (e as KeyboardEvent).key;
-      if (key === 'Enter' && !(control instanceof HTMLTextAreaElement)) {
-        this.emit('enter', { value: this.currentValue });
-        this.closest('nx-form')?.dispatchEvent(new CustomEvent('nx-field-enter', { bubbles: false }));
-      }
-    });
-
-    const clear = this.$('.nx-clear');
-    if (clear) {
-      this.on(clear, 'click', () => {
-        this.value = '';
-        this.changed();
-        control.focus();
-      });
-    }
   }
 
   protected styles(): string {

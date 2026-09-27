@@ -203,3 +203,12 @@ describe('variants with booleans', () => {
     expect(v({ active: false })).toBe('x off');
   });
 });
+
+describe('undefined props', () => {
+  it('are not set (an empty pattern would reject every value)', () => {
+    const input = (<input required pattern={undefined} min={undefined} value="x" />) as HTMLInputElement;
+    expect(input.hasAttribute('pattern')).toBe(false);
+    expect(input.hasAttribute('min')).toBe(false);
+    expect(input.checkValidity()).toBe(true);
+  });
+});
