@@ -60,13 +60,13 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
   private observer: MutationObserver | null = null;
 
   protected initialize(): void {
-    this.adoptTabElements();
+    this.syncTabs();
     super.initialize();
   }
 
   protected afterConnect(): void {
-    // <nx-tab> children added later (JSX, HTML, appendChild) become tabs too
-    this.observer ??= new MutationObserver(() => this.adoptTabElements());
+    // <nx-tab> children added or removed later (JSX, HTML, appendChild) update the tabs
+    this.observer ??= new MutationObserver(() => this.syncTabs());
     this.observer.observe(this, { childList: true });
   }
 
@@ -74,28 +74,46 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
     this.observer?.disconnect();
   }
 
-  /** Turn `<nx-tab title="…">content</nx-tab>` children into tabs. */
-  private adoptTabElements(): void {
-    const fresh = Array.from(this.children).filter(el => el.tagName === 'NX-TAB' && !el.slot) as HTMLElement[];
-    if (!fresh.length) return;
-    const tabs = [...this.getState<TabConfig[]>('tabs', [])];
-    fresh.forEach(el => {
-      const title = el.getAttribute('title') ?? el.getAttribute('label') ?? '';
-      el.removeAttribute('title'); // no native tooltip over the whole tab body
-      const tab: TabConfig = {
-        id: el.id || `t${++tabSeq}`,
-        title,
-        icon: el.getAttribute('icon') ?? undefined,
-        closable: el.hasAttribute('closable') && el.getAttribute('closable') !== 'false',
-        disabled: el.hasAttribute('disabled') && el.getAttribute('disabled') !== 'false'
-      };
-      el.slot = `tab-${tab.id}`;
-      tabs.push(tab);
+  private tabElements(): HTMLElement[] {
+    return Array.from(this.children).filter(el => el.tagName === 'NX-TAB') as HTMLElement[];
+  }
+
+  /**
+   * Tabs are the `<nx-tab>` children — the DOM is the source of truth, so
+   * server-rendered HTML (SSR/SSG, template engines) hydrates without extra state.
+   */
+  private syncTabs(): void {
+    const els = this.tabElements();
+    const previous = this.getState<TabConfig[]>('tabs', []);
+    const previousActiveId = previous[this.getState('activeTab', 0)]?.id;
+
+    const tabs: TabConfig[] = els.map(el => {
+      // title → label: keeps the text in the markup without a native tooltip over the body
+      if (el.hasAttribute('title')) {
+        el.setAttribute('label', el.getAttribute('title')!);
+        el.removeAttribute('title');
+      }
+      const id = el.slot.startsWith('tab-') ? el.slot.slice(4) : el.id || `t${++tabSeq}`;
+      el.slot = `tab-${id}`;
+      const flag = (name: string) => el.hasAttribute(name) && el.getAttribute(name) !== 'false';
+      return { id, title: el.getAttribute('label') ?? '', icon: el.getAttribute('icon') ?? undefined, closable: flag('closable'), disabled: flag('disabled') };
     });
-    this.setState('tabs', tabs);
-    if (fresh.some(el => el.hasAttribute('active'))) {
-      this.setState('activeTab', tabs.findIndex(t => t.id && this.querySelector(`:scope > [slot="tab-${t.id}"][active]`)));
-    }
+
+    const unchanged = tabs.length === previous.length && tabs.every((t, i) =>
+      t.id === previous[i].id && t.title === previous[i].title && t.icon === previous[i].icon &&
+      t.closable === previous[i].closable && t.disabled === previous[i].disabled);
+    if (unchanged) return;
+
+    let activeTab = tabs.findIndex(t => t.id === previousActiveId);
+    if (activeTab < 0) activeTab = els.findIndex(el => el.hasAttribute('active'));
+    this.updateState({ tabs, activeTab: Math.max(0, Math.min(activeTab, tabs.length - 1)) });
+    this.reflectActive();
+  }
+
+  /** Mirror the active tab onto its element, so serialized HTML remembers it. */
+  private reflectActive(): void {
+    const active = this.getState('activeTab', 0);
+    this.tabElements().forEach((el, i) => el.toggleAttribute('active', i === active));
   }
 
   applyItems(items: ItemConfig[]): void {
@@ -106,35 +124,37 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
     });
   }
 
-  /** Replace all tabs (static tab definitions, no child components). */
-  setTabs(tabs: TabConfig[]): void {
-    Array.from(this.children).forEach(child => child.slot.startsWith('tab-') && child.remove());
-    this.setState('tabs', tabs.map(tab => ({ ...tab, id: tab.id ?? `t${++tabSeq}` })));
+  /** Replace all tabs. */
+  setTabs(tabs: Array<ComponentConfig & TabConfig>): void {
+    this.tabElements().forEach(el => el.remove());
+    tabs.forEach(tab => this.addTab(tab, false));
   }
 
   /**
    * Add a tab. Accepts the same shape as an item: tab keys plus any component config for its body.
+   * It becomes an `<nx-tab>` child, exactly like writing one in JSX or HTML.
    */
   addTab(config: ComponentConfig & TabConfig, activate = true): void {
-    const tab: TabConfig = { title: config.title, id: config.id ?? `t${++tabSeq}` };
+    const tab = document.createElement('nx-tab');
     const body: ComponentConfig = {};
     Object.entries(config).forEach(([key, value]) => {
-      if ((TAB_KEYS as readonly string[]).includes(key)) (tab as any)[key] = value;
-      else body[key] = value;
+      if (!(TAB_KEYS as readonly string[]).includes(key)) body[key] = value;
     });
-    tab.id ??= `t${++tabSeq}`;
 
+    tab.setAttribute('label', config.title ?? '');
+    if (config.id) tab.id = config.id;
+    if (config.icon) tab.setAttribute('icon', config.icon);
+    if (config.closable) tab.setAttribute('closable', '');
+    if (config.disabled) tab.setAttribute('disabled', '');
+    if (config.content) tab.innerHTML = config.content;
     if (Object.keys(body).length) {
       const element = ComponentRegistry.build(body.xtype ? body : { xtype: 'container', ...body });
-      if (element) {
-        element.slot = `tab-${tab.id}`;
-        this.appendChild(element);
-      }
+      if (element) tab.appendChild(element);
     }
 
-    const tabs = [...this.getState<TabConfig[]>('tabs', []), tab];
-    this.setState('tabs', tabs);
-    if (activate) this.setState('activeTab', tabs.length - 1);
+    this.appendChild(tab);
+    this.syncTabs();
+    if (activate) this.selectTab(this.getState<TabConfig[]>('tabs', []).length - 1);
   }
 
   protected render(): Node {
@@ -180,7 +200,6 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
           {tabs.map((tab, index) => (
             <div class={['nx-tab-panel', { active: index === activeTab }]} part="panel" role="tabpanel"
                  id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={index !== activeTab}>
-              {tab.content && <div html={tab.content} />}
               <slot name={`tab-${tab.id}`} />
             </div>
           ))}
@@ -412,6 +431,7 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
     const tabs = this.getState<TabConfig[]>('tabs', []);
     if (index >= 0 && index < tabs.length && !tabs[index].disabled && index !== this.getActiveTab()) {
       this.setState('activeTab', index);
+      this.reflectActive();
       this.emit('tab-change', { index, tab: tabs[index] });
     }
   }
@@ -431,6 +451,7 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
       tabs,
       activeTab: activeTab > index || activeTab >= tabs.length ? Math.max(0, activeTab - 1) : activeTab
     });
+    this.reflectActive();
   }
 
   protected onAttributeChange(name: string, _oldValue: string | null, newValue: string | null): void {

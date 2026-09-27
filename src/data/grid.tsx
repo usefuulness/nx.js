@@ -90,7 +90,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   static get observedAttributes(): string[] {
     return [
       'title', 'search', 'striped', 'hoverable', 'dense', 'bordered',
-      'selectable', 'checkbox-selection', 'page-size', 'empty-text'
+      'selectable', 'checkbox-selection', 'page-size', 'empty-text', 'store'
     ];
   }
 
@@ -124,6 +124,11 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
   setData(data: T[]): void {
     this.setRowsInternal(data);
+  }
+
+  protected onAttributeChange(name: string, _old: string | null, value: string | null): void {
+    // <nx-grid store="users"> from HTML / template engines
+    if (name === 'store' && value) this.setStore(value);
   }
 
   setStore(store: string | Store<T>): void {

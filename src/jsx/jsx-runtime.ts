@@ -26,8 +26,10 @@
  * - Function components are plain functions `(props) => JSX`.
  * - `ref={el => …}` or `ref={{ current: null }}` gives you the element.
  */
-import { BaseComponent, applyStyle, eventName } from '@/components/abstracts/base';
-import { ComponentRegistry } from '@/core/registry';
+// DOM-free imports only: this module loads first in every .tsx file (see dom-utils)
+import { NX_COMPONENT, applyStyle, eventName, hooks } from '@/core/dom-utils';
+
+type ConfigurableElement = HTMLElement & { configure(config: Record<string, any>): unknown };
 
 export type Child = Node | string | number | bigint | boolean | null | undefined | Child[];
 export type ClassValue = string | number | null | undefined | false | ClassValue[] | Record<string, unknown>;
@@ -127,7 +129,7 @@ function applyDomProps(el: HTMLElement | SVGElement, props: Record<string, any>,
 }
 
 /** Apply props to a Nexaro component (same semantics as `{ xtype }` configs). */
-function applyComponentProps(el: BaseComponent, props: Record<string, any>): void {
+function applyComponentProps(el: ConfigurableElement, props: Record<string, any>): void {
   const config: Record<string, any> = {};
   for (const [key, value] of Object.entries(props)) {
     if (RESERVED.has(key) || key === 'items') continue;
@@ -135,7 +137,7 @@ function applyComponentProps(el: BaseComponent, props: Record<string, any>): voi
     else config[key] = value;
   }
   el.configure(config);
-  if (Array.isArray(props.items)) ComponentRegistry.appendItems(el, props.items);
+  if (Array.isArray(props.items)) hooks.appendItems?.(el, props.items);
 }
 
 function create(type: any, props: Record<string, any>): Node {
@@ -162,8 +164,8 @@ function create(type: any, props: Record<string, any>): Node {
     el = SVG_TAGS.has(tag) ? document.createElementNS(SVG_NS, tag) : document.createElement(tag);
   }
 
-  if (el instanceof BaseComponent) {
-    applyComponentProps(el, props);
+  if ((el as any)[NX_COMPONENT]) {
+    applyComponentProps(el as ConfigurableElement, props);
   } else {
     applyDomProps(el as HTMLElement, props, el.namespaceURI === SVG_NS);
   }

@@ -73,6 +73,14 @@ export class NXCheckbox extends NXField {
     return false;
   }
 
+  protected initialize(): void {
+    if (this.serverState?.checked !== undefined) {
+      this.isChecked = this.serverState.checked;
+      this.serverState = null;
+    }
+    super.initialize();
+  }
+
   reset(): void {
     super.reset();
     this.checked = false;

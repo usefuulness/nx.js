@@ -41,8 +41,6 @@ export class NXAccordion extends BaseComponent {
     return ['multiple', 'collapsible'];
   }
 
-  private items: Array<AccordionItem & { id: string }> = [];
-  private expanded = new Set<string>();
   private observer: MutationObserver | null = null;
 
   constructor() {
@@ -52,57 +50,61 @@ export class NXAccordion extends BaseComponent {
 
   protected initializeState(): void {}
 
+  /**
+   * Sections are the `<nx-accordion-item>` children and their `expanded`
+   * attribute is the open state — the DOM is the source of truth, so
+   * server-rendered HTML (SSR/SSG, template engines) hydrates as-is.
+   */
+  private sections(): Array<{ id: string; el: HTMLElement; title: string; disabled: boolean; expanded: boolean }> {
+    return (Array.from(this.children).filter(el => el.tagName === 'NX-ACCORDION-ITEM') as HTMLElement[]).map(el => {
+      // title → label: keeps the text in the markup without a native tooltip over the section
+      if (el.hasAttribute('title')) {
+        el.setAttribute('label', el.getAttribute('title')!);
+        el.removeAttribute('title');
+      }
+      const id = el.slot.startsWith('item-') ? el.slot.slice(5) : el.id || `a${++seq}`;
+      if (el.slot !== `item-${id}`) el.slot = `item-${id}`;
+      const flag = (name: string) => el.hasAttribute(name) && el.getAttribute(name) !== 'false';
+      return { id, el, title: el.getAttribute('label') ?? '', disabled: flag('disabled'), expanded: flag('expanded') };
+    });
+  }
+
+  /** Replace the sections from data. `content` is trusted HTML. */
   setItems(items: AccordionItem[]): void {
-    // Sections that come from <nx-accordion-item> children stay; data items are replaced
-    const fromData = items.map(item => ({ ...item, id: item.id ?? `a${++seq}` }));
-    this.items = [...this.items.filter(item => this.slotFor(item.id)), ...fromData];
-    fromData.forEach(item => item.expanded && this.expanded.add(item.id));
+    this.sections().forEach(section => section.el.remove());
+    items.forEach(item => {
+      const el = document.createElement('nx-accordion-item');
+      el.setAttribute('label', item.title);
+      if (item.id) el.id = item.id;
+      if (item.expanded) el.setAttribute('expanded', '');
+      if (item.disabled) el.setAttribute('disabled', '');
+      if (item.content) el.innerHTML = item.content;
+      this.appendChild(el);
+    });
     this.scheduleUpdate();
   }
 
-  private slotFor(id: string): Element | null {
-    return this.querySelector(`:scope > [slot="item-${id}"]`);
-  }
-
-  protected initialize(): void {
-    this.adoptItemElements();
-    super.initialize();
-  }
-
   protected afterConnect(): void {
-    this.observer ??= new MutationObserver(() => this.adoptItemElements());
-    this.observer.observe(this, { childList: true });
+    this.observer ??= new MutationObserver(() => this.scheduleUpdate());
+    this.observer.observe(this, { childList: true, subtree: true, attributeFilter: ['expanded', 'label', 'title', 'disabled'] });
   }
 
   protected beforeDisconnect(): void {
     this.observer?.disconnect();
   }
 
-  /** `<nx-accordion-item title="…">content</nx-accordion-item>` children become sections. */
-  private adoptItemElements(): void {
-    const fresh = Array.from(this.children).filter(el => el.tagName === 'NX-ACCORDION-ITEM' && !el.slot) as HTMLElement[];
-    if (!fresh.length) return;
-    fresh.forEach(el => {
-      const id = el.id || `a${++seq}`;
-      const item: AccordionItem = {
-        id,
-        title: el.getAttribute('title') ?? '',
-        disabled: el.hasAttribute('disabled') && el.getAttribute('disabled') !== 'false'
-      };
-      el.removeAttribute('title'); // no native tooltip over the whole section
-      el.slot = `item-${id}`;
-      if (el.hasAttribute('expanded') && el.getAttribute('expanded') !== 'false') this.expanded.add(id);
-      this.items.push({ ...item, id });
-    });
+  private setExpanded(id: string, expanded: boolean): void {
+    this.sections().find(s => s.id === id)?.el.toggleAttribute('expanded', expanded);
     this.scheduleUpdate();
   }
 
   private toggleItem(id: string): void {
-    const open = this.expanded.has(id);
+    const section = this.sections().find(s => s.id === id);
+    if (!section) return;
+    const open = section.expanded;
     if (open && !this.getProp('collapsible', true)) return;
-    if (!open && !this.getProp('multiple', false)) this.expanded.clear();
-    open ? this.expanded.delete(id) : this.expanded.add(id);
-    this.scheduleUpdate();
+    if (!open && !this.getProp('multiple', false)) this.sections().forEach(s => s.el.removeAttribute('expanded'));
+    this.setExpanded(id, !open);
     this.emit('toggle', { itemId: id, expanded: !open });
   }
 
@@ -119,9 +121,9 @@ export class NXAccordion extends BaseComponent {
   protected render(): Node {
     return (
       <div class="accordion" part="container" onKeyDown={(e: KeyboardEvent) => this.onKeyDown(e)}>
-        {this.items.map(item => {
+        {this.sections().map(item => {
           const id = item.id;
-          const open = this.expanded.has(id);
+          const open = item.expanded;
           return (
             <div class={['item', { open, disabled: item.disabled }]} part="item">
               <h3 class="heading">
@@ -133,7 +135,6 @@ export class NXAccordion extends BaseComponent {
               </h3>
               <div class="panel" part="content" id={`c-${id}`} role="region" aria-labelledby={`h-${id}`} hidden={!open}>
                 <div class="body" part="body">
-                  {item.content && <div html={item.content} />}
                   <slot name={`item-${id}`} />
                 </div>
               </div>
@@ -194,23 +195,21 @@ export class NXAccordion extends BaseComponent {
   }
 
   expand(itemId: string): void {
-    if (!this.getProp('multiple', false)) this.expanded.clear();
-    this.expanded.add(itemId);
-    this.scheduleUpdate();
+    if (!this.getProp('multiple', false)) this.sections().forEach(s => s.el.removeAttribute('expanded'));
+    this.setExpanded(itemId, true);
   }
 
   collapse(itemId: string): void {
-    this.expanded.delete(itemId);
-    this.scheduleUpdate();
+    this.setExpanded(itemId, false);
   }
 
   expandAll(): void {
-    this.items.forEach(item => this.expanded.add(item.id));
+    this.sections().forEach(s => s.el.setAttribute('expanded', ''));
     this.scheduleUpdate();
   }
 
   collapseAll(): void {
-    this.expanded.clear();
+    this.sections().forEach(s => s.el.removeAttribute('expanded'));
     this.scheduleUpdate();
   }
 }

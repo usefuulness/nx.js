@@ -1,4 +1,5 @@
 import { BaseComponent, eventName, toKebab } from '@/components/abstracts/base';
+import { hooks } from '@/core/dom-utils';
 
 /**
  * A declarative component config. `xtype` picks the component
@@ -416,3 +417,6 @@ function applyToElement(element: HTMLElement, config: Record<string, any>): void
     }
   });
 }
+
+// Lets the (DOM-free) JSX runtime build `items` without importing the registry
+hooks.appendItems = (container, items) => ComponentRegistry.appendItems(container, items);

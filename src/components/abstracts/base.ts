@@ -15,92 +15,9 @@ export const ComponentState = Symbol('ComponentState');
  */
 export const ComponentProps = Symbol('ComponentProps');
 
-/**
- * `pageSize` → `page-size`. Already-kebab names pass through unchanged.
- */
-export function toKebab(name: string): string {
-  return name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
-}
+import { ATTRIBUTE_NAMES, HOST_KEYS, NX_COMPONENT, applyStyle, escapeHTML, eventName, toKebab } from '@/core/dom-utils';
 
-/**
- * Native event names, read from the platform (`onkeydown` → `keydown`, `ontimeupdate`, …).
- * `selectionchange` is excluded: `onSelectionChange` means the grid's `selection-change`.
- */
-const NATIVE_EVENTS: Set<string> = (() => {
-  const names = new Set<string>();
-  const collect = (obj: object | null) => {
-    for (let o = obj; o && o !== Object.prototype; o = Object.getPrototypeOf(o)) {
-      Object.getOwnPropertyNames(o).forEach(k => k.startsWith('on') && names.add(k.slice(2)));
-    }
-  };
-  if (typeof HTMLElement !== 'undefined') collect(HTMLElement.prototype);
-  if (typeof Document !== 'undefined') collect(Document.prototype);
-  if (typeof window !== 'undefined') collect(window);
-  // Common events some engines don't expose as on* properties
-  ['focusin', 'focusout', 'dblclick', 'beforeinput', 'compositionstart', 'compositionend', 'compositionupdate']
-    .forEach(n => names.add(n));
-  names.delete('selectionchange');
-  return names;
-})();
-
-/**
- * Event name for an `onXxx` prop, shared by configs and JSX:
- * native events are lowercased (`onKeyDown` → `keydown`, `onTimeUpdate` → `timeupdate`),
- * everything else is kebab-cased (`onTabChange` → `tab-change`, `onRowClick` → `row-click`).
- */
-export function eventName(prop: string): string {
-  const name = prop.replace(/^on/, '');
-  const lower = name.toLowerCase();
-  return NATIVE_EVENTS.has(lower) ? lower : toKebab(name);
-}
-
-const UNITLESS = /^(flex|flexGrow|flexShrink|opacity|zIndex|order|fontWeight|lineHeight|zoom|gridRow|gridColumn|columnCount|scale)$/;
-
-/**
- * Apply a style string or object to an element: camelCase properties
- * (numbers get `px` where it makes sense) and `--custom-properties`.
- * Shared by configs and the JSX runtime.
- */
-export function applyStyle(el: HTMLElement | SVGElement, value: unknown, replace = false): void {
-  if (typeof value === 'string') {
-    if (replace) el.setAttribute('style', value);
-    else el.style.cssText += `;${value}`;
-  } else if (value && typeof value === 'object') {
-    Object.entries(value as Record<string, unknown>).forEach(([key, v]) => {
-      if (v === null || v === undefined || v === false) return;
-      if (key.startsWith('--')) el.style.setProperty(key, String(v));
-      else (el.style as any)[key] = typeof v === 'number' && !UNITLESS.test(key) ? `${v}px` : String(v);
-    });
-  }
-}
-
-/** camelCase DOM props whose attribute isn't the kebab-case of the name. */
-const ATTRIBUTE_NAMES: Record<string, string> = {
-  tabIndex: 'tabindex',
-  htmlFor: 'for',
-  readOnly: 'readonly',
-  maxLength: 'maxlength',
-  minLength: 'minlength',
-  autoComplete: 'autocomplete',
-  autoFocus: 'autofocus',
-  spellCheck: 'spellcheck',
-  contentEditable: 'contenteditable',
-  accessKey: 'accesskey',
-  inputMode: 'inputmode',
-  enterKeyHint: 'enterkeyhint'
-};
-
-/**
- * Escape a value for safe interpolation into a template string.
- */
-export function escapeHTML(value: unknown): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+export { applyStyle, escapeHTML, eventName, toKebab };
 
 /**
  * Styles shared by every component's shadow root.
@@ -181,6 +98,17 @@ export interface ComponentConfig {
  * ```
  */
 export abstract class BaseComponent extends HTMLElement implements ComponentLifecycle {
+  /** Brand checked by the JSX runtime (which can't import this class) */
+  declare readonly [NX_COMPONENT]: true;
+
+  /** Options passed to attachShadow() — server rendering writes them back out */
+  shadowInit: ShadowRootInit | null = null;
+
+  attachShadow(init: ShadowRootInit): ShadowRoot {
+    this.shadowInit = init;
+    return super.attachShadow(init);
+  }
+
   /**
    * Internal state management instance.
    * @private
@@ -254,6 +182,7 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
   connectedCallback(): void {
     if (!this.initialized) {
       this.initialized = true;
+      this.hydrateFromMarkup();
       this.initialize();
     } else if (this.shadow) {
       // Moved in the DOM: disconnect removed the listeners afterRender() set up
@@ -633,9 +562,86 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
    * ```
    */
   public configure(config: Record<string, any>): this {
-    Object.entries(config).forEach(([key, value]) => this.applyConfig(key, value));
+    Object.entries(config).forEach(([key, value]) => {
+      this.applyConfig(key, value);
+      this.recordConfig(key, value);
+    });
     this.scheduleUpdate();
     return this;
+  }
+
+  // ────────── Server rendering / hydration ──────────
+
+  /** Config that isn't reflected in attributes or light DOM (rich props, setter data). */
+  private configRecord: Record<string, unknown> = {};
+
+  private recordConfig(key: string, value: unknown): void {
+    if (HOST_KEYS.has(key)) return;
+    const attr = ATTRIBUTE_NAMES[key] ?? toKebab(key);
+    const primitive = value === null || ['string', 'number', 'boolean', 'undefined'].includes(typeof value);
+    if (value === undefined || (primitive && value !== false && this.hasAttribute(attr) && key !== 'title')) {
+      delete this.configRecord[key];
+    } else {
+      this.configRecord[key] = value;
+    }
+  }
+
+  /**
+   * The config needed to recreate this component from its HTML, as JSON — used by
+   * server rendering, which writes it into a `<script type="application/json" data-nx-config>`
+   * child. Functions can't be serialized; their paths are reported in `dropped`.
+   * @internal
+   */
+  serializeConfig(): { json: string | null; dropped: string[] } {
+    const dropped: string[] = [];
+    const data: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(this.configRecord)) {
+      if (typeof value === 'function') {
+        dropped.push(key);
+        continue;
+      }
+      data[key] = value;
+    }
+    if (!Object.keys(data).length) return { json: null, dropped };
+    const json = JSON.stringify(data, function (k: string, v: unknown) {
+      if (typeof v === 'function') {
+        dropped.push(k);
+        return undefined;
+      }
+      return v;
+    });
+    // Safe inside <script>: no "</script>" or "<!--" can appear
+    return { json: json.replace(/</g, '\\u003c'), dropped };
+  }
+
+  /**
+   * Apply config carried in the HTML: a `<script type="application/json" data-nx-config>`
+   * child (written by server rendering, or by hand in any template engine) and JSON
+   * attributes for props that have a setter (`<nx-grid columns='[…]' data='[…]'>`).
+   */
+  private hydrateFromMarkup(): void {
+    const script = this.querySelector(':scope > script[type="application/json"][data-nx-config]');
+    if (script) {
+      try {
+        this.configure(JSON.parse(script.textContent || '{}'));
+      } catch (error) {
+        console.error(`[nx] Invalid JSON in <${this.localName}> data-nx-config`, error);
+      }
+      script.remove();
+    }
+
+    Array.from(this.attributes).forEach(({ name, value }) => {
+      const trimmed = value.trim();
+      if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) return;
+      const camel = name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+      const setter = (this as any)[`set${camel.charAt(0).toUpperCase()}${camel.slice(1)}`];
+      if (typeof setter !== 'function') return;
+      try {
+        setter.call(this, JSON.parse(trimmed));
+      } catch {
+        // not JSON after all: leave it to getProp()
+      }
+    });
   }
 
   /**
@@ -1087,3 +1093,5 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
     }
   }
 }
+
+(BaseComponent.prototype as any)[NX_COMPONENT] = true;

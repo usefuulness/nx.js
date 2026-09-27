@@ -172,10 +172,12 @@ export class ThemeManager {
     if (this.initialized) return;
     this.initialized = true;
 
-    // Saved choice, else the app default, else the OS preference
+    // Saved choice, else a theme the server rendered (<html data-theme>), else the app default, else the OS
     const savedTheme = this.saved();
+    const serverTheme = this.root.getAttribute('data-theme');
     const systemTheme = this.mediaQuery.matches ? 'dark' : 'light';
-    this.setTheme(savedTheme && this.themes.has(savedTheme) ? savedTheme : this.defaultTheme ?? systemTheme, { persist: false });
+    const pick = [savedTheme, serverTheme, this.defaultTheme, systemTheme].find(t => t && this.themes.has(t))!;
+    this.setTheme(pick, { persist: false });
 
     // Follow OS changes until the user picks a theme
     this.mediaQuery.addEventListener('change', (e) => {
@@ -198,10 +200,13 @@ export class ThemeManager {
 
   private static saved(): string | null {
     try {
-      return localStorage.getItem('nx-theme');
+      const stored = localStorage.getItem('nx-theme');
+      if (stored) return stored;
     } catch {
-      return null;
+      // storage unavailable
     }
+    const cookie = typeof document !== 'undefined' ? document.cookie.match(/(?:^|; )nx-theme=([^;]+)/) : null;
+    return cookie ? decodeURIComponent(cookie[1]) : null;
   }
 
   /**
@@ -231,6 +236,8 @@ export class ThemeManager {
       } catch {
         // storage unavailable (private mode, sandboxed iframe)
       }
+      // A cookie too, so servers can render the right theme (<html data-theme>) with no flash
+      document.cookie = `nx-theme=${encodeURIComponent(themeName)}; path=/; max-age=31536000; SameSite=Lax`;
     }
     
     // Notify listeners
@@ -241,103 +248,95 @@ export class ThemeManager {
    * Apply theme to DOM
    */
   private static applyTheme(theme: ThemeConfig): void {
-    // Set theme attribute
     this.root.setAttribute('data-theme', theme.name);
+    Object.entries(this.variables(theme)).forEach(([name, value]) => this.root.style.setProperty(name, value));
+    this.root.style.colorScheme = isDarkColor(theme.colors.background) ? 'dark' : 'light';
+    this.applyBaseStyles();
+  }
 
-    // Apply colors
-    Object.entries(theme.colors).forEach(([key, value]) => {
-      const cssVar = `--color-${this.kebabCase(key)}`;
-      this.root.style.setProperty(cssVar, value);
-    });
+  /**
+   * Every CSS custom property a theme defines (colors, radius, shadows, font, custom).
+   * Pure: used both to apply a theme in the browser and to generate `nx.css`.
+   */
+  static variables(theme: ThemeConfig): Record<string, string> {
+    const vars: Record<string, string> = {};
+    Object.entries(theme.colors).forEach(([key, value]) => (vars[`--color-${this.kebabCase(key)}`] = value));
+    const spacing = theme.spacing ?? { xs: '0.25rem', sm: '0.5rem', md: '1rem', lg: '1.5rem', xl: '2rem' };
+    const radius = theme.radius ?? { sm: '0.375rem', md: '0.5rem', lg: '0.75rem', xl: '1rem', full: '9999px' };
+    const shadow = theme.shadow ?? {
+      sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+      md: '0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06)',
+      lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.08)',
+      xl: '0 20px 25px -5px rgb(0 0 0 / 0.12), 0 8px 10px -6px rgb(0 0 0 / 0.08)'
+    };
+    Object.entries(spacing).forEach(([k, v]) => (vars[`--spacing-${k}`] = v));
+    Object.entries(radius).forEach(([k, v]) => (vars[`--radius-${k}`] = v));
+    Object.entries(shadow).forEach(([k, v]) => (vars[`--shadow-${k}`] = v));
+    vars['--backdrop-bg'] = `rgb(0 0 0 / ${isDarkColor(theme.colors.background) ? '0.7' : '0.5'})`;
+    if (theme.fontFamily) vars['--font-family'] = theme.fontFamily;
+    Object.assign(vars, theme.customProperties ?? {});
+    return vars;
+  }
 
-    // Apply spacing
-    if (theme.spacing) {
-      Object.entries(theme.spacing).forEach(([key, value]) => {
-        this.root.style.setProperty(`--spacing-${key}`, value);
-      });
-    } else {
-      // Default spacing
-      this.root.style.setProperty('--spacing-xs', '0.25rem');
-      this.root.style.setProperty('--spacing-sm', '0.5rem');
-      this.root.style.setProperty('--spacing-md', '1rem');
-      this.root.style.setProperty('--spacing-lg', '1.5rem');
-      this.root.style.setProperty('--spacing-xl', '2rem');
+  /**
+   * A complete static stylesheet: base styles, token aliases and every registered
+   * theme under `:root[data-theme="…"]` (no `data-theme` = light, or dark via
+   * `prefers-color-scheme`). Serve it as `nx.css` so server-rendered pages
+   * (SSR/SSG, other template engines) are themed before any JavaScript runs.
+   */
+  static stylesheet(options: { hideUndefined?: boolean } = {}): string {
+    const block = (selector: string, theme: ThemeConfig) => {
+      const vars = Object.entries(this.variables(theme)).map(([k, v]) => `  ${k}: ${v};`).join('\n');
+      return `${selector} {\n  color-scheme: ${isDarkColor(theme.colors.background) ? 'dark' : 'light'};\n${vars}\n}`;
+    };
+    const light = this.themes.get('light')!;
+    const dark = this.themes.get('dark')!;
+    const parts = [
+      '/* Nexaro — generated by ThemeManager.stylesheet() */',
+      this.baseStyles(),
+      block(':root:not([data-theme])', light),
+      `@media (prefers-color-scheme: dark) {\n${block(':root:not([data-theme])', dark)}\n}`,
+      ...Array.from(this.themes.values()).map(theme => block(`:root[data-theme="${theme.name}"]`, theme))
+    ];
+    if (options.hideUndefined !== false && typeof customElements !== 'undefined') {
+      // Until the script defines them, hide components that weren't server-rendered
+      // (server-rendered ones carry [nx-ssr] and already have their shadow DOM)
+      const tags = this.componentTags();
+      if (tags.length) parts.push(`:is(${tags.join(', ')}):not(:defined):not([nx-ssr]) { visibility: hidden; }`);
     }
+    return parts.join('\n\n');
+  }
 
-    // Apply radius
-    if (theme.radius) {
-      Object.entries(theme.radius).forEach(([key, value]) => {
-        this.root.style.setProperty(`--radius-${key}`, value);
-      });
-    } else {
-      // Default radius
-      this.root.style.setProperty('--radius-sm', '0.375rem');
-      this.root.style.setProperty('--radius-md', '0.5rem');
-      this.root.style.setProperty('--radius-lg', '0.75rem');
-      this.root.style.setProperty('--radius-xl', '1rem');
-      this.root.style.setProperty('--radius-full', '9999px');
-    }
-
-    // Apply shadows
-    if (theme.shadow) {
-      Object.entries(theme.shadow).forEach(([key, value]) => {
-        this.root.style.setProperty(`--shadow-${key}`, value);
-      });
-    } else {
-      // Default shadows
-      this.root.style.setProperty('--shadow-sm', '0 1px 2px 0 rgb(0 0 0 / 0.05)');
-      this.root.style.setProperty('--shadow-md', '0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06)');
-      this.root.style.setProperty('--shadow-lg', '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.08)');
-      this.root.style.setProperty('--shadow-xl', '0 20px 25px -5px rgb(0 0 0 / 0.12), 0 8px 10px -6px rgb(0 0 0 / 0.08)');
-    }
-
-    // Apply font family
-    if (theme.fontFamily) {
-      this.root.style.setProperty('--font-family', theme.fontFamily);
-    }
-
-    // Apply custom properties
-    if (theme.customProperties) {
-      Object.entries(theme.customProperties).forEach(([key, value]) => {
-        this.root.style.setProperty(key, value);
-      });
-    }
-
-    // Apply additional theme-specific styles
-    this.applyThemeStyles(theme.name);
+  private static componentTags(): string[] {
+    // Registered Nexaro elements (the registry keeps no list, so probe the known prefix)
+    const known = ['nx-accordion', 'nx-badge', 'nx-breadcrumb', 'nx-button', 'nx-card', 'nx-checkbox', 'nx-container',
+      'nx-data-table', 'nx-drawer', 'nx-form', 'nx-grid', 'nx-loader', 'nx-menu', 'nx-menubar', 'nx-modal', 'nx-panel',
+      'nx-progress', 'nx-select', 'nx-skeleton', 'nx-spinner', 'nx-tabpanel', 'nx-textfield', 'nx-toast', 'nx-toolbar',
+      'nx-tree', 'nx-viewport'];
+    return known.filter(tag => customElements.get(tag));
   }
 
   /**
    * Apply theme-specific styles
    */
-  private static applyThemeStyles(themeName: string): void {
-    // Remove existing theme styles
-    const existingStyle = document.getElementById('nx-theme-styles');
-    if (existingStyle) {
-      existingStyle.remove();
-    }
-
-    // Add new theme styles
+  private static applyBaseStyles(): void {
+    if (document.getElementById('nx-theme-styles')) return;
     const style = document.createElement('style');
     style.id = 'nx-theme-styles';
-    
-    const styles = this.getThemeStyles(themeName);
-    style.textContent = styles;
-    
+    style.textContent = this.baseStyles();
     document.head.appendChild(style);
   }
 
   /**
    * Get theme-specific CSS
    */
-  private static getThemeStyles(themeName: string): string {
-    const isDark = isDarkColor(this.themes.get(themeName)?.colors.background ?? '#ffffff');
+  /** Theme-independent base styles and token aliases. */
+  static baseStyles(): string {
 
     return `
       /* Design tokens: component-facing aliases of the theme colors.
          :where() keeps specificity at zero so apps can override anything. */
       :where(:root) {
-        color-scheme: ${isDark ? 'dark' : 'light'};
         --font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         --transition-duration: 150ms;
@@ -360,7 +359,6 @@ export class ThemeManager {
         --active-bg: var(--color-muted);
         --selected-bg: var(--color-accent);
         --selected-color: var(--color-text);
-        --backdrop-bg: rgb(0 0 0 / ${isDark ? '0.7' : '0.5'});
         --modal-bg: var(--color-surface);
         --modal-shadow: var(--shadow-xl);
         --drawer-bg: var(--color-surface);

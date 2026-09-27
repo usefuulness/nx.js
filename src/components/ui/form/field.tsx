@@ -32,8 +32,16 @@ export abstract class NXField extends BaseComponent {
   protected touched = false;
   protected readonly fieldId = `f${++fieldSeq}`;
 
+  /** What the user typed into server-rendered HTML before this element upgraded. */
+  protected serverState: { value?: string; checked?: boolean } | null = null;
+
   constructor() {
     super();
+    // A declarative shadow root (server rendering) is readable until attachShadow() clears it
+    const ssrControl = this.shadowRoot?.querySelector('input, select, textarea') as HTMLInputElement | null;
+    if (ssrControl) {
+      this.serverState = ssrControl.type === 'checkbox' ? { checked: ssrControl.checked } : { value: ssrControl.value };
+    }
     this.attachShadow({ mode: 'open', delegatesFocus: true });
     try {
       const internals = this.attachInternals();
@@ -45,6 +53,12 @@ export abstract class NXField extends BaseComponent {
   }
 
   protected initializeState(): void {}
+
+  protected initialize(): void {
+    // Keep input typed before hydration (it wins over the server-rendered value)
+    if (this.serverState?.value !== undefined) this.value = this.serverState.value;
+    super.initialize();
+  }
 
   /** Current value */
   abstract get value(): any;
