@@ -475,4 +475,4 @@ export const NX = {
 };
 
 // Handy in the console and for script-tag users
-(window as any).NX = NX;
+window.NX = NX;

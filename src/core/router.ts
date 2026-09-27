@@ -1,5 +1,5 @@
 // src/core/router.ts
-import { EventBus } from '@/core/zustand/event-bus';
+import { EventBus } from '@/core/events/event-bus';
 
 export interface RouteConfig {
   path: string;

@@ -1,17 +1,11 @@
 /// <reference types="vite/client" />
+import type { NX } from '@/app';
 
-// Extend global object for test environment
 declare global {
   interface Window {
-    NX: any;
-    fs: {
-      readFile: (filepath: string, options?: { encoding?: string }) => Promise<Uint8Array | string>;
-    };
+    /** Set by the library so script-tag users (UMD build) and the console can use it */
+    NX: typeof NX;
   }
-  
-  var requestAnimationFrame: (callback: FrameRequestCallback) => number;
-  var cancelAnimationFrame: (handle: number) => void;
 }
 
-// Make this file a module
 export {};

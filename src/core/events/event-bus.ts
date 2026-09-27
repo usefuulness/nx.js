@@ -1,5 +1,5 @@
 /**
- * @file @/core/zustand/event-bus.ts
+ * @file @/core/events/event-bus.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
 

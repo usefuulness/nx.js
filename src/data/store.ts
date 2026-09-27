@@ -1,4 +1,4 @@
-import { EventEmitter } from '@/core/zustand/event-emitter';
+import { EventEmitter } from '@/core/events/event-emitter';
 
 export interface StoreConfig<T = any> {
   data?: T[];
