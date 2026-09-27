@@ -26,7 +26,7 @@
  * - Function components are plain functions `(props) => JSX`.
  * - `ref={el => …}` or `ref={{ current: null }}` gives you the element.
  */
-import { BaseComponent, eventName } from '@/components/abstracts/base';
+import { BaseComponent, applyStyle, eventName } from '@/components/abstracts/base';
 import { ComponentRegistry } from '@/core/registry';
 
 export type Child = Node | string | number | bigint | boolean | null | undefined | Child[];
@@ -76,20 +76,6 @@ function appendChildren(parent: Node, children: Child): void {
   }
 }
 
-function setStyle(el: HTMLElement | SVGElement, value: unknown): void {
-  if (typeof value === 'string') {
-    el.setAttribute('style', value);
-  } else if (value && typeof value === 'object') {
-    Object.entries(value as Record<string, unknown>).forEach(([key, v]) => {
-      if (v === null || v === undefined || v === false) return;
-      if (key.startsWith('--')) el.style.setProperty(key, String(v));
-      else (el.style as any)[key] = typeof v === 'number' && !UNITLESS.test(key) ? `${v}px` : String(v);
-    });
-  }
-}
-
-const UNITLESS = /^(flex|flexGrow|flexShrink|opacity|zIndex|order|fontWeight|lineHeight|zoom|gridRow|gridColumn|columnCount|scale)$/;
-
 function setRef<T>(ref: Ref<T> | undefined, el: T): void {
   if (!ref) return;
   if (typeof ref === 'function') ref(el);
@@ -107,7 +93,7 @@ function applyDomProps(el: HTMLElement | SVGElement, props: Record<string, any>,
       continue;
     }
     if (key === 'style') {
-      setStyle(el, value);
+      applyStyle(el, value, true);
       continue;
     }
     if (key === 'html' || key === 'dangerouslySetInnerHTML') {

@@ -49,3 +49,18 @@ test('theme toggle switches and persists', async ({ page }) => {
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', after!);
 });
+
+test('menus inside a modal dialog are usable (not inert)', async ({ page }) => {
+  await page.goto('/#/components');
+  await page.evaluate(() => {
+    (window as any).picked = null;
+    (window as any).NX.dialog({
+      title: 'Dialog with a menu',
+      items: [{ xtype: 'menu', text: 'Choose', id: 'm-in-dialog', items: [{ text: 'Pick me', handler: () => ((window as any).picked = 'yes') }] }],
+      buttons: [{ text: 'Close' }]
+    });
+  });
+  await page.locator('#m-in-dialog').click();
+  await page.getByRole('menuitem', { name: 'Pick me' }).click();
+  expect(await page.evaluate(() => (window as any).picked)).toBe('yes');
+});

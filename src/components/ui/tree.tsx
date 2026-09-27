@@ -265,10 +265,19 @@ export class NXTree extends BaseComponent {
     `;
   }
 
+  /** Whether keyboard focus was inside the tree when the last render started. */
+  private hadFocus = false;
+
+  protected update(): void {
+    this.hadFocus = !!this.shadowRoot?.activeElement;
+    super.update();
+  }
+
   protected afterRender(): void {
-    // Expanding shifts positions, so restore focus by node id (not DOM path)
+    // Expanding shifts positions, so restore focus by node id (not DOM path) —
+    // but only if the tree had focus; never steal it from e.g. a filter input
     const focusId = this.getState<string | null>('focusId', null);
-    if (focusId !== null) {
+    if (focusId !== null && this.hadFocus) {
       const node = Array.from(this.$$('.nx-tree-node')).find(el => (el as HTMLElement).dataset.nodeId === focusId);
       (node?.querySelector(':scope > .nx-tree-node-content') as HTMLElement | null)?.focus();
     }

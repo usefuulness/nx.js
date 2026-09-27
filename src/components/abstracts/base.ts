@@ -22,26 +22,73 @@ export function toKebab(name: string): string {
   return name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
 }
 
-const NATIVE_MULTIWORD_EVENTS = new Set([
-  'keydown', 'keyup', 'keypress', 'dblclick', 'contextmenu', 'beforeinput',
-  'mousedown', 'mouseup', 'mousemove', 'mouseenter', 'mouseleave', 'mouseover', 'mouseout',
-  'pointerdown', 'pointerup', 'pointermove', 'pointerenter', 'pointerleave', 'pointerover', 'pointerout', 'pointercancel',
-  'touchstart', 'touchend', 'touchmove', 'touchcancel', 'focusin', 'focusout',
-  'dragstart', 'dragend', 'dragenter', 'dragleave', 'dragover',
-  'animationstart', 'animationend', 'animationiteration', 'transitionstart', 'transitionend', 'transitionrun',
-  'compositionstart', 'compositionend', 'compositionupdate', 'selectstart', 'toggle', 'beforetoggle'
-]);
+/**
+ * Native event names, read from the platform (`onkeydown` → `keydown`, `ontimeupdate`, …).
+ * `selectionchange` is excluded: `onSelectionChange` means the grid's `selection-change`.
+ */
+const NATIVE_EVENTS: Set<string> = (() => {
+  const names = new Set<string>();
+  const collect = (obj: object | null) => {
+    for (let o = obj; o && o !== Object.prototype; o = Object.getPrototypeOf(o)) {
+      Object.getOwnPropertyNames(o).forEach(k => k.startsWith('on') && names.add(k.slice(2)));
+    }
+  };
+  if (typeof HTMLElement !== 'undefined') collect(HTMLElement.prototype);
+  if (typeof Document !== 'undefined') collect(Document.prototype);
+  if (typeof window !== 'undefined') collect(window);
+  // Common events some engines don't expose as on* properties
+  ['focusin', 'focusout', 'dblclick', 'beforeinput', 'compositionstart', 'compositionend', 'compositionupdate']
+    .forEach(n => names.add(n));
+  names.delete('selectionchange');
+  return names;
+})();
 
 /**
  * Event name for an `onXxx` prop, shared by configs and JSX:
- * native events are lowercased (`onKeyDown` → `keydown`, `onDblClick` → `dblclick`),
- * everything else is kebab-cased (`onTabChange` → `tab-change`, `onClick` → `click`).
+ * native events are lowercased (`onKeyDown` → `keydown`, `onTimeUpdate` → `timeupdate`),
+ * everything else is kebab-cased (`onTabChange` → `tab-change`, `onRowClick` → `row-click`).
  */
 export function eventName(prop: string): string {
   const name = prop.replace(/^on/, '');
   const lower = name.toLowerCase();
-  return NATIVE_MULTIWORD_EVENTS.has(lower) ? lower : toKebab(name);
+  return NATIVE_EVENTS.has(lower) ? lower : toKebab(name);
 }
+
+const UNITLESS = /^(flex|flexGrow|flexShrink|opacity|zIndex|order|fontWeight|lineHeight|zoom|gridRow|gridColumn|columnCount|scale)$/;
+
+/**
+ * Apply a style string or object to an element: camelCase properties
+ * (numbers get `px` where it makes sense) and `--custom-properties`.
+ * Shared by configs and the JSX runtime.
+ */
+export function applyStyle(el: HTMLElement | SVGElement, value: unknown, replace = false): void {
+  if (typeof value === 'string') {
+    if (replace) el.setAttribute('style', value);
+    else el.style.cssText += `;${value}`;
+  } else if (value && typeof value === 'object') {
+    Object.entries(value as Record<string, unknown>).forEach(([key, v]) => {
+      if (v === null || v === undefined || v === false) return;
+      if (key.startsWith('--')) el.style.setProperty(key, String(v));
+      else (el.style as any)[key] = typeof v === 'number' && !UNITLESS.test(key) ? `${v}px` : String(v);
+    });
+  }
+}
+
+/** camelCase DOM props whose attribute isn't the kebab-case of the name. */
+const ATTRIBUTE_NAMES: Record<string, string> = {
+  tabIndex: 'tabindex',
+  htmlFor: 'for',
+  readOnly: 'readonly',
+  maxLength: 'maxlength',
+  minLength: 'minlength',
+  autoComplete: 'autocomplete',
+  autoFocus: 'autofocus',
+  spellCheck: 'spellcheck',
+  contentEditable: 'contenteditable',
+  accessKey: 'accesskey',
+  inputMode: 'inputmode',
+  enterKeyHint: 'enterkeyhint'
+};
 
 /**
  * Escape a value for safe interpolation into a template string.
@@ -208,8 +255,11 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
     if (!this.initialized) {
       this.initialized = true;
       this.initialize();
+    } else if (this.shadow) {
+      // Moved in the DOM: disconnect removed the listeners afterRender() set up
+      this.forceUpdate();
     }
-    
+
     this.afterConnect();
   }
 
@@ -476,7 +526,9 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
     if (attr !== null) {
       // Bare boolean attribute: <nx-button disabled>
       if (attr === '') {
-        return (typeof defaultValue === 'string' ? '' : true) as any;
+        // Bare boolean attribute (<nx-button disabled>) — only for boolean props;
+        // an empty placeholder/name/icon stays ''
+        return (typeof defaultValue === 'boolean' ? true : '') as any;
       }
 
       // Try to parse JSON for objects/arrays
@@ -617,8 +669,7 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
         this.classList.add(...String(value).split(/\s+/).filter(Boolean));
         return;
       case 'style':
-        if (typeof value === 'string') this.style.cssText += `;${value}`;
-        else Object.assign(this.style, value);
+        applyStyle(this, value);
         return;
       case 'flex':
         this.style.flex = String(value);
@@ -657,7 +708,7 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
 
     // `undefined` means "not set": clear it instead of passing it to a setter
     if (value === undefined) {
-      const attr = toKebab(key);
+      const attr = ATTRIBUTE_NAMES[key] ?? toKebab(key);
       this.removeAttribute(attr);
       this[ComponentProps].delete(attr);
       return;
@@ -670,7 +721,7 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
       return;
     }
 
-    const attr = toKebab(key);
+    const attr = ATTRIBUTE_NAMES[key] ?? toKebab(key);
     if (value === null || value === undefined) {
       this.removeAttribute(attr);
       this[ComponentProps].delete(attr);

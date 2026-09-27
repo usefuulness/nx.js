@@ -5,6 +5,7 @@
 import { BaseComponent } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
+import { Overlays } from '@/core/overlays';
 import { variants } from '@/core/variants';
 
 export interface DrawerConfig {
@@ -104,8 +105,12 @@ export class NXDrawer extends BaseComponent {
 
   private show(dialog: HTMLDialogElement): void {
     if (dialog.open) return;
-    if (this.getProp('backdrop', true)) dialog.showModal();
-    else dialog.show();
+    if (this.getProp('backdrop', true)) {
+      dialog.showModal();
+      Overlays.push(dialog);
+    } else {
+      dialog.show();
+    }
   }
 
   open(): void {
@@ -129,6 +134,7 @@ export class NXDrawer extends BaseComponent {
     const finish = () => {
       dialog?.classList.remove('closing');
       dialog?.close();
+      if (dialog) Overlays.remove(dialog);
       this.emit('close');
     };
     if (dialog?.open && !matchMedia('(prefers-reduced-motion: reduce)').matches) {

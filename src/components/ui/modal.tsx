@@ -5,6 +5,7 @@
 import { BaseComponent } from '@/components/abstracts/base';
 import { ComponentRegistry, define, type ItemConfig } from '@/core/registry';
 import { Icons } from '@/core/icons';
+import { Overlays } from '@/core/overlays';
 
 export interface ModalButton {
   text: string;
@@ -140,12 +141,15 @@ export class NXModal extends BaseComponent {
    * (or the clicked button's `value`; `undefined` when dismissed).
    */
   open(): Promise<any> {
+    // Reopened during the close animation: finish that close first
+    if (this.pendingClose) this.pendingClose();
     if (!this.isConnected) document.body.appendChild(this);
     const promise = new Promise(resolve => this.resolvers.push(resolve));
     if (!this.isOpen) {
       this.isOpen = true;
       const dialog = this.dialog;
       if (dialog && !dialog.open) dialog.showModal();
+      if (dialog) Overlays.push(dialog);
       this.setAttribute('open', '');
       this.emit('open');
       requestAnimationFrame(() => this.focusFirst());
@@ -158,22 +162,31 @@ export class NXModal extends BaseComponent {
     this.isOpen = false;
     this.removeAttribute('open');
     const dialog = this.dialog;
+    // Promises of *this* open cycle; a later open() gets its own
+    const resolvers = this.resolvers.splice(0);
+    let timer = 0;
 
     const finish = () => {
+      window.clearTimeout(timer);
+      this.pendingClose = null;
       dialog?.close();
       dialog?.classList.remove('closing');
+      if (dialog) Overlays.remove(dialog);
       this.emit('close', { value });
-      this.resolvers.splice(0).forEach(resolve => resolve(value));
-      if (this.getProp('destroy-on-close', false)) this.remove();
+      resolvers.forEach(resolve => resolve(value));
+      if (this.getProp('destroy-on-close', false) && !this.isOpen) this.remove();
     };
 
     if (dialog && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
       dialog.classList.add('closing');
-      setTimeout(finish, 150);
+      this.pendingClose = finish;
+      timer = window.setTimeout(finish, 150);
     } else {
       finish();
     }
   }
+
+  private pendingClose: (() => void) | null = null;
 
   /** @deprecated use `open()` — kept for compatibility */
   show(config?: ModalConfig): Promise<any> {

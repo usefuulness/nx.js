@@ -12,6 +12,7 @@
 import { BaseComponent } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
+import { Overlays } from '@/core/overlays';
 
 export interface MenuItem {
   id?: string;
@@ -82,7 +83,9 @@ export class NXMenuPopup extends BaseComponent {
   open(items: MenuItemLike[], anchor: Element | { x: number; y: number }, options: MenuOpenOptions = {}): void {
     this.items = normalize(items);
     this.options = options;
-    if (!this.isConnected) document.body.appendChild(this);
+    // Inside an open modal dialog everything else is inert, so mount within it
+    const host = Overlays.host();
+    if (this.parentElement !== host) host.appendChild(this);
 
     this.forceUpdate();
     this.setAttribute('popover', 'manual');
