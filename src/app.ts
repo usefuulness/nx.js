@@ -11,6 +11,7 @@ import { Icons } from '@/core/icons';
 import { Store, type StoreConfig as CoreStoreConfig } from '@/data/store';
 import { toast } from '@/components/ui/toast';
 import { alert, confirm, dialog, prompt, type ModalConfig } from '@/components/ui/modal';
+import { showMenu } from '@/components/ui/menu';
 
 export type { ComponentConfig, ItemConfig } from '@/core/registry';
 
@@ -409,6 +410,9 @@ export const NX = {
     }
     return new Store<T>(nameOrConfig);
   },
+
+  /** Open a menu at an element or mouse event (context menus). */
+  menu: showMenu,
 
   // Feedback
   toast,

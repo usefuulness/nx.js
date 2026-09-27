@@ -1,334 +1,594 @@
-import { BaseComponent, ComponentState } from '@/components/abstracts/base';
+/**
+ * @file @/components/ui/menu.ts
+ * @copyright Copyright (c) 2025 fool@nexaro.cloud
+ *
+ * Dropdown menus. One popup primitive (`nx-menu-popup`, rendered in the top
+ * layer so no `overflow: hidden` ancestor can clip it) powers:
+ *   - `{ xtype: 'menu', text: 'Actions', items: [...] }`   a trigger + dropdown
+ *   - `{ xtype: 'button', text: 'Export', menu: [...] }`   any button with a menu
+ *   - `{ xtype: 'menubar', items: [{ text: 'File', items: [...] }] }`
+ *   - `NX.menu(items, event)`                               context menus
+ */
+import { BaseComponent, escapeHTML } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
+import { Icons } from '@/core/icons';
 
 export interface MenuItem {
   id?: string;
-  text: string;
+  text?: string;
   icon?: string;
+  /** Right-aligned hint, e.g. `⌘S` */
+  shortcut?: string;
   disabled?: boolean;
+  /** Red, for destructive actions */
+  danger?: boolean;
+  /** Show a check mark */
+  checked?: boolean;
+  /** Render a separator (or use the string `'-'`) */
   divider?: boolean;
-  submenu?: MenuItem[];
+  /** Non-interactive section label */
+  heading?: string;
+  /** Nested menu (alias: `submenu`) */
+  items?: MenuItemLike[];
+  submenu?: MenuItemLike[];
+  href?: string;
+  handler?: (item: MenuItem) => void;
+  /** @deprecated alias of `handler` */
   action?: () => void;
 }
 
-export interface MenuConfig {
-  items?: MenuItem[];
-  trigger?: 'click' | 'hover';
+export type MenuItemLike = MenuItem | '-' | null | undefined | false;
+
+export interface MenuOpenOptions {
+  /** Where to open relative to an anchor element */
+  placement?: 'bottom-start' | 'bottom-end' | 'right-start';
+  /** Element to refocus when the menu closes */
+  returnFocus?: HTMLElement | null;
+  /** Focus the first item right away (keyboard open) */
+  focusFirst?: boolean;
+  onSelect?: (item: MenuItem) => void;
+  onClose?: () => void;
 }
 
-export class NXMenu extends BaseComponent {
-  static get observedAttributes(): string[] {
-    return ['trigger'];
-  }
+const children = (item: MenuItem): MenuItemLike[] | undefined => item.items ?? item.submenu;
 
-  protected initializeState(): void {
-    this[ComponentState].set('items', []);
-    this[ComponentState].set('open', false);
-    this[ComponentState].set('activeSubmenu', null);
-  }
+const normalize = (items: MenuItemLike[]): MenuItem[] =>
+  items
+    .filter((i): i is MenuItem | '-' => !!i)
+    .map(i => (i === '-' ? { divider: true } : i));
+
+/**
+ * The floating menu surface. Created on demand — you normally don't use it directly.
+ */
+export class NXMenuPopup extends BaseComponent {
+  private items: MenuItem[] = [];
+  private options: MenuOpenOptions = {};
+  private isOpen = false;
+  private readonly onDocPointer = (e: Event) => {
+    if (!e.composedPath().includes(this) && !e.composedPath().includes(this.options.returnFocus as EventTarget)) {
+      this.close();
+    }
+  };
+  private readonly onWindowChange = () => this.close();
+
+  protected initializeState(): void {}
 
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
   }
 
-  setItems(items: MenuItem[]): void {
-    this.setState('items', items);
+  /** Open at an element (dropdown) or a point (context menu). */
+  open(items: MenuItemLike[], anchor: Element | { x: number; y: number }, options: MenuOpenOptions = {}): void {
+    this.items = normalize(items);
+    this.options = options;
+    if (!this.isConnected) document.body.appendChild(this);
+
+    this.forceUpdate();
+    this.setAttribute('popover', 'manual');
+    try {
+      (this as any).showPopover?.();
+    } catch {
+      // already shown / unsupported: the fixed z-indexed fallback still works
+    }
+    this.isOpen = true;
+    this.position(anchor, options.placement ?? 'bottom-start');
+
+    // Defer so the click that opened us doesn't immediately close us
+    setTimeout(() => {
+      document.addEventListener('pointerdown', this.onDocPointer, true);
+      window.addEventListener('resize', this.onWindowChange);
+      window.addEventListener('blur', this.onWindowChange);
+    });
+
+    if (options.focusFirst) this.focusItem(this.rootList(), 0);
+    else (this.rootList() as HTMLElement | null)?.focus({ preventScroll: true });
   }
 
-  protected render(): string {
-    const items = this.getState<MenuItem[]>('items', []);
-    const open = this.getState('open', false);
+  close(): void {
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    document.removeEventListener('pointerdown', this.onDocPointer, true);
+    window.removeEventListener('resize', this.onWindowChange);
+    window.removeEventListener('blur', this.onWindowChange);
+    try {
+      (this as any).hidePopover?.();
+    } catch {
+      // not shown
+    }
+    this.remove();
+    const { returnFocus, onClose } = this.options;
+    if (returnFocus && document.activeElement === document.body) returnFocus.focus({ preventScroll: true });
+    onClose?.();
+  }
 
+  get opened(): boolean {
+    return this.isOpen;
+  }
+
+  private rootList(): HTMLElement | null {
+    return this.$('.list') as HTMLElement | null;
+  }
+
+  private position(anchor: Element | { x: number; y: number }, placement: string): void {
+    const list = this.rootList()!;
+    const margin = 8;
+    const { innerWidth: vw, innerHeight: vh } = window;
+    const width = list.offsetWidth;
+    const height = list.offsetHeight;
+    let x: number;
+    let y: number;
+
+    if (anchor instanceof Element) {
+      const rect = anchor.getBoundingClientRect();
+      if (placement === 'right-start') {
+        x = rect.right + 4;
+        y = rect.top - 4;
+      } else {
+        x = placement === 'bottom-end' ? rect.right - width : rect.left;
+        y = rect.bottom + 4;
+        // Flip above when there is no room below
+        if (y + height > vh - margin && rect.top - height - 4 > margin) y = rect.top - height - 4;
+      }
+    } else {
+      x = anchor.x;
+      y = anchor.y;
+      if (y + height > vh - margin) y = Math.max(margin, y - height);
+    }
+
+    x = Math.max(margin, Math.min(x, vw - width - margin));
+    y = Math.max(margin, Math.min(y, vh - height - margin));
+    this.style.left = `${Math.round(x)}px`;
+    this.style.top = `${Math.round(y)}px`;
+  }
+
+  // ────────── Rendering ──────────
+
+  protected render(): string {
+    return this.renderList(this.items, '');
+  }
+
+  private renderList(items: MenuItem[], parent: string): string {
+    const anyIcon = items.some(i => i.icon || i.checked !== undefined);
     return `
-      <div class="nx-menu ${open ? 'open' : ''}" part="container">
-        <slot name="trigger"></slot>
-        <div class="nx-menu-dropdown" part="dropdown" role="menu">
-          ${this.renderMenuItems(items)}
-        </div>
+      <div class="list ${parent ? 'sub' : ''}" part="${parent ? 'submenu' : 'menu'}" role="menu" tabindex="-1" data-parent="${parent}">
+        ${items.map((item, i) => {
+          const path = parent ? `${parent}.${i}` : String(i);
+          if (item.divider) return '<div class="divider" role="separator"></div>';
+          if (item.heading) return `<div class="heading" role="presentation">${escapeHTML(item.heading)}</div>`;
+          const sub = children(item);
+          const icon = item.checked !== undefined
+            ? (item.checked ? Icons.get('check') : '')
+            : Icons.get(item.icon);
+          return `
+            <div class="item ${item.danger ? 'danger' : ''}" part="item" role="${item.checked !== undefined ? 'menuitemcheckbox' : 'menuitem'}"
+                 data-path="${path}" tabindex="-1"
+                 ${item.checked !== undefined ? `aria-checked="${!!item.checked}"` : ''}
+                 ${item.disabled ? 'aria-disabled="true"' : ''}
+                 ${sub ? 'aria-haspopup="menu" aria-expanded="false"' : ''}>
+              ${anyIcon ? `<span class="icon">${icon}</span>` : ''}
+              <span class="text">${escapeHTML(item.text ?? '')}</span>
+              ${item.shortcut ? `<span class="shortcut">${escapeHTML(item.shortcut)}</span>` : ''}
+              ${sub ? `<span class="chevron">${Icons.get('chevron-right')}</span>${this.renderList(normalize(sub), path)}` : ''}
+            </div>`;
+        }).join('')}
       </div>
     `;
   }
 
-  private renderMenuItems(items: MenuItem[]): string {
-    return items.map((item, index) => {
-      if (item.divider) {
-        return '<div class="nx-menu-divider" part="divider" role="separator"></div>';
+  private itemAt(path: string): MenuItem | null {
+    let list = this.items;
+    let item: MenuItem | null = null;
+    for (const index of path.split('.').map(Number)) {
+      item = list[index] ?? null;
+      if (!item) return null;
+      list = normalize(children(item) ?? []);
+    }
+    return item;
+  }
+
+  // ────────── Interaction ──────────
+
+  private itemsOf(list: Element): HTMLElement[] {
+    return Array.from(list.children).filter(el =>
+      el.classList.contains('item') && el.getAttribute('aria-disabled') !== 'true'
+    ) as HTMLElement[];
+  }
+
+  private focusItem(list: Element | null, index: number): void {
+    if (!list) return;
+    const items = this.itemsOf(list);
+    if (!items.length) return;
+    items[(index + items.length) % items.length].focus();
+  }
+
+  private openSub(itemEl: HTMLElement, focus = false): void {
+    // Close sibling submenus
+    itemEl.parentElement?.querySelectorAll(':scope > .item.open').forEach(el => el !== itemEl && this.closeSub(el as HTMLElement));
+    const sub = itemEl.querySelector(':scope > .list') as HTMLElement | null;
+    if (!sub) return;
+    itemEl.classList.add('open');
+    itemEl.setAttribute('aria-expanded', 'true');
+
+    // Flip to the left if it would overflow the viewport
+    sub.classList.remove('left');
+    const rect = sub.getBoundingClientRect();
+    if (rect.right > window.innerWidth - 8) sub.classList.add('left');
+
+    if (focus) this.focusItem(sub, 0);
+  }
+
+  private closeSub(itemEl: HTMLElement): void {
+    itemEl.classList.remove('open');
+    itemEl.setAttribute('aria-expanded', 'false');
+    itemEl.querySelectorAll('.item.open').forEach(el => this.closeSub(el as HTMLElement));
+  }
+
+  private activate(itemEl: HTMLElement): void {
+    if (itemEl.getAttribute('aria-disabled') === 'true') return;
+    const item = this.itemAt(itemEl.dataset.path!);
+    if (!item) return;
+    if (children(item)) {
+      this.openSub(itemEl, true);
+      return;
+    }
+    this.close();
+    if (item.href) location.href = item.href;
+    item.handler?.(item);
+    item.action?.();
+    this.options.onSelect?.(item);
+  }
+
+  protected afterRender(): void {
+    const root = this.shadow!;
+
+    this.on(root, 'click', (e: Event) => {
+      const itemEl = (e.target as HTMLElement).closest('.item') as HTMLElement | null;
+      if (itemEl) this.activate(itemEl);
+    });
+
+    this.on(root, 'pointerover', (e: Event) => {
+      const itemEl = (e.target as HTMLElement).closest('.item') as HTMLElement | null;
+      if (!itemEl) return;
+      if (itemEl.getAttribute('aria-disabled') !== 'true') itemEl.focus({ preventScroll: true });
+      itemEl.parentElement?.querySelectorAll(':scope > .item.open').forEach(el => el !== itemEl && this.closeSub(el as HTMLElement));
+      if (itemEl.getAttribute('aria-haspopup')) this.openSub(itemEl);
+    });
+
+    this.on(root, 'keydown', (e: Event) => {
+      const key = (e as KeyboardEvent).key;
+      const active = (root as ShadowRoot).activeElement as HTMLElement | null;
+      const list = (active?.classList.contains('list') ? active : active?.parentElement) as HTMLElement | null;
+      if (!list) return;
+      const items = this.itemsOf(list);
+      const index = active ? items.indexOf(active) : -1;
+
+      switch (key) {
+        case 'ArrowDown':
+          this.focusItem(list, index + 1);
+          break;
+        case 'ArrowUp':
+          this.focusItem(list, index < 0 ? -1 : index - 1);
+          break;
+        case 'Home':
+          this.focusItem(list, 0);
+          break;
+        case 'End':
+          this.focusItem(list, -1);
+          break;
+        case 'ArrowRight':
+          if (active?.getAttribute('aria-haspopup')) this.openSub(active, true);
+          break;
+        case 'ArrowLeft': {
+          const parentItem = list.parentElement?.closest('.item') as HTMLElement | null;
+          if (parentItem) {
+            this.closeSub(parentItem);
+            parentItem.focus();
+          }
+          break;
+        }
+        case 'Enter':
+        case ' ':
+          if (active?.classList.contains('item')) this.activate(active);
+          break;
+        case 'Escape':
+        case 'Tab':
+          this.close();
+          if (key === 'Tab') return;
+          break;
+        default: {
+          // Type-ahead
+          if (key.length !== 1) return;
+          const match = items.find((el, i) => i > index && el.textContent!.trim().toLowerCase().startsWith(key.toLowerCase()))
+            ?? items.find(el => el.textContent!.trim().toLowerCase().startsWith(key.toLowerCase()));
+          match?.focus();
+        }
       }
-
-      const hasSubmenu = item.submenu && item.submenu.length > 0;
-      const isActive = this.getState('activeSubmenu') === item.id;
-
-      return `
-        <div class="nx-menu-item ${item.disabled ? 'disabled' : ''} ${hasSubmenu ? 'has-submenu' : ''}"
-             part="item"
-             role="menuitem"
-             data-item-id="${item.id || index}"
-             ${item.disabled ? 'aria-disabled="true"' : ''}
-             tabindex="${item.disabled ? -1 : 0}">
-          ${item.icon ? `<span class="nx-menu-icon" part="icon">${item.icon}</span>` : ''}
-          <span class="nx-menu-text" part="text">${item.text}</span>
-          ${hasSubmenu ? `
-            <svg class="nx-menu-submenu-icon" viewBox="0 0 24 24">
-              <path d="M9 5l7 7-7 7"/>
-            </svg>
-            <div class="nx-menu-submenu ${isActive ? 'active' : ''}" part="submenu">
-              ${this.renderMenuItems(item.submenu!)}
-            </div>
-          ` : ''}
-        </div>
-      `;
-    }).join('');
+      e.preventDefault();
+    });
   }
 
   protected styles(): string {
     return `
       :host {
-        display: inline-block;
-        position: relative;
+        position: fixed;
+        inset: auto;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: transparent;
+        overflow: visible;
+        z-index: 2147482000;
+        color: var(--color-text);
+        font-family: var(--font-family);
+        font-size: 0.875rem;
       }
 
-      .nx-menu {
-        position: relative;
-      }
-
-      .nx-menu-dropdown {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        min-width: 200px;
-        background: var(--surface-color);
-        border: 1px solid var(--border-color);
-        border-radius: 0.25rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      .list {
+        min-width: 12rem;
+        max-width: 20rem;
         padding: 0.25rem;
-        z-index: 1000;
-        opacity: 0;
-        visibility: hidden;
-        transform: translateY(-0.5rem);
-        transition: all 0.2s;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        background: var(--color-surface);
+        box-shadow: var(--shadow-lg);
+        outline: none;
+        animation: nx-menu-in 120ms var(--transition-easing);
       }
 
-      .nx-menu.open .nx-menu-dropdown {
-        opacity: 1;
-        visibility: visible;
-        transform: translateY(0);
+      @keyframes nx-menu-in {
+        from { opacity: 0; transform: translateY(-4px) scale(0.98); }
       }
 
-      .nx-menu-item {
+      .sub {
+        position: absolute;
+        top: -0.3125rem;
+        left: calc(100% + 0.25rem);
+        display: none;
+      }
+
+      .sub.left {
+        left: auto;
+        right: calc(100% + 0.25rem);
+      }
+
+      .item.open > .sub { display: block; }
+
+      .item {
         position: relative;
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.5rem 0.75rem;
-        border-radius: 0.25rem;
-        cursor: pointer;
-        transition: background-color 0.2s;
+        height: 2rem;
+        padding: 0 0.5rem;
+        border-radius: var(--radius-sm);
+        cursor: default;
+        user-select: none;
+        outline: none;
+        white-space: nowrap;
       }
 
-      .nx-menu-item:hover:not(.disabled) {
-        background: var(--hover-bg);
+      .item:focus,
+      .item.open {
+        background: var(--color-accent);
       }
 
-      .nx-menu-item:focus {
-        outline: 2px solid var(--color-primary);
-        outline-offset: -2px;
-      }
-
-      .nx-menu-item.disabled {
+      .item[aria-disabled="true"] {
         opacity: 0.5;
-        cursor: not-allowed;
+        pointer-events: none;
       }
 
-      .nx-menu-icon {
-        flex-shrink: 0;
-        width: 1.25rem;
-        height: 1.25rem;
-      }
+      .item.danger { color: var(--color-error); }
+      .item.danger:focus { background: color-mix(in srgb, var(--color-error) 12%, transparent); }
 
-      .nx-menu-text {
-        flex: 1;
-      }
-
-      .nx-menu-divider {
-        height: 1px;
-        background: var(--border-color);
-        margin: 0.25rem 0;
-      }
-
-      .nx-menu-submenu-icon {
+      .icon {
+        display: inline-flex;
+        justify-content: center;
         width: 1rem;
-        height: 1rem;
-        fill: currentColor;
-        margin-left: auto;
+        flex-shrink: 0;
+        font-size: 1rem;
+        color: var(--color-text-secondary);
       }
 
-      .nx-menu-submenu {
-        position: absolute;
-        top: 0;
-        left: 100%;
-        min-width: 200px;
-        background: var(--surface-color);
-        border: 1px solid var(--border-color);
-        border-radius: 0.25rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        padding: 0.25rem;
-        margin-left: 0.25rem;
-        opacity: 0;
-        visibility: hidden;
-        transform: translateX(-0.5rem);
-        transition: all 0.2s;
+      .danger .icon { color: inherit; }
+
+      .text {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
-      .nx-menu-item:hover .nx-menu-submenu,
-      .nx-menu-submenu.active {
-        opacity: 1;
-        visibility: visible;
-        transform: translateX(0);
+      .shortcut {
+        margin-left: 1rem;
+        color: var(--color-text-secondary);
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+      }
+
+      .chevron {
+        display: inline-flex;
+        margin-right: -0.25rem;
+        color: var(--color-text-secondary);
+      }
+
+      .divider {
+        height: 1px;
+        margin: 0.25rem -0.25rem;
+        background: var(--color-border);
+      }
+
+      .heading {
+        padding: 0.375rem 0.5rem;
+        color: var(--color-text-secondary);
+        font-size: 0.75rem;
+        font-weight: 600;
       }
     `;
   }
+}
+
+define('nx-menu-popup', NXMenuPopup);
+
+/**
+ * Open a menu at an element or at a mouse event's position (context menus).
+ *
+ * ```typescript
+ * grid.addEventListener('contextmenu', e => {
+ *   e.preventDefault();
+ *   NX.menu([{ text: 'Copy', icon: 'copy', handler: copy }, '-', { text: 'Delete', danger: true }], e);
+ * });
+ * ```
+ */
+export function showMenu(
+  items: MenuItemLike[],
+  at: Element | MouseEvent | { x: number; y: number },
+  options: MenuOpenOptions = {}
+): NXMenuPopup {
+  const popup = document.createElement('nx-menu-popup') as NXMenuPopup;
+  const anchor = at instanceof Event ? { x: (at as MouseEvent).clientX, y: (at as MouseEvent).clientY } : at;
+  popup.open(items, anchor, {
+    returnFocus: at instanceof HTMLElement ? at : (document.activeElement as HTMLElement | null),
+    ...options
+  });
+  return popup;
+}
+
+/**
+ * A trigger button with a dropdown menu.
+ *
+ * @example
+ * ```typescript
+ * {
+ *   xtype: 'menu',
+ *   text: 'Actions',               // trigger label (or icon only: icon: 'more')
+ *   variant: 'outline',
+ *   items: [
+ *     { text: 'Edit', icon: 'edit', shortcut: '⌘E', handler: edit },
+ *     { text: 'Share', items: [{ text: 'Email' }, { text: 'Link' }] },
+ *     '-',
+ *     { text: 'Delete', icon: 'trash', danger: true, handler: remove }
+ *   ],
+ *   onSelect: e => console.log(e.detail.item)
+ * }
+ * ```
+ * Or bring your own trigger: `<nx-menu><nx-button slot="trigger">…</nx-button></nx-menu>`.
+ */
+export class NXMenu extends BaseComponent {
+  static get observedAttributes(): string[] {
+    return ['text', 'icon', 'variant', 'size', 'placement', 'disabled'];
+  }
+
+  private items: MenuItemLike[] = [];
+  private popup: NXMenuPopup | null = null;
+
+  protected initializeState(): void {}
+
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+  }
+
+  setItems(items: MenuItemLike[]): void {
+    this.items = items;
+  }
+
+  getItems(): MenuItemLike[] {
+    return this.items;
+  }
+
+  protected render(): string {
+    const text = this.getProp<string>('text', '');
+    const icon = this.getProp<string>('icon', text ? '' : 'more');
+    return `
+      <slot name="trigger">
+        <nx-button part="trigger" variant="${escapeHTML(this.getProp('variant', 'outline'))}"
+                   size="${escapeHTML(this.getProp('size', 'md'))}"
+                   ${icon ? `icon="${escapeHTML(icon)}"` : ''}
+                   ${text ? `text="${escapeHTML(text)}"` : 'aria-label="Open menu"'}
+                   ${this.getProp('disabled', false) ? 'disabled' : ''}></nx-button>
+      </slot>
+    `;
+  }
+
+  protected styles(): string {
+    return `:host { display: inline-flex; }`;
+  }
+
+  private trigger(): HTMLElement | null {
+    const slotted = this.querySelector(':scope > [slot="trigger"]') as HTMLElement | null;
+    return slotted ?? (this.$('nx-button') as HTMLElement | null);
+  }
 
   protected afterRender(): void {
-    const trigger = this.getProp('trigger', 'click');
-    
-    // Trigger handling
-    const triggerSlot = this.$('slot[name="trigger"]') as HTMLSlotElement;
-    const triggerElements = triggerSlot?.assignedElements() || [];
-    
-    triggerElements.forEach(el => {
-      if (trigger === 'click') {
-        this.on(el, 'click', () => this.toggle());
-      } else {
-        this.on(el, 'mouseenter', () => this.open());
-        this.on(el, 'mouseleave', () => this.close());
-      }
+    const trigger = this.trigger();
+    if (!trigger) return;
+    trigger.setAttribute('aria-haspopup', 'menu');
+    trigger.setAttribute('aria-expanded', 'false');
+
+    this.on(this, 'click', (e: Event) => {
+      if (e.composedPath().includes(trigger)) this.toggle(false);
     });
-
-    // Menu items
-    this.$$('.nx-menu-item:not(.disabled)').forEach(item => {
-      this.on(item, 'click', (e: Event) => {
-        const itemEl = e.currentTarget as HTMLElement;
-        const itemId = itemEl.dataset.itemId;
-        const menuItem = this.findMenuItem(itemId!);
-        
-        if (menuItem && !menuItem.submenu) {
-          menuItem.action?.();
-          this.close();
-          this.emit('select', { item: menuItem });
-        }
-      });
-
-      this.on(item, 'keydown', (e: Event) => {
-        this.handleKeyboard(e as KeyboardEvent);
-      });
-    });
-
-    // Close on outside click
-    this.on(document, 'click', (e: Event) => {
-      if (!this.contains(e.target as Node)) {
-        this.close();
+    this.on(this, 'keydown', (e: Event) => {
+      const key = (e as KeyboardEvent).key;
+      if ((key === 'ArrowDown' || key === 'Enter' || key === ' ') && e.composedPath().includes(trigger)) {
+        e.preventDefault();
+        this.open(true);
       }
     });
   }
 
-  private handleKeyboard(e: KeyboardEvent): void {
-    switch (e.key) {
-      case 'Enter':
-      case ' ':
-        e.preventDefault();
-        (e.target as HTMLElement).click();
-        break;
-
-      case 'Escape':
-        e.preventDefault();
-        this.close();
-        break;
-
-      case 'ArrowDown':
-        e.preventDefault();
-        this.focusNext(e.target as HTMLElement);
-        break;
-
-      case 'ArrowUp':
-        e.preventDefault();
-        this.focusPrevious(e.target as HTMLElement);
-        break;
-
-      case 'ArrowRight':
-        e.preventDefault();
-        this.openSubmenu(e.target as HTMLElement);
-        break;
-
-      case 'ArrowLeft':
-        e.preventDefault();
-        this.closeSubmenu();
-        break;
-    }
+  get opened(): boolean {
+    return !!this.popup?.opened;
   }
 
-  private focusNext(current: HTMLElement): void {
-    const items = Array.from(this.$$('.nx-menu-item:not(.disabled)'));
-    const index = items.indexOf(current);
-    const next = items[index + 1] || items[0];
-    (next as HTMLElement).focus();
-  }
-
-  private focusPrevious(current: HTMLElement): void {
-    const items = Array.from(this.$$('.nx-menu-item:not(.disabled)'));
-    const index = items.indexOf(current);
-    const prev = items[index - 1] || items[items.length - 1];
-    (prev as HTMLElement).focus();
-  }
-
-  private openSubmenu(item: HTMLElement): void {
-    const itemId = item.dataset.itemId;
-    const menuItem = this.findMenuItem(itemId!);
-    if (menuItem?.submenu) {
-      this.setState('activeSubmenu', itemId);
-    }
-  }
-
-  private closeSubmenu(): void {
-    this.setState('activeSubmenu', null);
-  }
-
-  private findMenuItem(id: string): MenuItem | null {
-    const items = this.getState<MenuItem[]>('items', []);
-    
-    const find = (items: MenuItem[]): MenuItem | null => {
-      for (const item of items) {
-        if ((item.id || items.indexOf(item).toString()) === id) {
-          return item;
-        }
-        if (item.submenu) {
-          const found = find(item.submenu);
-          if (found) return found;
-        }
+  open(focusFirst = false): void {
+    if (this.opened || this.getProp('disabled', false)) return;
+    const trigger = this.trigger() ?? this;
+    trigger.setAttribute('aria-expanded', 'true');
+    this.popup = showMenu(this.items, trigger, {
+      placement: this.getProp('placement', 'bottom-start'),
+      returnFocus: trigger,
+      focusFirst,
+      onSelect: item => this.emit('select', { item }),
+      onClose: () => {
+        trigger.setAttribute('aria-expanded', 'false');
+        this.popup = null;
+        this.emit('close');
       }
-      return null;
-    };
-    
-    return find(items);
-  }
-
-  open(): void {
-    this.setState('open', true);
+    });
     this.emit('open');
   }
 
   close(): void {
-    this.setState('open', false);
-    this.setState('activeSubmenu', null);
-    this.emit('close');
+    this.popup?.close();
   }
 
-  toggle(): void {
-    if (this.getState('open', false)) {
-      this.close();
-    } else {
-      this.open();
-    }
+  toggle(focusFirst = false): void {
+    this.opened ? this.close() : this.open(focusFirst);
+  }
+
+  protected cleanup(): void {
+    this.close();
   }
 }
 

@@ -5,6 +5,7 @@
 import { BaseComponent, escapeHTML } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
+import { showMenu, type MenuItemLike, type NXMenuPopup } from '@/components/ui/menu';
 
 export interface ButtonConfig {
   text?: string;
@@ -21,6 +22,8 @@ export interface ButtonConfig {
   href?: string;
   tooltip?: string;
   handler?: (e: MouseEvent) => void;
+  /** Dropdown menu opened by this button */
+  menu?: MenuItemLike[];
 }
 
 /**
@@ -56,7 +59,28 @@ export class NXButton extends BaseComponent {
         e.preventDefault();
       }
     }, { capture: true });
+
+    // `menu: [...]` turns the button into a dropdown trigger (click again to close)
+    this.addEventListener('click', () => {
+      const menu = this.getProp<MenuItemLike[] | undefined>('menu');
+      if (!Array.isArray(menu)) return;
+      if (this.menuPopup?.opened) {
+        this.menuPopup.close();
+        return;
+      }
+      this.setAttribute('aria-expanded', 'true');
+      this.menuPopup = showMenu(menu, this, {
+        returnFocus: this,
+        onSelect: item => this.emit('menu-select', { item }),
+        onClose: () => {
+          this.setAttribute('aria-expanded', 'false');
+          this.menuPopup = null;
+        }
+      });
+    });
   }
+
+  private menuPopup: NXMenuPopup | null = null;
 
   protected render(): string {
     const type = this.getProp('type', 'button');
@@ -90,6 +114,7 @@ export class NXButton extends BaseComponent {
       ${iconPosition === 'left' ? iconHtml : ''}
       <span part="label" class="button-label ${hasLabel ? '' : 'empty'}"><slot>${escapeHTML(text)}</slot></span>
       ${iconPosition === 'right' ? iconHtml : ''}
+      ${Array.isArray(this.getProp('menu')) ? `<span class="button-icon caret" aria-hidden="true">${Icons.get('chevron-down')}</span>` : ''}
     `;
 
     const common = `
@@ -239,6 +264,12 @@ export class NXButton extends BaseComponent {
       .button-icon :is(svg) {
         width: 1em;
         height: 1em;
+      }
+
+      .caret {
+        margin-right: -0.25rem;
+        font-size: 0.875rem;
+        opacity: 0.7;
       }
 
       .spinner {
