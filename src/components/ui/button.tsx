@@ -236,11 +236,11 @@ export class NXButton extends BaseComponent {
       .variant-ghost:hover:not(:disabled) { background: var(--color-accent); }
 
       .variant-danger {
-        background: var(--color-error);
+        background: color-mix(in srgb, var(--color-error) 72%, #000);
         color: #fff;
         box-shadow: var(--shadow-sm);
       }
-      .variant-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-error) 88%, #000); }
+      .variant-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-error) 62%, #000); }
 
       .variant-link {
         height: auto;

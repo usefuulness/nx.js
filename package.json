@@ -41,6 +41,7 @@
     "check": "tsc --noEmit && vitest run"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.40.0",
     "@tailwindcss/vite": "^4.1.10",
     "@testing-library/jest-dom": "^6.1.0",

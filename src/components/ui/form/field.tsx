@@ -219,7 +219,7 @@ export abstract class NXField extends BaseComponent {
       }
 
       .invalid .nx-field-helper {
-        color: var(--color-error);
+        color: var(--color-error-text);
       }
 
       .disabled {

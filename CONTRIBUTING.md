@@ -7,9 +7,9 @@ Nexaro follows the shadcn approach: every component is a small, readable file yo
 - **JSX creates real DOM.** There is no virtual DOM. `<div onClick={fn}>` is a `div` with a listener, and `<Button>` is an `<nx-button>`.
 - **Components are custom elements** (`<nx-*>`, shadow DOM) with a typed **PascalCase wrapper** for JSX (`Button`, `Card`, …).
 - **One prop model.** JSX props, HTML attributes and `{ xtype }` configs all go through `configure()`, so a component only has to handle a prop once.
-- **Design tokens only.** Use `var(--color-*)`, `--radius-*` and `--shadow-*` in component CSS, never hard-coded colors, so every theme works for free.
+- **Design tokens only.** Use `var(--color-*)`, `--radius-*` and `--shadow-*` in component CSS, never hard-coded colors, so every theme works for free. For *text* in a status colour, use the `-text` variants (`--color-success-text`, `--color-warning-text`, `--color-error-text`, `--color-info-text`). The base colours don't reach 4.5:1 contrast on their own tints.
 - **Variants, not conditionals.** Describe the look with `variants()` (a tiny cva) and join classes with `cn()`.
-- **Accessible by default.** Use real `<button>`s, roles, `aria-*`, visible focus (`--color-ring`) and keyboard support.
+- **Accessible by default.** Use real `<button>`s, roles, `aria-*`, visible focus (`--color-ring`) and keyboard support. Never nest interactive elements (a button inside a `role="tab"`, for example). Make them siblings.
 
 ## Adding a component
 
@@ -77,6 +77,7 @@ Nexaro follows the shadcn approach: every component is a small, readable file yo
    ```
 
 4. **Test it** in `src/tests/unit/<name>.test.tsx` (Vitest + jsdom). Cover rendering, props, events and keyboard handling.
+   `pnpm test:e2e` also runs an axe accessibility audit (WCAG 2.1 AA) of every demo page in every theme, including open dialogs and menus, so showing the component in the demo gets it audited too.
 5. **Show it** on the demo's Components page (`src/main.tsx`), and add a row to the README's component table.
 
 ## Component rules of thumb

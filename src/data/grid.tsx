@@ -695,10 +695,10 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       }
 
       .tone-neutral { background: var(--color-muted); color: var(--color-text); border-color: var(--color-border); }
-      .tone-info { background: color-mix(in srgb, var(--color-info) 14%, transparent); color: var(--color-info); }
-      .tone-success { background: color-mix(in srgb, var(--color-success) 14%, transparent); color: var(--color-success); }
-      .tone-warning { background: color-mix(in srgb, var(--color-warning) 16%, transparent); color: var(--color-warning); }
-      .tone-error { background: color-mix(in srgb, var(--color-error) 14%, transparent); color: var(--color-error); }
+      .tone-info { background: color-mix(in srgb, var(--color-info) 14%, transparent); color: var(--color-info-text); }
+      .tone-success { background: color-mix(in srgb, var(--color-success) 14%, transparent); color: var(--color-success-text); }
+      .tone-warning { background: color-mix(in srgb, var(--color-warning) 16%, transparent); color: var(--color-warning-text); }
+      .tone-error { background: color-mix(in srgb, var(--color-error) 14%, transparent); color: var(--color-error-text); }
 
       .bool { display: inline-flex; font-size: 1rem; }
       .bool.yes { color: var(--color-success); }

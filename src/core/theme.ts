@@ -79,7 +79,7 @@ const lightTheme: ThemeConfig = {
     muted: '#f4f4f5',
     accent: '#f4f4f5',
     text: '#09090b',
-    textSecondary: '#71717a',
+    textSecondary: '#6b6b74',
     border: '#e4e4e7',
     ring: '#a1a1aa',
     error: '#dc2626',
@@ -344,6 +344,13 @@ export class ThemeManager {
         --transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
 
         --color-danger: var(--color-error);
+
+        /* Status colors as *text* (badges, deltas, error messages): pulled toward
+           the text color so they keep 4.5:1 contrast on their own tints, in any theme */
+        --color-success-text: color-mix(in srgb, var(--color-success) 65%, var(--color-text));
+        --color-warning-text: color-mix(in srgb, var(--color-warning) 65%, var(--color-text));
+        --color-error-text: color-mix(in srgb, var(--color-error) 65%, var(--color-text));
+        --color-info-text: color-mix(in srgb, var(--color-info) 65%, var(--color-text));
         --bg-color: var(--color-background);
         --surface-color: var(--color-surface);
         --border-color: var(--color-border);

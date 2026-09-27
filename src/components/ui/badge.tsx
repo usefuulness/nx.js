@@ -91,10 +91,10 @@ export class NXBadge extends BaseComponent {
       .default { background: var(--color-primary); color: var(--color-primary-foreground); }
       .secondary { background: var(--color-secondary); color: var(--color-secondary-foreground); }
       .outline { border-color: var(--color-border); color: var(--color-text); }
-      .destructive { background: color-mix(in srgb, var(--color-error) 14%, transparent); color: var(--color-error); }
-      .success { background: color-mix(in srgb, var(--color-success) 14%, transparent); color: var(--color-success); }
-      .warning { background: color-mix(in srgb, var(--color-warning) 16%, transparent); color: var(--color-warning); }
-      .info { background: color-mix(in srgb, var(--color-info) 14%, transparent); color: var(--color-info); }
+      .destructive { background: color-mix(in srgb, var(--color-error) 14%, transparent); color: var(--color-error-text); }
+      .success { background: color-mix(in srgb, var(--color-success) 14%, transparent); color: var(--color-success-text); }
+      .warning { background: color-mix(in srgb, var(--color-warning) 16%, transparent); color: var(--color-warning-text); }
+      .info { background: color-mix(in srgb, var(--color-info) 14%, transparent); color: var(--color-info-text); }
 
       .icon { display: inline-flex; font-size: 0.875rem; margin-left: -0.125rem; }
 

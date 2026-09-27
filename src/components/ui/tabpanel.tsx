@@ -148,19 +148,23 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
            onKeyDown={(e: KeyboardEvent) => this.onTabKeyDown(e)}>
         {tabs.map((tab, index) => {
           const active = index === activeTab;
+          // The close button is a sibling of the tab, not a child: interactive
+          // controls must not be nested (screen readers can't reach them)
           return (
-            <div class={['nx-tab', { active, disabled: tab.disabled }]} part={active ? 'tab tab-active' : 'tab'}
-                 role="tab" id={`tab-${tab.id}`} data-index={index} aria-selected={String(active)}
-                 aria-controls={`panel-${tab.id}`} aria-disabled={String(!!tab.disabled)} tabindex={active ? 0 : -1}
-                 onClick={() => this.selectTab(index)}>
-              {tab.icon && <span class="nx-tab-icon" html={Icons.get(tab.icon)} />}
-              <span class="nx-tab-title">{tab.title}</span>
+            <div class={['nx-tab-item', { active, disabled: tab.disabled, closable: tab.closable }]} role="presentation">
+              <div class={['nx-tab', { active, disabled: tab.disabled }]} part={active ? 'tab tab-active' : 'tab'}
+                   role="tab" id={`tab-${tab.id}`} data-index={index} aria-selected={String(active)}
+                   aria-controls={`panel-${tab.id}`} aria-disabled={String(!!tab.disabled)} tabindex={active ? 0 : -1}
+                   aria-description={tab.closable ? 'Press Delete to close' : undefined}
+                   onClick={() => this.selectTab(index)}>
+                {tab.icon && <span class="nx-tab-icon" html={Icons.get(tab.icon)} />}
+                <span class="nx-tab-title">{tab.title}</span>
+              </div>
               {tab.closable && (
-                <button class="nx-tab-close" tabindex={-1} aria-label={`Close ${tab.title}`} html={Icons.get('close')}
-                        onClick={(e: MouseEvent) => {
-                          e.stopPropagation();
-                          this.closeTab(index);
-                        }} />
+                // Mouse affordance only: a tablist may contain only tabs, and keyboard/screen-reader
+                // users close the focused tab with Delete (announced via aria-description)
+                <button class="nx-tab-close" tabindex={-1} aria-hidden="true" html={Icons.get('close')}
+                        onClick={() => this.closeTab(index)} />
               )}
             </div>
           );
@@ -261,6 +265,15 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
       .position-right .nx-tabs { border-left: 1px solid var(--color-border); }
 
       /* Tab */
+      .nx-tab-item {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .nx-tab-item.closable .nx-tab { padding-right: 0.25rem; }
+      .nx-tab-item.closable .nx-tab-close { margin-right: 0.5rem; }
+
       .nx-tab {
         position: relative;
         display: inline-flex;
@@ -292,8 +305,8 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
       }
 
       /* default: underline indicator */
-      .variant-default .nx-tab::after,
-      .variant-underlined .nx-tab::after {
+      .variant-default .nx-tab-item::after,
+      .variant-underlined .nx-tab-item::after {
         content: '';
         position: absolute;
         left: 0.5rem;
@@ -305,13 +318,19 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
         transition: background var(--transition-duration);
       }
 
-      .variant-default .nx-tab.active::after,
-      .variant-underlined .nx-tab.active::after {
+      .variant-default .nx-tab-item.active::after,
+      .variant-underlined .nx-tab-item.active::after {
         background: var(--color-primary);
       }
 
-      .position-left .nx-tab::after,
-      .position-right .nx-tab::after { display: none; }
+      .position-left .nx-tab-item::after,
+      .position-right .nx-tab-item::after { display: none; }
+
+      .position-left .nx-tab-item,
+      .position-right .nx-tab-item { display: flex; }
+
+      .position-left .nx-tab-item .nx-tab,
+      .position-right .nx-tab-item .nx-tab { flex: 1; }
 
       .position-left .nx-tab.active,
       .position-right .nx-tab.active {
@@ -345,12 +364,11 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
         justify-content: center;
         width: 1.25rem;
         height: 1.25rem;
-        margin-right: -0.25rem;
         padding: 0;
         border: none;
         border-radius: var(--radius-sm);
         background: transparent;
-        color: inherit;
+        color: var(--color-text-secondary);
         font-size: 0.875rem;
         opacity: 0.6;
         cursor: pointer;

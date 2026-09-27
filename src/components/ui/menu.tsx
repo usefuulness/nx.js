@@ -401,7 +401,7 @@ export class NXMenuPopup extends BaseComponent {
         pointer-events: none;
       }
 
-      .item.danger { color: var(--color-error); }
+      .item.danger { color: var(--color-error-text); }
       .item.danger:focus { background: color-mix(in srgb, var(--color-error) 12%, transparent); }
 
       .icon {

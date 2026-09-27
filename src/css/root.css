@@ -51,8 +51,8 @@
   font-weight: 500;
 }
 
-.stat-delta.up { color: var(--color-success); }
-.stat-delta.down { color: var(--color-error); }
+.stat-delta.up { color: var(--color-success-text); }
+.stat-delta.down { color: var(--color-error-text); }
 .stat-delta span { color: var(--color-text-secondary); font-weight: 400; }
 
 .goal {
