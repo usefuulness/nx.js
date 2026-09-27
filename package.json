@@ -34,18 +34,21 @@
       "import": "./dist/ssr-dom.js",
       "require": "./dist/ssr-dom.cjs"
     },
-    "./nx.css": "./dist/nx.css"
+    "./nx.css": "./dist/nx.css",
+    "./custom-elements.json": "./dist/custom-elements.json",
+    "./html-custom-data.json": "./dist/html-custom-data.json"
   },
   "bin": {
     "nx-ssr": "./dist/ssr-cli.js"
   },
+  "customElements": "./dist/custom-elements.json",
   "files": [
     "dist"
   ],
   "sideEffects": true,
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && vite build --mode umd && node dist/ssr-cli.js --css > dist/nx.css",
+    "build": "tsc --noEmit && vite build && vite build --mode umd && node dist/ssr-cli.js --css > dist/nx.css && tsx scripts/custom-elements.ts",
     "build:demo": "vite build --mode demo",
     "preview": "vite build --mode demo && vite preview --outDir dist-demo",
     "typecheck": "tsc --noEmit",

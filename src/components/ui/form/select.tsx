@@ -226,7 +226,7 @@ export class NXSelect extends NXField {
   }
 }
 
-function normalizeOptions(options: SelectConfig['options']): SelectOption[] {
+export function normalizeOptions(options: SelectConfig['options']): SelectOption[] {
   if (!options) return [];
   if (!Array.isArray(options)) {
     return Object.entries(options).map(([value, text]) => ({ value, text }));

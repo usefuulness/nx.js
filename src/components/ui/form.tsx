@@ -5,6 +5,7 @@
 import { BaseComponent } from '@/components/abstracts/base';
 import { ComponentRegistry, define, type ItemConfig } from '@/core/registry';
 import { NXField } from '@/components/ui/form/field';
+import { NXCheckbox } from '@/components/ui/form/checkbox';
 import { submitForm } from '@/core/forms';
 
 export interface FormConfig {
@@ -56,7 +57,7 @@ type AnyField = HTMLElement & { name?: string; value?: any; validate?: () => boo
  * handler needed); call `preventDefault()` on `submit` to handle it in JS instead:
  * ```html
  * <nx-form action="/users" method="post">
- *   <nx-textfield name="email" type="email" label="Email" required></nx-textfield>
+ *   <nx-input name="email" type="email" label="Email" required></nx-input>
  *   <nx-button slot="buttons" type="submit">Save</nx-button>
  * </nx-form>
  * ```
@@ -117,7 +118,7 @@ export class NXForm extends BaseComponent {
       fields.filter(f => this.fieldName(f) === name).forEach(field => {
         if (field instanceof HTMLInputElement && (field.type === 'checkbox' || field.type === 'radio')) {
           field.checked = field.type === 'radio' ? field.value === String(value) : !!value;
-        } else if (field.tagName === 'NX-CHECKBOX') {
+        } else if (field instanceof NXCheckbox) {
           (field as any).checked = !!value;
         } else {
           field.value = value;

@@ -24,6 +24,12 @@ export interface TreeConfig {
   icons?: boolean;
 }
 
+/**
+ * Tree view with keyboard navigation (arrow keys, Home/End, type-ahead), optional
+ * checkboxes and multi-select. Nodes can carry a `route` to navigate on select.
+ *
+ * Events: `select`, `toggle`, `check`.
+ */
 export class NXTree extends BaseComponent {
   static get observedAttributes(): string[] {
     return ['multi-select', 'checkboxes', 'expand-on-click', 'icons'];

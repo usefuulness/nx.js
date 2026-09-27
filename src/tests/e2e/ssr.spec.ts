@@ -148,6 +148,70 @@ test.describe('with JavaScript', () => {
   });
 });
 
+test('every server-rendered component works after hydration', async ({ page }) => {
+  const errors = collectErrors(page);
+  await serve(page);
+  await page.goto('/ssg/components.html');
+  await page.waitForFunction(() => !!customElements.get('nx-card'));
+
+  await expect(page.getByRole('link', { name: 'Home' }).first()).toBeVisible();
+  await expect(page.locator('nx-breadcrumb')).toContainText('Components');
+
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await expect(page.getByRole('menuitem', { name: 'Delete' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('menuitem', { name: 'File' }).click();
+  await expect(page.getByRole('menuitem', { name: 'Open…' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'Open dialog' }).click();
+  await expect(page.getByRole('dialog', { name: 'Server-rendered dialog' })).toBeVisible();
+  await page.locator('#close-dialog').click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Open drawer' }).click();
+  await expect(page.getByRole('dialog', { name: 'Drawer' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('treeitem', { name: 'ssr' }).click();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('treeitem', { name: 'ssr' })).toHaveAttribute('aria-expanded', 'true');
+
+  const profile = page.locator('#profile');
+  await profile.getByLabel('Name').fill('Ada');
+  await profile.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('"name":"Ada"')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+/** Box and visible text of every Nexaro element, in document order. */
+async function layout(page: Page) {
+  await page.waitForTimeout(600); // entrance animations
+  return page.evaluate(() => Array.from(document.querySelectorAll('body *'))
+    .filter(el => el.localName.startsWith('nx-'))
+    .map(el => {
+      const r = el.getBoundingClientRect();
+      return `${el.localName} ${[r.x, r.y, r.width, r.height].map(Math.round).join(',')} ${(el as HTMLElement).innerText.replace(/\s+/g, ' ').trim().slice(0, 60)}`;
+    }));
+}
+
+for (const name of ['index', 'components', 'contact']) {
+  test(`hydration moves nothing: ${name}.html`, async ({ browser }) => {
+    const open = async (javaScriptEnabled: boolean) => {
+      const page = await (await browser.newContext({ javaScriptEnabled, baseURL: 'http://localhost:5173' })).newPage();
+      const errors = collectErrors(page);
+      await serve(page);
+      await page.goto(`/ssg/${name}.html`);
+      if (javaScriptEnabled) await page.waitForFunction(() => !!customElements.get('nx-card'));
+      return { boxes: await layout(page), errors };
+    };
+    const [before, after] = [await open(false), await open(true)];
+    expect(after.boxes).toEqual(before.boxes);
+    expect(after.errors).toEqual([]);
+  });
+}
+
 for (const theme of ['light', 'dark']) {
   for (const name of ['index', 'contact']) {
     test(`a11y: ssg ${name}.html (${theme})`, async ({ page, context }) => {

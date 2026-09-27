@@ -70,6 +70,8 @@ export class NXAccordion extends BaseComponent {
   }
 
   /** Replace the sections from data. `content` is trusted HTML. */
+  static itemsAreChildren = true;
+
   setItems(items: AccordionItem[]): void {
     this.sections().forEach(section => section.el.remove());
     items.forEach(item => {
@@ -214,7 +216,13 @@ export class NXAccordion extends BaseComponent {
   }
 }
 
-/** A section inside `<nx-accordion>`: `<nx-accordion-item title="…" expanded>…</nx-accordion-item>` */
+/**
+ * A section inside `<nx-accordion>`: `<nx-accordion-item title="…" expanded>…</nx-accordion-item>`
+ *
+ * @attr title - Header text
+ * @attr expanded - Open
+ * @attr disabled - Can't be toggled
+ */
 export class NXAccordionItem extends HTMLElement {
   connectedCallback(): void {
     this.style.display = this.style.display || 'block';

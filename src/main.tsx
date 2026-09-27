@@ -4,7 +4,7 @@
  */
 import {
   NX, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, DataGrid, Form, Grid, HStack,
-  Input, Menu, Outlet, Panel, Progress, Select, Spacer, Switch, Tab, Tabs, Textarea, Toolbar, Tree,
+  Input, Menu, Outlet, Panel, Progress, RadioGroup, Select, Spacer, Switch, Tab, Tabs, Textarea, Toolbar, Tree,
   VStack, type Child, type GridColumn, type NXGrid, type NXForm
 } from '@/index';
 
@@ -221,6 +221,11 @@ const SettingsPage = () => (
         />
         <Input name="age" type="number" label="Age" min={0} max={150} />
         <Textarea name="bio" label="Bio" placeholder="Tell us a little about yourself" style="grid-column: 1 / -1" />
+        <RadioGroup name="plan" label="Plan" value="pro" variant="cards" orientation="horizontal" style="grid-column: 1 / -1" options={[
+          { value: 'free', text: 'Free', description: 'For side projects' },
+          { value: 'pro', text: 'Pro', description: 'For growing teams' },
+          { value: 'enterprise', text: 'Enterprise', description: 'SSO, audit logs, SLA' }
+        ]} />
         <Switch name="notifications" label="Email notifications" description="Product updates and weekly digest." style="grid-column: 1 / -1" />
         <Checkbox name="terms" label="I accept the terms and conditions" required style="grid-column: 1 / -1" />
 

@@ -67,6 +67,8 @@ export class NXSkeleton extends BaseComponent {
   protected styles(): string {
     return `
       :host { display: block; }
+      /* Fill the line, also inside flex rows (a % width of a shrink-to-fit host is 0) */
+      :host(:not([variant="circle"]):not([variant="circular"])) { width: 100%; min-width: 0; }
 
       .stack {
         display: flex;

@@ -44,5 +44,5 @@
     "noImplicitThis": true,
     "alwaysStrict": true
   },
-  "include": ["src", "examples", "vitest.config.ts", "playwright.config.ts"]
+  "include": ["src", "examples", "scripts", "vitest.config.ts", "playwright.config.ts"]
 }

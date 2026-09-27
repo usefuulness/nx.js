@@ -2,6 +2,7 @@
  * @file @/components/ui/modal.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
+import { FIELD_TAGS } from '@/components/ui/form/field';
 import { BaseComponent } from '@/components/abstracts/base';
 import { ComponentRegistry, define, type ItemConfig } from '@/core/registry';
 import { Icons } from '@/core/icons';
@@ -200,7 +201,7 @@ export class NXModal extends BaseComponent {
   }
 
   private focusFirst(): void {
-    const target = this.querySelector('[autofocus], input, textarea, nx-textfield, nx-select') as HTMLElement | null;
+    const target = this.querySelector(`[autofocus], input, textarea, select, ${FIELD_TAGS}`) as HTMLElement | null;
     if (target) {
       target.focus();
       return;
@@ -329,6 +330,10 @@ export class NXModal extends BaseComponent {
 }
 
 define('nx-modal', NXModal);
+
+/** `<nx-dialog>`: the HTML name matching `<Dialog>` in JSX. */
+export class NXDialog extends NXModal {}
+define('nx-dialog', NXDialog);
 
 // ────────── Imperative helpers ──────────
 

@@ -12,9 +12,9 @@
     <form method="post" action="{{ path('users_create') }}">
       <input type="hidden" name="_token" value="{{ csrf_token('invite') }}">
       <nx-form columns="2">
-        <nx-textfield name="name" label="Name" value="{{ form.name }}" required></nx-textfield>
-        <nx-textfield name="email" type="email" label="Email" value="{{ form.email }}" required
-                      {% if errors.email %}error-text="{{ errors.email }}"{% endif %}></nx-textfield>
+        <nx-input name="name" label="Name" value="{{ form.name }}" required></nx-input>
+        <nx-input name="email" type="email" label="Email" value="{{ form.email }}" required
+                      {% if errors.email %}error-text="{{ errors.email }}"{% endif %}></nx-input>
         <nx-select name="role" label="Role" value="{{ form.role|default('Viewer') }}">
           {% for role in roles %}<option>{{ role }}</option>{% endfor %}
         </nx-select>

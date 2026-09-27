@@ -1,5 +1,5 @@
 import { BaseComponent, eventName, toKebab } from '@/components/abstracts/base';
-import { hooks } from '@/core/dom-utils';
+import { hooks, definedTags } from '@/core/dom-utils';
 
 /**
  * A declarative component config. `xtype` picks the component
@@ -72,8 +72,8 @@ export class ComponentRegistry {
     this.alias('input', 'nx-textfield');
     this.alias('select', 'nx-select');
     this.alias('checkbox', 'nx-checkbox');
-    this.alias('radio', 'nx-radio');
-    this.alias('toggle', 'nx-toggle');
+    this.alias('radio', 'nx-radio-group');
+    this.alias('radiogroup', 'nx-radio-group');
     this.alias('modal', 'nx-modal');
     this.alias('dialog', 'nx-modal');
     this.alias('toast', 'nx-toast');
@@ -96,27 +96,12 @@ export class ComponentRegistry {
     this.alias('separator', 'nx-separator');
     this.alias('spacer', 'nx-spacer');
     this.alias('viewport', 'nx-viewport');
-    this.alias('layout', 'nx-layout');
-    this.alias('field', 'nx-field');
-    this.alias('fieldset', 'nx-fieldset');
-    this.alias('label', 'nx-label');
-    this.alias('datefield', 'nx-datefield');
-    this.alias('datepicker', 'nx-datefield');
-    this.alias('numberfield', 'nx-numberfield');
-    this.alias('number', 'nx-numberfield');
-    this.alias('slider', 'nx-slider');
-    this.alias('range', 'nx-slider');
-    this.alias('list', 'nx-list');
-    this.alias('listview', 'nx-list');
-    this.alias('dataview', 'nx-dataview');
     this.alias('card', 'nx-card');
     this.alias('table', 'nx-data-table');
     this.alias('datatable', 'nx-data-table');
     this.alias('data-table', 'nx-data-table');
     this.alias('spinner', 'nx-spinner');
     this.alias('panel', 'nx-panel');
-    this.alias('splitter', 'nx-splitter');
-    this.alias('split', 'nx-splitter');
   }
 
   /**
@@ -257,6 +242,7 @@ export class ComponentRegistry {
     // Data-driven components (menu, breadcrumb, accordion…) take items as data
     if (typeof (container as any).setItems === 'function') {
       (container as any).setItems(items);
+      (container as any).rememberItems?.(items);
       return;
     }
     items.forEach(item => {
@@ -363,6 +349,7 @@ export class ComponentRegistry {
  * `define('nx-button', NXButton)` makes `{ xtype: 'button' }` work.
  */
 export function define(tagName: string, component: CustomElementConstructor): void {
+  definedTags.add(tagName);
   if (!customElements.get(tagName)) {
     customElements.define(tagName, component);
   }

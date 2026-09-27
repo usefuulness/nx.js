@@ -5,7 +5,11 @@
  * Only serializable props (strings, numbers, arrays, objects) survive into the
  * HTML. Behaviour belongs in client.ts, which listens for component events.
  */
-import { Accordion, AccordionItem, Badge, Button, Card, CardFooter, Checkbox, DataGrid, Form, HStack, Input, Select, Tab, Tabs, Textarea, VStack } from 'nx.js';
+import {
+  Accordion, AccordionItem, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, DataGrid, Dialog, DialogFooter,
+  Divider, Drawer, Form, Grid, HStack, Input, Menu, MenuBar, Panel, Progress, RadioGroup, Select, Separator, Skeleton, Spinner, Switch,
+  Tab, Tabs, Textarea, Toolbar, Tree, VStack
+} from 'nx.js';
 
 const releases = [
   { version: '0.3.0', date: '2025-06-02', notes: 'Server rendering, template engines' },
@@ -19,7 +23,7 @@ const Layout = ({ title, children }: { title: string; children?: any }) => (
       <h1 style="margin: 0; font-size: 1.75rem">{title}</h1>
       <Badge variant="success">static</Badge>
       <span style="flex: 1" />
-      <nav><a href="./index.html">Home</a> · <a href="./contact.html">Contact</a></nav>
+      <nav><a href="./index.html">Home</a> · <a href="./components.html">Components</a> · <a href="./contact.html">Contact</a></nav>
       <Button id="theme" variant="ghost" icon="moon" aria-label="Toggle theme" />
     </HStack>
     {children}
@@ -80,4 +84,94 @@ export const Contact = () => (
   </Layout>
 );
 
-export const pages = { index: Home, contact: Contact };
+/** Every component, server-rendered — the hydration audit in src/tests/e2e/ssr.spec.ts uses this page. */
+export const Components = () => (
+  <Layout title="Components">
+    <Breadcrumb items={[{ text: 'Home', href: './index.html' }, { text: 'Components' }]} />
+
+    <Grid minColumnWidth="16rem" gap={16}>
+      <Card title="Buttons">
+        <HStack gap={8} wrap>
+          <Button>Primary</Button>
+          <Button variant="secondary">Secondary</Button>
+          <Button variant="outline" icon="plus">Outline</Button>
+          <Button variant="ghost">Ghost</Button>
+          <Button variant="danger" icon="trash">Delete</Button>
+          <Button loading>Saving</Button>
+          <Button icon="settings" aria-label="Settings" variant="outline" />
+        </HStack>
+      </Card>
+
+      <Card title="Badges and status">
+        <VStack gap={12}>
+          <HStack gap={8} wrap>
+            <Badge>Default</Badge>
+            <Badge variant="secondary">Secondary</Badge>
+            <Badge variant="success">Paid</Badge>
+            <Badge variant="warning">Pending</Badge>
+            <Badge variant="destructive">Failed</Badge>
+            <Badge variant="outline">Outline</Badge>
+          </HStack>
+          <Progress value={64} label="Storage" showValue />
+          <HStack gap={12} align="center"><Spinner /><Skeleton width="60%" /></HStack>
+        </VStack>
+      </Card>
+
+      <Card title="Form controls">
+        <VStack gap={12}>
+          <Input name="q" label="Search" icon="search" placeholder="Anything…" clearable />
+          <Select name="plan" label="Plan" value="pro" options={{ free: 'Free', pro: 'Pro', team: 'Team' }} />
+          <Checkbox name="terms" label="Accept terms" checked />
+          <Switch name="alerts" label="Email alerts" description="Weekly summary." />
+          <RadioGroup name="size" label="Size" value="m" orientation="horizontal" options={{ s: 'Small', m: 'Medium', l: 'Large' }} />
+        </VStack>
+      </Card>
+    </Grid>
+
+    <Card title="Menus and toolbars">
+      <CardActions><Menu items={[{ text: 'Edit', icon: 'edit' }, { text: 'Delete', icon: 'trash' }]} /></CardActions>
+      <VStack gap={12}>
+        <MenuBar items={[
+          { text: 'File', items: [{ text: 'New' }, { text: 'Open…' }] },
+          { text: 'Edit', items: [{ text: 'Undo' }, { text: 'Redo' }] }
+        ]} />
+        <Toolbar>
+          <Button icon="plus">New</Button>
+          <Separator />
+          <Button icon="refresh" aria-label="Refresh" />
+        </Toolbar>
+        <Divider label="or" />
+        <HStack gap={8}>
+          <Button id="open-dialog" variant="outline">Open dialog</Button>
+          <Button id="open-drawer" variant="outline">Open drawer</Button>
+        </HStack>
+      </VStack>
+    </Card>
+
+    <Grid minColumnWidth="18rem" gap={16}>
+      <Panel title="Tree">
+        <Tree data={[
+          { text: 'src', expanded: true, children: [{ text: 'index.ts' }, { text: 'ssr', children: [{ text: 'index.ts' }] }] },
+          { text: 'README.md' }
+        ]} />
+      </Panel>
+      <Card title="Form" subtitle="Validates, then fires submit">
+        <Form id="profile" columns={1}>
+          <Input name="name" label="Name" required />
+          <Textarea name="bio" label="Bio" rows={2} />
+          <Button slot="buttons" type="submit">Save</Button>
+        </Form>
+      </Card>
+    </Grid>
+
+    <Dialog id="dialog" title="Server-rendered dialog" description="Closed until you open it.">
+      <p>Dialogs render in the HTML too, closed.</p>
+      <DialogFooter><Button id="close-dialog">Close</Button></DialogFooter>
+    </Dialog>
+    <Drawer id="drawer" title="Drawer" description="A sheet from the side.">
+      <p>Drawer content.</p>
+    </Drawer>
+  </Layout>
+);
+
+export const pages = { index: Home, components: Components, contact: Contact };

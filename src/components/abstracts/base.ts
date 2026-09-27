@@ -16,7 +16,7 @@ export const ComponentState = Symbol('ComponentState');
 export const ComponentProps = Symbol('ComponentProps');
 
 import '@/core/require-dom';
-import { ATTRIBUTE_NAMES, HOST_KEYS, NX_COMPONENT, applyStyle, escapeHTML, eventName, toKebab } from '@/core/dom-utils';
+import { ATTRIBUTE_NAMES, HOST_KEYS, NX_COMPONENT, applyStyle, escapeHTML, eventName, hooks, toKebab } from '@/core/dom-utils';
 
 export { applyStyle, escapeHTML, eventName, toKebab };
 
@@ -588,6 +588,17 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
   }
 
   /**
+   * Components whose `setItems()` turns items into light-DOM children (those
+   * are serialized as HTML already, so the items aren't recorded again).
+   */
+  static itemsAreChildren = false;
+
+  /** Record data `items` (menus, breadcrumbs…) for hydration. @internal */
+  rememberItems(items: unknown[]): void {
+    if (!(this.constructor as typeof BaseComponent).itemsAreChildren) this.configRecord.items = items;
+  }
+
+  /**
    * The config needed to recreate this component from its HTML, as JSON — used by
    * server rendering, which writes it into a `<script type="application/json" data-nx-config>`
    * child. Functions can't be serialized; their paths are reported in `dropped`.
@@ -624,7 +635,9 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
     const script = this.querySelector(':scope > script[type="application/json"][data-nx-config]');
     if (script) {
       try {
-        this.configure(JSON.parse(script.textContent || '{}'));
+        const { items, ...config } = JSON.parse(script.textContent || '{}');
+        this.configure(config);
+        if (Array.isArray(items)) hooks.appendItems?.(this, items);
       } catch (error) {
         console.error(`[nx] Invalid JSON in <${this.localName}> data-nx-config`, error);
       }

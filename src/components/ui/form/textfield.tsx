@@ -198,6 +198,18 @@ export class NXTextField extends NXField {
 
 define('nx-textfield', NXTextField);
 
+/** `<nx-input>`: the HTML name matching `<Input>` in JSX. */
+export class NXInput extends NXTextField {}
+define('nx-input', NXInput);
+
+/** `<nx-textarea>`: a multi-line text field, like `<Textarea>` in JSX. */
+export class NXTextarea extends NXTextField {
+  protected getProp<T = any>(name: string, defaultValue?: T): T {
+    return name === 'multiline' ? (true as T) : super.getProp(name, defaultValue);
+  }
+}
+define('nx-textarea', NXTextarea);
+
 /** Shorthand xtypes that preconfigure a textfield. */
 export const TEXTFIELD_VARIANTS: Record<string, Partial<TextFieldConfig>> = {
   textarea: { multiline: true },

@@ -25,6 +25,9 @@ type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
 let fieldSeq = 0;
 
+/** Every Nexaro form field tag, HTML aliases included (for `matches()`/`querySelector()`). */
+export const FIELD_TAGS = 'nx-textfield, nx-input, nx-textarea, nx-select, nx-checkbox, nx-switch, nx-radio-group';
+
 export abstract class NXField extends BaseComponent {
   static formAssociated = true;
 
@@ -39,7 +42,10 @@ export abstract class NXField extends BaseComponent {
     super();
     // A declarative shadow root (server rendering) is readable until attachShadow() clears it
     const ssrControl = this.shadowRoot?.querySelector('input, select, textarea') as HTMLInputElement | null;
-    if (ssrControl) {
+    if (ssrControl?.type === 'radio') {
+      const checked = this.shadowRoot!.querySelector('input[type=radio]:checked') as HTMLInputElement | null;
+      this.serverState = { value: checked?.value ?? '' };
+    } else if (ssrControl) {
       this.serverState = ssrControl.type === 'checkbox' ? { checked: ssrControl.checked } : { value: ssrControl.value };
     }
     this.attachShadow({ mode: 'open', delegatesFocus: true });

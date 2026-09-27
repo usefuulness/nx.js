@@ -237,7 +237,7 @@ app.toggleRegion('west');   // open the side nav on phones, collapse a collapsib
 | `tabpanel` | Each item is a tab: `title`, `icon`, `closable`, `disabled`; the rest of the item is the tab body. `variant` (`default` `pills` `underlined`), `position`. Events: `tab-change`, `tab-close`. |
 | `tree` | `data: TreeNode[]` (`text`, `icon`, `children`, `expanded`, `route`, …), `checkboxes`, `multiSelect`. Full keyboard support. Events: `select`, `toggle`, `check` (detail includes the `node`). |
 | `grid` | See [below](#data-grid-and-stores). |
-| `form`, `textfield`, `select`, `checkbox`, `switch` | See [Forms](#forms). |
+| `form`, `textfield`, `select`, `checkbox`, `switch`, `radio` | See [Forms](#forms). |
 | `modal` | See [Dialogs](#dialogs-and-toasts). |
 | `progress` | `value`, `max`, `variant`, `size`, `indeterminate`, `striped`. |
 | `accordion`, `breadcrumb`, `menu`, `menubar` | `items` as data. |
@@ -303,6 +303,8 @@ NX.store('orders', { proxy: { type: 'rest', url: '/api/orders' }, autoLoad: true
     { xtype: 'select', name: 'role', label: 'Role', options: ['Admin', 'Editor'] },
     { xtype: 'numberfield', name: 'age', label: 'Age', min: 0 },
     { xtype: 'textarea', name: 'bio', label: 'Bio', style: 'grid-column: 1 / -1' },
+    { xtype: 'radio', name: 'plan', label: 'Plan', variant: 'cards', orientation: 'horizontal',
+      options: [{ value: 'free', text: 'Free', description: 'Side projects' }, { value: 'pro', text: 'Pro' }] },
     { xtype: 'switch', name: 'newsletter', label: 'Newsletter', description: 'Weekly, no spam.' },
     { xtype: 'checkbox', name: 'terms', label: 'I accept the terms', required: true }
   ],
@@ -314,7 +316,7 @@ NX.store('orders', { proxy: { type: 'rest', url: '/api/orders' }, autoLoad: true
 }
 ```
 
-- Field xtypes: `textfield` (set `type` for `url`, `tel`, `time`, …), `textarea`, `email`, `password`, `numberfield`, `datefield`, `search`, `select`, `checkbox`, `switch`.
+- Field xtypes: `textfield` (set `type` for `url`, `tel`, `time`, …), `textarea`, `email`, `password`, `numberfield`, `datefield`, `search`, `select`, `checkbox`, `switch`, `radio` (a radio group; `variant: 'cards'` for plan pickers).
 - Common field options: `name`, `label`, `helperText`, `errorText`, `required`, `disabled`, `placeholder`, `icon`, `clearable`, `validator`, `size`.
 - The form API: `getValues()`, `setValues()`, `validate()`, `isValid()`, `submit()`, `reset()`, `getField(name)`.
 - Errors appear after a field is touched or on submit. Enter in a single-line field submits.
@@ -461,7 +463,7 @@ Quick one-offs can use `NX.define('stat', { render() { return <b>{this.getProp('
 
 ## Using it from HTML
 
-Every component is a custom element:
+Every component is a custom element, named like its JSX component (`<Input>` is `<nx-input>`, `<RadioGroup>` is `<nx-radio-group>`). Attributes are the kebab-case props, and anything richer is JSON:
 
 ```html
 <nx-card title="Welcome">
@@ -469,18 +471,38 @@ Every component is a custom element:
   <nx-button slot="footer" variant="outline" icon="plus">New</nx-button>
 </nx-card>
 
-<nx-tabpanel>
+<nx-tabs>
   <nx-tab title="Account" icon="user">…</nx-tab>
   <nx-tab title="Password" icon="lock">…</nx-tab>
-</nx-tabpanel>
+</nx-tabs>
 
 <nx-container layout="hbox" gap="8">
-  <nx-textfield label="Name" name="name" required></nx-textfield>
+  <nx-input label="Name" name="name" required></nx-input>
   <nx-select label="Role" name="role">
     <option>Admin</option><option selected>Editor</option>
   </nx-select>
 </nx-container>
+
+<nx-radio-group name="plan" label="Plan" value="pro" variant="cards">
+  <option value="free" data-description="For side projects">Free</option>
+  <option value="pro" data-description="For growing teams">Pro</option>
+</nx-radio-group>
+<nx-textarea name="bio" label="Bio"></nx-textarea>
+<nx-switch name="alerts" label="Email alerts" checked></nx-switch>
+
+<nx-grid title="Users" columns='[{"field":"name","header":"Name"}]'>
+  <script type="application/json" data-nx-config>{"data": [{"name": "Ada"}]}</script>
+</nx-grid>
 ```
+
+The longer names from the config world (`nx-textfield`, `nx-tabpanel`, `nx-modal`) keep working.
+
+**Editor autocompletion** for every tag, attribute and allowed value (`variant="…"`) in HTML and templates:
+
+- VS Code: add `"html.customData": ["./node_modules/nx.js/dist/html-custom-data.json"]` to `.vscode/settings.json`.
+- JetBrains, Storybook and other tools read the [Custom Elements Manifest](https://github.com/webcomponents/custom-elements-manifest) at `nx.js/custom-elements.json` (`"customElements"` in package.json).
+
+Both are generated from the component sources on every build (`scripts/custom-elements.ts`).
 
 ## Server rendering: SSR, SSG and any template engine
 
@@ -510,8 +532,8 @@ Templates just write the tags. Attributes take strings, and JSON goes into attri
 </nx-grid>
 
 <form method="post" action="/users">
-  <nx-textfield name="email" type="email" label="Email" value="{{ old.email }}" required
-                error-text="{{ errors.email }}"></nx-textfield>
+  <nx-input name="email" type="email" label="Email" value="{{ old.email }}" required
+                error-text="{{ errors.email }}"></nx-input>
   <nx-select name="role" label="Role" value="Editor"><option>Admin</option><option>Editor</option></nx-select>
   <nx-button type="submit">Invite</nx-button>
 </form>

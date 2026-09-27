@@ -471,4 +471,8 @@ export class NXTab extends HTMLElement {
 }
 
 define('nx-tabpanel', NXTabPanel);
+
+/** `<nx-tabs>`: the HTML name matching `<Tabs>` in JSX. */
+export class NXTabs extends NXTabPanel {}
+define('nx-tabs', NXTabs);
 define('nx-tab', NXTab);

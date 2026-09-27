@@ -76,8 +76,10 @@ export function serializeNode(node: Node, ctx: SerializeContext): string {
   const extra: Record<string, string | true> = {};
   let prefix = '';
 
+  // Server-rendered custom elements (with or without a shadow root) stay visible before they upgrade
+  if (root || (tag.includes('-') && customElements.get(tag))) extra['nx-ssr'] = true;
+
   if (root) {
-    extra['nx-ssr'] = true;
     const serializeConfig = (el as any).serializeConfig as undefined | (() => { json: string | null; dropped: string[] });
     if (typeof serializeConfig === 'function') {
       const { json, dropped } = serializeConfig.call(el);

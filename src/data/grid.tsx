@@ -2,6 +2,7 @@
  * @file @/data/grid.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
+import { FIELD_TAGS } from '@/components/ui/form/field';
 import { BaseComponent } from '@/components/abstracts/base';
 import type { Child } from '@/jsx/jsx-runtime';
 import { define } from '@/core/registry';
@@ -511,7 +512,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
     // Buttons, links and inputs inside cells (e.g. from a renderer) handle their own clicks
     const interactive = e.composedPath().some(el =>
-      el instanceof Element && el.matches('a, button, input, select, textarea, label, nx-button, nx-menu, nx-checkbox, [data-no-row-click]')
+      el instanceof Element && el.matches(`a, button, input, select, textarea, label, nx-button, nx-menu, ${FIELD_TAGS}, [data-no-row-click]`)
     );
     if (interactive) return;
 

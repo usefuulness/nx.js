@@ -33,8 +33,8 @@ test('add user dialog validates and adds a row', async ({ page }) => {
   await page.locator('nx-modal nx-button', { hasText: 'Invite' }).click();
   await expect(page.locator('nx-modal').getByText('Please fill out this field.').first()).toBeVisible();
 
-  await page.locator('nx-modal nx-textfield[name=name] input').fill('Test Person');
-  await page.locator('nx-modal nx-textfield[name=email] input').fill('test@example.com');
+  await page.locator('nx-modal [name=name] input').fill('Test Person');
+  await page.locator('nx-modal [name=email] input').fill('test@example.com');
   await page.locator('nx-modal nx-button', { hasText: 'Invite' }).click();
   await expect(page.locator('nx-modal')).toHaveCount(0);
   await expect(page.locator('nx-toast')).toContainText('Invited Test Person');

@@ -12,9 +12,9 @@
     <form method="post" action="{{ route('users.store') }}">
       @csrf
       <nx-form columns="2">
-        <nx-textfield name="name" label="Name" value="{{ old('name') }}" required></nx-textfield>
-        <nx-textfield name="email" type="email" label="Email" value="{{ old('email') }}" required
-                      @error('email') error-text="{{ $message }}" @enderror></nx-textfield>
+        <nx-input name="name" label="Name" value="{{ old('name') }}" required></nx-input>
+        <nx-input name="email" type="email" label="Email" value="{{ old('email') }}" required
+                      @error('email') error-text="{{ $message }}" @enderror></nx-input>
         <nx-select name="role" label="Role" value="{{ old('role', 'Viewer') }}">
           @foreach ($roles as $role)<option>{{ $role }}</option>@endforeach
         </nx-select>

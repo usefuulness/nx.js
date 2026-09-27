@@ -30,6 +30,7 @@ import type { TabPanelConfig } from '@/components/ui/tabpanel';
 import type { TreeConfig } from '@/components/ui/tree';
 import type { GridConfig } from '@/data/grid';
 import type { FormConfig } from '@/components/ui/form';
+import type { RadioGroupConfig } from '@/components/ui/form/radio';
 import type { TextFieldConfig } from '@/components/ui/form/textfield';
 import type { SelectConfig } from '@/components/ui/form/select';
 import type { CheckboxConfig } from '@/components/ui/form/checkbox';
@@ -93,14 +94,20 @@ declare module './jsx-runtime' {
     'nx-container': Props<ContainerConfig>;
     'nx-toolbar': Props<ToolbarConfig>;
     'nx-tabpanel': Props<TabPanelConfig>;
+    'nx-tabs': Props<TabPanelConfig>;
     'nx-tab': Props<TabProps>;
     'nx-tree': Props<TreeConfig>;
     'nx-grid': Props<GridConfig>;
     'nx-form': Props<FormConfig>;
     'nx-textfield': Props<TextFieldConfig>;
+    'nx-input': Props<TextFieldConfig>;
+    'nx-textarea': Props<Omit<TextFieldConfig, 'multiline'>>;
+    'nx-radio-group': Props<RadioGroupConfig>;
     'nx-select': Props<SelectConfig>;
     'nx-checkbox': Props<CheckboxConfig>;
+    'nx-switch': Props<Omit<CheckboxConfig, 'switch'>>;
     'nx-modal': Props<ModalConfig>;
+    'nx-dialog': Props<ModalConfig>;
     'nx-menu': Props<MenuConfig>;
     'nx-progress': Props<ProgressConfig>;
     'nx-accordion': Props<AccordionConfig>;
@@ -149,7 +156,7 @@ export const CardActions = ({ children, ...rest }: Props<{}, HTMLDivElement>) =>
 
 // ────────── Navigation ──────────
 
-export const Tabs = (props: Props<TabPanelConfig>) => <nx-tabpanel {...props} />;
+export const Tabs = (props: Props<TabPanelConfig>) => <nx-tabs {...props} />;
 export const Tab = (props: Props<TabProps>) => <nx-tab {...props} />;
 export const Tree = (props: Props<TreeConfig>) => <nx-tree {...props} />;
 export const Menu = (props: Props<MenuConfig>) => <nx-menu {...props} />;
@@ -170,11 +177,12 @@ export const DataTable = DataGrid;
 // ────────── Forms ──────────
 
 export const Form = (props: Props<FormConfig>) => <nx-form {...props} />;
-export const Input = (props: Props<TextFieldConfig>) => <nx-textfield {...props} />;
-export const Textarea = (props: Props<Omit<TextFieldConfig, 'multiline'>>) => <nx-textfield multiline {...props} />;
+export const Input = (props: Props<TextFieldConfig>) => <nx-input {...props} />;
+export const Textarea = (props: Props<Omit<TextFieldConfig, 'multiline'>>) => <nx-textarea {...props} />;
 export const Select = (props: Props<SelectConfig>) => <nx-select {...props} />;
 export const Checkbox = (props: Props<CheckboxConfig>) => <nx-checkbox {...props} />;
-export const Switch = (props: Props<Omit<CheckboxConfig, 'switch'>>) => <nx-checkbox switch {...props} />;
+export const Switch = (props: Props<Omit<CheckboxConfig, 'switch'>>) => <nx-switch {...props} />;
+export const RadioGroup = (props: Props<RadioGroupConfig>) => <nx-radio-group {...props} />;
 
 // ────────── Overlays ──────────
 
@@ -182,7 +190,7 @@ export const Switch = (props: Props<Omit<CheckboxConfig, 'switch'>>) => <nx-chec
  * Declarative dialog. Open it with a ref: `<Dialog ref={d => (dialog = d)} title="…">…</Dialog>`
  * then `dialog.open()`. For one-off dialogs prefer `NX.dialog()` / `NX.confirm()`.
  */
-export const Dialog = (props: Props<Omit<ModalConfig, 'items' | 'html'>>) => <nx-modal {...props} />;
+export const Dialog = (props: Props<Omit<ModalConfig, 'items' | 'html'>>) => <nx-dialog {...props} />;
 export const DialogFooter = ({ children, ...rest }: Props<{}, HTMLDivElement>) => <div slot="footer" style="display: contents" {...rest}>{children}</div>;
 
 // ────────── Helpers ──────────

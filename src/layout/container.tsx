@@ -130,6 +130,8 @@ export class NXSeparator extends HTMLElement {
 
 /**
  * Horizontal rule, optionally with a label.
+ *
+ * @attr label - Text in the middle of the rule
  */
 export class NXDivider extends HTMLElement {
   connectedCallback(): void {

@@ -2,6 +2,7 @@
  * @file @/components/ui/toolbar.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
+import { FIELD_TAGS } from '@/components/ui/form/field';
 import { BaseComponent } from '@/components/abstracts/base';
 import { ComponentRegistry, define, type ItemConfig, type ItemsAware } from '@/core/registry';
 
@@ -124,7 +125,7 @@ export class NXToolbar extends BaseComponent implements ItemsAware {
       const keyEvent = e as KeyboardEvent;
       if (keyEvent.key !== 'ArrowRight' && keyEvent.key !== 'ArrowLeft') return;
       const target = keyEvent.target as HTMLElement;
-      if (target.matches('input, textarea, nx-textfield, nx-select')) return;
+      if (target.matches(`input, textarea, select, ${FIELD_TAGS}`)) return;
 
       const focusable = Array.from(this.children).filter(
         el => el.matches('nx-button:not([disabled]), button:not(:disabled), a[href]')

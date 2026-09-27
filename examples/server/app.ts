@@ -84,8 +84,8 @@ const usersPage = (flash?: string) => layout('Users', html`
   <nx-card title="Invite someone" subtitle="A plain HTML form: it posts to /users without any JavaScript handler.">
     <form method="post" action="/users">
       <nx-form columns="2">
-        <nx-textfield name="name" label="Name" required></nx-textfield>
-        <nx-textfield name="email" type="email" label="Email" required></nx-textfield>
+        <nx-input name="name" label="Name" required></nx-input>
+        <nx-input name="email" type="email" label="Email" required></nx-input>
         <nx-select name="role" label="Role" value="Viewer">
           <option>Admin</option><option>Editor</option><option>Viewer</option>
         </nx-select>

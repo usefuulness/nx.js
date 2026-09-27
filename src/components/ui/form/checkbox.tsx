@@ -264,6 +264,14 @@ export class NXCheckbox extends NXField {
 
 define('nx-checkbox', NXCheckbox);
 
+/** `<nx-switch>`: a toggle switch, like `<Switch>` in JSX. */
+export class NXSwitch extends NXCheckbox {
+  protected getProp<T = any>(name: string, defaultValue?: T): T {
+    return name === 'switch' ? (true as T) : super.getProp(name, defaultValue);
+  }
+}
+define('nx-switch', NXSwitch);
+
 ComponentRegistry.registerFactory('switch', ({ items: _items, ...config } = {}) =>
   ComponentRegistry.build({ ...config, switch: true, xtype: 'checkbox' }) as any
 );

@@ -1,4 +1,5 @@
 // src/core/theme.ts
+import { definedTags } from '@/core/dom-utils';
 
 export interface ThemeColors {
   /** Brand / primary action background */
@@ -308,12 +309,7 @@ export class ThemeManager {
   }
 
   private static componentTags(): string[] {
-    // Registered Nexaro elements (the registry keeps no list, so probe the known prefix)
-    const known = ['nx-accordion', 'nx-badge', 'nx-breadcrumb', 'nx-button', 'nx-card', 'nx-checkbox', 'nx-container',
-      'nx-data-table', 'nx-drawer', 'nx-form', 'nx-grid', 'nx-loader', 'nx-menu', 'nx-menubar', 'nx-modal', 'nx-panel',
-      'nx-progress', 'nx-select', 'nx-skeleton', 'nx-spinner', 'nx-tabpanel', 'nx-textfield', 'nx-toast', 'nx-toolbar',
-      'nx-tree', 'nx-viewport'];
-    return known.filter(tag => customElements.get(tag));
+    return Array.from(definedTags).sort();
   }
 
   /**

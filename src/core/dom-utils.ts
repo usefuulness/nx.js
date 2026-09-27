@@ -109,3 +109,6 @@ export function escapeHTML(value: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
+
+/** Every tag registered with `define()` (the stylesheet hides them until they upgrade). */
+export const definedTags = new Set<string>();

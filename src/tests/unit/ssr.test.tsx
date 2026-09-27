@@ -7,7 +7,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { execFileSync } from 'node:child_process';
 import { describe, it, expect, afterAll } from 'vitest';
-import { Button, Card, CardFooter, Tabs, Tab, Input, DataGrid, Tree } from '@/index';
+import { Button, Card, CardFooter, Tabs, Tab, Input, DataGrid, Tree, Breadcrumb, Menu } from '@/index';
 
 describe('renderToString', () => {
   it('renders components with Declarative Shadow DOM', async () => {
@@ -75,6 +75,15 @@ describe('renderToString', () => {
     const html = await renderToString(<Input name="email" value="ada@example.com" label="Email" />);
     expect(html).toContain('value="ada@example.com"');
     expect(html).toContain('<label class="nx-field-label" part="label" for=');
+  });
+
+  it('keeps data items (breadcrumbs, menus) for hydration', async () => {
+    const html = await renderToString([
+      <Breadcrumb items={[{ text: 'Home', href: '/' }, { text: 'Docs' }]} />,
+      <Menu items={[{ text: 'Edit' }]} />
+    ]);
+    expect(html).toContain('<script type="application/json" data-nx-config>{"items":[{"text":"Home","href":"/"},{"text":"Docs"}]}</script>');
+    expect(html).toContain('{"items":[{"text":"Edit"}]}');
   });
 
   it('renders xtype configs and trees too', async () => {

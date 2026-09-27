@@ -7,6 +7,10 @@ export interface ViewportConfig {
   layout?: 'border' | 'viewport' | 'card' | 'fit';
 }
 
+/**
+ * Full-page app shell. Children go into regions with `region="north|south|east|west|center"`;
+ * side regions collapse into a drawer on small screens.
+ */
 export class NXViewport extends BaseComponent {
   static get observedAttributes(): string[] {
     return ['layout', 'breakpoint'];
@@ -254,6 +258,7 @@ export class NXViewport extends BaseComponent {
   }
 }
 
+/** A region of `<nx-viewport>` with its own title, size and collapse state. */
 export class NXRegion extends BaseComponent {
   static get observedAttributes(): string[] {
     return ['region', 'title', 'collapsible', 'collapsed', 'split', 'size'];
