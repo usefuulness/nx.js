@@ -1,4 +1,4 @@
-import { BaseComponent, ComponentState, escapeHTML } from '@/components/abstracts/base';
+import { BaseComponent, ComponentState } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 
@@ -107,16 +107,15 @@ export class NXTree extends BaseComponent {
     this.setState('expandedNodes', new Set());
   }
 
-  protected render(): string {
-    const data = this.getState<TreeNode[]>('data', []);
-    return `
-      <div class="nx-tree" part="container" role="tree">
-        ${this.renderNodes(data, 0)}
+  protected render(): Node {
+    return (
+      <div class="nx-tree" part="container" role="tree" onKeyDown={(e: KeyboardEvent) => this.handleKeyboard(e)}>
+        {this.renderNodes(this.getState<TreeNode[]>('data', []), 0)}
       </div>
-    `;
+    );
   }
 
-  private renderNodes(nodes: TreeNode[], level: number): string {
+  private renderNodes(nodes: TreeNode[], level: number): Node[] {
     const expandedNodes = this.getState<Set<string>>('expandedNodes', new Set());
     const selectedNodes = this.getState<Set<string>>('selectedNodes', new Set());
     const checkedNodes = this.getState<Set<string>>('checkedNodes', new Set());
@@ -128,47 +127,44 @@ export class NXTree extends BaseComponent {
       const hasChildren = !!node.children && node.children.length > 0;
       const isExpanded = hasChildren && expandedNodes.has(nodeId);
       const isSelected = selectedNodes.has(nodeId);
-      const isChecked = checkedNodes.has(nodeId);
+      const iconMarkup = icons && node.icon ? Icons.get(node.icon) : '';
 
-      return `
-        <div class="nx-tree-node ${node.disabled ? 'disabled' : ''}"
-             data-node-id="${escapeHTML(nodeId)}"
-             data-level="${level}">
-          <div class="nx-tree-node-content ${isSelected ? 'selected' : ''}"
-               part="node${isSelected ? ' node-selected' : ''}"
-               role="treeitem"
-               ${hasChildren ? `aria-expanded="${isExpanded}"` : ''}
-               aria-selected="${isSelected}"
-               aria-level="${level + 1}"
-               style="padding-left: ${0.5 + level * 1}rem"
-               tabindex="${node.disabled ? -1 : 0}">
-            ${hasChildren ? `
-              <span class="nx-tree-toggle ${isExpanded ? 'expanded' : ''}" part="toggle" aria-hidden="true">
-                ${Icons.get('chevron-right')}
-              </span>
-            ` : `
-              <span class="nx-tree-toggle-placeholder"></span>
-            `}
-            ${checkboxes ? `
-              <input type="checkbox"
-                     class="nx-tree-checkbox"
-                     ${isChecked ? 'checked' : ''}
-                     ${node.disabled ? 'disabled' : ''}
-                     tabindex="-1">
-            ` : ''}
-            ${icons && node.icon ? `
-              <span class="nx-tree-icon" part="icon">${Icons.get(node.icon) || escapeHTML(node.icon)}</span>
-            ` : ''}
-            <span class="nx-tree-text" part="text">${escapeHTML(node.text)}</span>
+      return (
+        <div class={['nx-tree-node', { disabled: node.disabled }]} data-node-id={nodeId} data-level={level}>
+          <div class={['nx-tree-node-content', { selected: isSelected }]} part={isSelected ? 'node node-selected' : 'node'}
+               role="treeitem" aria-expanded={hasChildren ? String(isExpanded) : undefined} aria-selected={String(isSelected)}
+               aria-level={level + 1} style={{ paddingLeft: `${0.5 + level}rem` }} tabindex={node.disabled ? -1 : 0}
+               onClick={(e: MouseEvent) => this.onNodeClick(e, nodeId, hasChildren)}>
+            {hasChildren
+              ? <span class={['nx-tree-toggle', { expanded: isExpanded }]} part="toggle" aria-hidden="true" html={Icons.get('chevron-right')} />
+              : <span class="nx-tree-toggle-placeholder" />}
+            {checkboxes && (
+              <input type="checkbox" class="nx-tree-checkbox" tabindex={-1} checked={checkedNodes.has(nodeId)} disabled={!!node.disabled}
+                     onClick={(e: MouseEvent) => e.stopPropagation()}
+                     onChange={(e: Event) => this.toggleChecked(nodeId, (e.target as HTMLInputElement).checked)} />
+            )}
+            {icons && node.icon && (iconMarkup
+              ? <span class="nx-tree-icon" part="icon" html={iconMarkup} />
+              : <span class="nx-tree-icon" part="icon">{node.icon}</span>)}
+            <span class="nx-tree-text" part="text">{node.text}</span>
           </div>
-          ${isExpanded ? `
+          {isExpanded && (
             <div class="nx-tree-children" part="children" role="group">
-              ${this.renderNodes(node.children!, level + 1)}
+              {this.renderNodes(node.children!, level + 1)}
             </div>
-          ` : ''}
+          )}
         </div>
-      `;
-    }).join('');
+      );
+    });
+  }
+
+  private onNodeClick(e: MouseEvent, nodeId: string, hasChildren: boolean): void {
+    if ((e.target as HTMLElement).closest('.nx-tree-toggle')) {
+      this.toggleNode(nodeId);
+      return;
+    }
+    this.selectNode(nodeId, e);
+    if (hasChildren && this.getProp('expand-on-click', true)) this.toggleNode(nodeId);
   }
 
   protected styles(): string {
@@ -270,33 +266,12 @@ export class NXTree extends BaseComponent {
   }
 
   protected afterRender(): void {
-    // Re-renders replace the DOM; keep keyboard focus on the same node
+    // Expanding shifts positions, so restore focus by node id (not DOM path)
     const focusId = this.getState<string | null>('focusId', null);
     if (focusId !== null) {
       const node = Array.from(this.$$('.nx-tree-node')).find(el => (el as HTMLElement).dataset.nodeId === focusId);
       (node?.querySelector(':scope > .nx-tree-node-content') as HTMLElement | null)?.focus();
     }
-
-    this.on(this.shadow!, 'click', (e: Event) => {
-      const target = e.target as HTMLElement;
-      const nodeEl = target.closest('.nx-tree-node') as HTMLElement | null;
-      if (!nodeEl) return;
-      const nodeId = nodeEl.dataset.nodeId!;
-
-      if (target.closest('.nx-tree-checkbox')) {
-        this.toggleChecked(nodeId, (target as HTMLInputElement).checked);
-      } else if (target.closest('.nx-tree-toggle')) {
-        this.toggleNode(nodeId);
-      } else if (target.closest('.nx-tree-node-content')) {
-        this.selectNode(nodeId, e as MouseEvent);
-        const node = this.findNode(nodeId);
-        if (node?.children?.length && this.getProp('expand-on-click', true)) {
-          this.toggleNode(nodeId);
-        }
-      }
-    });
-
-    this.on(this.shadow!, 'keydown', (e: Event) => this.handleKeyboard(e as KeyboardEvent));
   }
 
   /** Expand or collapse a node. */

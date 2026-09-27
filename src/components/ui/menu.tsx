@@ -9,7 +9,7 @@
  *   - `{ xtype: 'menubar', items: [{ text: 'File', items: [...] }] }`
  *   - `NX.menu(items, event)`                               context menus
  */
-import { BaseComponent, escapeHTML } from '@/components/abstracts/base';
+import { BaseComponent } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 
@@ -164,36 +164,44 @@ export class NXMenuPopup extends BaseComponent {
 
   // ────────── Rendering ──────────
 
-  protected render(): string {
+  protected render(): Node {
     return this.renderList(this.items, '');
   }
 
-  private renderList(items: MenuItem[], parent: string): string {
+  private renderList(items: MenuItem[], parent: string): Node {
     const anyIcon = items.some(i => i.icon || i.checked !== undefined);
-    return `
-      <div class="list ${parent ? 'sub' : ''}" part="${parent ? 'submenu' : 'menu'}" role="menu" tabindex="-1" data-parent="${parent}">
-        ${items.map((item, i) => {
+    return (
+      <div class={['list', { sub: parent }]} part={parent ? 'submenu' : 'menu'} role="menu" tabindex={-1} data-parent={parent}
+           // Submenus are nested inside the root list, so their events bubble to its handlers
+           {...(parent ? {} : {
+             onClick: (e: MouseEvent) => this.onClick(e),
+             onPointerOver: (e: PointerEvent) => this.onPointerOver(e),
+             onKeyDown: (e: KeyboardEvent) => this.onKeyDown(e)
+           })}>
+        {items.map((item, i) => {
           const path = parent ? `${parent}.${i}` : String(i);
-          if (item.divider) return '<div class="divider" role="separator"></div>';
-          if (item.heading) return `<div class="heading" role="presentation">${escapeHTML(item.heading)}</div>`;
+          if (item.divider) return <div class="divider" role="separator" />;
+          if (item.heading) return <div class="heading" role="presentation">{item.heading}</div>;
           const sub = children(item);
-          const icon = item.checked !== undefined
-            ? (item.checked ? Icons.get('check') : '')
-            : Icons.get(item.icon);
-          return `
-            <div class="item ${item.danger ? 'danger' : ''}" part="item" role="${item.checked !== undefined ? 'menuitemcheckbox' : 'menuitem'}"
-                 data-path="${path}" tabindex="-1"
-                 ${item.checked !== undefined ? `aria-checked="${!!item.checked}"` : ''}
-                 ${item.disabled ? 'aria-disabled="true"' : ''}
-                 ${sub ? 'aria-haspopup="menu" aria-expanded="false"' : ''}>
-              ${anyIcon ? `<span class="icon">${icon}</span>` : ''}
-              <span class="text">${escapeHTML(item.text ?? '')}</span>
-              ${item.shortcut ? `<span class="shortcut">${escapeHTML(item.shortcut)}</span>` : ''}
-              ${sub ? `<span class="chevron">${Icons.get('chevron-right')}</span>${this.renderList(normalize(sub), path)}` : ''}
-            </div>`;
-        }).join('')}
+          const checkable = item.checked !== undefined;
+          const icon = checkable ? (item.checked ? Icons.get('check') : '') : Icons.get(item.icon);
+          return (
+            <div class={['item', { danger: item.danger }]} part="item" role={checkable ? 'menuitemcheckbox' : 'menuitem'}
+                 data-path={path} tabindex={-1}
+                 aria-checked={checkable ? String(!!item.checked) : undefined}
+                 aria-disabled={item.disabled ? 'true' : undefined}
+                 aria-haspopup={sub ? 'menu' : undefined}
+                 aria-expanded={sub ? 'false' : undefined}>
+              {anyIcon && <span class="icon" html={icon} />}
+              <span class="text">{item.text ?? ''}</span>
+              {item.shortcut && <span class="shortcut">{item.shortcut}</span>}
+              {sub && <span class="chevron" html={Icons.get('chevron-right')} />}
+              {sub && this.renderList(normalize(sub), path)}
+            </div>
+          );
+        })}
       </div>
-    `;
+    );
   }
 
   private itemAt(path: string): MenuItem | null {
@@ -259,73 +267,68 @@ export class NXMenuPopup extends BaseComponent {
     this.options.onSelect?.(item);
   }
 
-  protected afterRender(): void {
-    const root = this.shadow!;
+  private onClick(e: Event): void {
+    const itemEl = (e.target as HTMLElement).closest('.item') as HTMLElement | null;
+    if (itemEl) this.activate(itemEl);
+  }
 
-    this.on(root, 'click', (e: Event) => {
-      const itemEl = (e.target as HTMLElement).closest('.item') as HTMLElement | null;
-      if (itemEl) this.activate(itemEl);
-    });
+  private onPointerOver(e: Event): void {
+    const itemEl = (e.target as HTMLElement).closest('.item') as HTMLElement | null;
+    if (!itemEl) return;
+    if (itemEl.getAttribute('aria-disabled') !== 'true') itemEl.focus({ preventScroll: true });
+    itemEl.parentElement?.querySelectorAll(':scope > .item.open').forEach(el => el !== itemEl && this.closeSub(el as HTMLElement));
+    if (itemEl.getAttribute('aria-haspopup')) this.openSub(itemEl);
+  }
 
-    this.on(root, 'pointerover', (e: Event) => {
-      const itemEl = (e.target as HTMLElement).closest('.item') as HTMLElement | null;
-      if (!itemEl) return;
-      if (itemEl.getAttribute('aria-disabled') !== 'true') itemEl.focus({ preventScroll: true });
-      itemEl.parentElement?.querySelectorAll(':scope > .item.open').forEach(el => el !== itemEl && this.closeSub(el as HTMLElement));
-      if (itemEl.getAttribute('aria-haspopup')) this.openSub(itemEl);
-    });
+  private onKeyDown(e: KeyboardEvent): void {
+    const key = e.key;
+    const active = this.shadow!.activeElement as HTMLElement | null;
+    const list = (active?.classList.contains('list') ? active : active?.parentElement) as HTMLElement | null;
+    if (!list) return;
+    const items = this.itemsOf(list);
+    const index = active ? items.indexOf(active) : -1;
 
-    this.on(root, 'keydown', (e: Event) => {
-      const key = (e as KeyboardEvent).key;
-      const active = (root as ShadowRoot).activeElement as HTMLElement | null;
-      const list = (active?.classList.contains('list') ? active : active?.parentElement) as HTMLElement | null;
-      if (!list) return;
-      const items = this.itemsOf(list);
-      const index = active ? items.indexOf(active) : -1;
-
-      switch (key) {
-        case 'ArrowDown':
-          this.focusItem(list, index + 1);
-          break;
-        case 'ArrowUp':
-          this.focusItem(list, index < 0 ? -1 : index - 1);
-          break;
-        case 'Home':
-          this.focusItem(list, 0);
-          break;
-        case 'End':
-          this.focusItem(list, -1);
-          break;
-        case 'ArrowRight':
-          if (active?.getAttribute('aria-haspopup')) this.openSub(active, true);
-          break;
-        case 'ArrowLeft': {
-          const parentItem = list.parentElement?.closest('.item') as HTMLElement | null;
-          if (parentItem) {
-            this.closeSub(parentItem);
-            parentItem.focus();
-          }
-          break;
+    switch (key) {
+      case 'ArrowDown':
+        this.focusItem(list, index + 1);
+        break;
+      case 'ArrowUp':
+        this.focusItem(list, index < 0 ? -1 : index - 1);
+        break;
+      case 'Home':
+        this.focusItem(list, 0);
+        break;
+      case 'End':
+        this.focusItem(list, -1);
+        break;
+      case 'ArrowRight':
+        if (active?.getAttribute('aria-haspopup')) this.openSub(active, true);
+        break;
+      case 'ArrowLeft': {
+        const parentItem = list.parentElement?.closest('.item') as HTMLElement | null;
+        if (parentItem) {
+          this.closeSub(parentItem);
+          parentItem.focus();
         }
-        case 'Enter':
-        case ' ':
-          if (active?.classList.contains('item')) this.activate(active);
-          break;
-        case 'Escape':
-        case 'Tab':
-          this.close();
-          if (key === 'Tab') return;
-          break;
-        default: {
-          // Type-ahead
-          if (key.length !== 1) return;
-          const match = items.find((el, i) => i > index && el.textContent!.trim().toLowerCase().startsWith(key.toLowerCase()))
-            ?? items.find(el => el.textContent!.trim().toLowerCase().startsWith(key.toLowerCase()));
-          match?.focus();
-        }
+        break;
       }
-      e.preventDefault();
-    });
+      case 'Enter':
+      case ' ':
+        if (active?.classList.contains('item')) this.activate(active);
+        break;
+      case 'Escape':
+      case 'Tab':
+        this.close();
+        if (key === 'Tab') return;
+        break;
+      default: {
+        // Type-ahead
+        if (key.length !== 1) return;
+        const starts = (el: HTMLElement) => el.textContent!.trim().toLowerCase().startsWith(key.toLowerCase());
+        (items.find((el, i) => i > index && starts(el)) ?? items.find(starts))?.focus();
+      }
+    }
+    e.preventDefault();
   }
 
   protected styles(): string {
@@ -516,18 +519,16 @@ export class NXMenu extends BaseComponent {
     return this.items;
   }
 
-  protected render(): string {
+  protected render(): Node {
     const text = this.getProp<string>('text', '');
     const icon = this.getProp<string>('icon', text ? '' : 'more');
-    return `
+    return (
       <slot name="trigger">
-        <nx-button part="trigger" variant="${escapeHTML(this.getProp('variant', 'outline'))}"
-                   size="${escapeHTML(this.getProp('size', 'md'))}"
-                   ${icon ? `icon="${escapeHTML(icon)}"` : ''}
-                   ${text ? `text="${escapeHTML(text)}"` : 'aria-label="Open menu"'}
-                   ${this.getProp('disabled', false) ? 'disabled' : ''}></nx-button>
+        <nx-button part="trigger" variant={this.getProp('variant', 'outline')} size={this.getProp('size', 'md')}
+                   icon={icon || undefined} text={text || undefined} aria-label={text ? undefined : 'Open menu'}
+                   disabled={this.getProp('disabled', false)} />
       </slot>
-    `;
+    );
   }
 
   protected styles(): string {

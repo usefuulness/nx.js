@@ -656,6 +656,14 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
       return;
     }
 
+    // `undefined` means "not set": clear it instead of passing it to a setter
+    if (value === undefined) {
+      const attr = toKebab(key);
+      this.removeAttribute(attr);
+      this[ComponentProps].delete(attr);
+      return;
+    }
+
     // setData(), setColumns(), setTabs() ...
     const setter = (this as any)[`set${key.charAt(0).toUpperCase()}${key.slice(1)}`];
     if (typeof setter === 'function') {

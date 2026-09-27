@@ -2,7 +2,7 @@
  * @file @/components/ui/toast.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
-import { BaseComponent, escapeHTML } from '@/components/abstracts/base';
+import { BaseComponent } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 
@@ -11,7 +11,7 @@ export type ToastType = 'success' | 'error' | 'warning' | 'info' | 'default';
 export interface ToastOptions {
   type?: ToastType;
   /** Secondary line under the message */
-  description?: string;
+  description?: string | Node;
   /** ms before auto-dismiss; 0 keeps it until closed. Default 4000 */
   duration?: number;
   /** Optional action button */
@@ -46,27 +46,13 @@ export class NXToast extends BaseComponent {
   }
 
   /** Show a toast. Old signature `show(message, type, duration)` still works. */
-  show(message: string, typeOrOptions: ToastType | ToastOptions = {}, duration?: number): ToastHandle {
+  show(message: string | Node, typeOrOptions: ToastType | ToastOptions = {}, duration?: number): ToastHandle {
     const options: ToastOptions = typeof typeOrOptions === 'string'
       ? { type: typeOrOptions, duration }
       : typeOrOptions;
     const type = options.type ?? 'default';
     const id = ++toastSeq;
     const list = this.$('.list');
-
-    const item = document.createElement('div');
-    item.className = `toast type-${type}`;
-    item.dataset.id = String(id);
-    item.setAttribute('role', type === 'error' ? 'alert' : 'status');
-    item.innerHTML = `
-      ${type !== 'default' ? `<span class="icon">${Icons.get(type)}</span>` : ''}
-      <div class="content">
-        <div class="message">${escapeHTML(message)}</div>
-        ${options.description ? `<div class="description">${escapeHTML(options.description)}</div>` : ''}
-      </div>
-      ${options.action ? `<button class="action" type="button">${escapeHTML(options.action.text)}</button>` : ''}
-      <button class="close" type="button" aria-label="Dismiss">${Icons.get('close')}</button>
-    `;
 
     let timer = 0;
     const close = () => {
@@ -80,14 +66,24 @@ export class NXToast extends BaseComponent {
       if (ms > 0) timer = window.setTimeout(close, ms);
     };
 
-    item.querySelector('.close')!.addEventListener('click', close);
-    item.querySelector('.action')?.addEventListener('click', () => {
-      options.action!.handler();
-      close();
-    });
-    // Pause while hovered
-    item.addEventListener('mouseenter', () => window.clearTimeout(timer));
-    item.addEventListener('mouseleave', arm);
+    const item = (
+      <div class={['toast', `type-${type}`]} data-id={id} role={type === 'error' ? 'alert' : 'status'}
+           // Pause while hovered
+           onMouseEnter={() => window.clearTimeout(timer)} onMouseLeave={arm}>
+        {type !== 'default' && <span class="icon" html={Icons.get(type)} />}
+        <div class="content">
+          <div class="message">{message}</div>
+          {options.description && <div class="description">{options.description}</div>}
+        </div>
+        {options.action && (
+          <button class="action" type="button" onClick={() => {
+            options.action!.handler();
+            close();
+          }}>{options.action.text}</button>
+        )}
+        <button class="close" type="button" aria-label="Dismiss" html={Icons.get('close')} onClick={close} />
+      </div>
+    ) as HTMLElement;
 
     list?.appendChild(item);
     arm();
@@ -99,8 +95,8 @@ export class NXToast extends BaseComponent {
     this.$$('.toast').forEach(el => el.remove());
   }
 
-  protected render(): string {
-    return `<div class="list" part="list" aria-live="polite"></div>`;
+  protected render(): Node {
+    return <div class="list" part="list" aria-live="polite" />;
   }
 
   protected styles(): string {
@@ -221,22 +217,22 @@ function container(): NXToast {
   return el;
 }
 
-type ToastFn = ((message: string, options?: ToastOptions | ToastType) => ToastHandle) & {
-  success(message: string, options?: Omit<ToastOptions, 'type'>): ToastHandle;
-  error(message: string, options?: Omit<ToastOptions, 'type'>): ToastHandle;
-  warning(message: string, options?: Omit<ToastOptions, 'type'>): ToastHandle;
-  info(message: string, options?: Omit<ToastOptions, 'type'>): ToastHandle;
+type ToastFn = ((message: string | Node, options?: ToastOptions | ToastType) => ToastHandle) & {
+  success(message: string | Node, options?: Omit<ToastOptions, 'type'>): ToastHandle;
+  error(message: string | Node, options?: Omit<ToastOptions, 'type'>): ToastHandle;
+  warning(message: string | Node, options?: Omit<ToastOptions, 'type'>): ToastHandle;
+  info(message: string | Node, options?: Omit<ToastOptions, 'type'>): ToastHandle;
   clear(): void;
 };
 
 /** Show a toast notification. */
 export const toast: ToastFn = Object.assign(
-  (message: string, options: ToastOptions | ToastType = {}) => container().show(message, options),
+  (message: string | Node, options: ToastOptions | ToastType = {}) => container().show(message, options),
   {
-    success: (message: string, options: Omit<ToastOptions, 'type'> = {}) => container().show(message, { ...options, type: 'success' }),
-    error: (message: string, options: Omit<ToastOptions, 'type'> = {}) => container().show(message, { ...options, type: 'error' }),
-    warning: (message: string, options: Omit<ToastOptions, 'type'> = {}) => container().show(message, { ...options, type: 'warning' }),
-    info: (message: string, options: Omit<ToastOptions, 'type'> = {}) => container().show(message, { ...options, type: 'info' }),
+    success: (message: string | Node, options: Omit<ToastOptions, 'type'> = {}) => container().show(message, { ...options, type: 'success' }),
+    error: (message: string | Node, options: Omit<ToastOptions, 'type'> = {}) => container().show(message, { ...options, type: 'error' }),
+    warning: (message: string | Node, options: Omit<ToastOptions, 'type'> = {}) => container().show(message, { ...options, type: 'warning' }),
+    info: (message: string | Node, options: Omit<ToastOptions, 'type'> = {}) => container().show(message, { ...options, type: 'info' }),
     clear: () => container().clear()
   }
 );

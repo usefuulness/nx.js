@@ -1,5 +1,6 @@
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
+import { Icons } from '@/core/icons';
 
 export interface ViewportConfig {
   /** `border` (default, also accepts `viewport`) | `card` | `fit` */
@@ -20,57 +21,34 @@ export class NXViewport extends BaseComponent {
     this.attachShadow({ mode: 'open' });
   }
 
-  protected render(): string {
+  protected render(): Node {
     let layout = this.getProp<string>('layout', 'border');
     if (!['border', 'card', 'fit'].includes(layout)) layout = 'border';
 
-    return `
-      <div class="nx-viewport nx-viewport-${layout}" part="container">
-        ${layout === 'border' ? this.renderBorderLayout() : ''}
-        ${layout === 'card' ? this.renderCardLayout() : ''}
-        ${layout === 'fit' ? this.renderFitLayout() : ''}
+    return (
+      <div class={['nx-viewport', `nx-viewport-${layout}`]} part="container">
+        {layout === 'border' && this.renderBorderLayout()}
+        {layout === 'card' && <div class="nx-card-container"><slot /></div>}
+        {layout === 'fit' && <div class="nx-fit-container"><slot /></div>}
       </div>
-    `;
+    );
   }
 
-  private renderBorderLayout(): string {
-    return `
-      <div class="nx-region-backdrop" part="backdrop"></div>
-      <div class="nx-region-north" part="north">
-        <slot name="north"></slot>
-      </div>
-      <div class="nx-region-center-container">
-        <div class="nx-region-west" part="west">
-          <slot name="west"></slot>
+  private renderBorderLayout(): Node {
+    // Picking something in an off-canvas nav closes it
+    const closeOnSelect = () => this.closeRegions();
+    return (
+      <>
+        <div class="nx-region-backdrop" part="backdrop" onClick={() => this.closeRegions()} />
+        <div class="nx-region-north" part="north"><slot name="north" /></div>
+        <div class="nx-region-center-container">
+          <div class="nx-region-west" part="west" onSelect={closeOnSelect}><slot name="west" /></div>
+          <div class="nx-region-center" part="center"><slot name="center" /><slot /></div>
+          <div class="nx-region-east" part="east" onSelect={closeOnSelect}><slot name="east" /></div>
         </div>
-        <div class="nx-region-center" part="center">
-          <slot name="center"></slot>
-          <slot></slot>
-        </div>
-        <div class="nx-region-east" part="east">
-          <slot name="east"></slot>
-        </div>
-      </div>
-      <div class="nx-region-south" part="south">
-        <slot name="south"></slot>
-      </div>
-    `;
-  }
-
-  private renderCardLayout(): string {
-    return `
-      <div class="nx-card-container">
-        <slot></slot>
-      </div>
-    `;
-  }
-
-  private renderFitLayout(): string {
-    return `
-      <div class="nx-fit-container">
-        <slot></slot>
-      </div>
-    `;
+        <div class="nx-region-south" part="south"><slot name="south" /></div>
+      </>
+    );
   }
 
   protected styles(): string {
@@ -205,15 +183,6 @@ export class NXViewport extends BaseComponent {
     // Set up region management
     this.setupRegions();
 
-    const backdrop = this.$('.nx-region-backdrop');
-    if (backdrop) this.on(backdrop, 'click', () => this.closeRegions());
-
-    // Picking something in an off-canvas nav closes it
-    ['west', 'east'].forEach(region => {
-      const el = this.$(`.nx-region-${region}`);
-      if (el) this.on(el, 'select', () => this.closeRegions());
-    });
-
     this.on(document, 'keydown', (e: Event) => {
       if ((e as KeyboardEvent).key === 'Escape') this.closeRegions();
     });
@@ -299,99 +268,72 @@ export class NXRegion extends BaseComponent {
     this.attachShadow({ mode: 'open' });
   }
 
-  protected render(): string {
-    const title = this.getProp('title');
-    const collapsible = this.getProp('collapsible', false);
+  protected render(): Node {
+    const title = this.getProp<string>('title');
     const collapsed = this.getState('collapsed', false);
 
-    return `
-      <div class="nx-region ${collapsed ? 'collapsed' : ''}" part="container">
-        ${title ? `
+    return (
+      <div class={['nx-region', { collapsed }]} part="container">
+        {title && (
           <div class="nx-region-header" part="header">
-            <h3 class="nx-region-title" part="title">${title}</h3>
-            ${collapsible ? `
-              <button class="nx-region-toggle" part="toggle" aria-label="Toggle region">
-                <svg viewBox="0 0 24 24">
-                  <path d="M7 10l5 5 5-5z"/>
-                </svg>
-              </button>
-            ` : ''}
+            <h3 class="nx-region-title" part="title">{title}</h3>
+            {this.getProp('collapsible', false) && (
+              <button class="nx-region-toggle" part="toggle" aria-label="Toggle region" aria-expanded={String(!collapsed)}
+                      html={Icons.get('chevron-down')} onClick={() => this.toggle()} />
+            )}
           </div>
-        ` : ''}
-        <div class="nx-region-body" part="body">
-          <slot></slot>
-        </div>
+        )}
+        <div class="nx-region-body" part="body"><slot /></div>
       </div>
-    `;
+    );
   }
 
   protected styles(): string {
     return `
-      :host {
-        display: block;
-        width: 100%;
-        height: 100%;
-      }
+      :host { display: block; width: 100%; height: 100%; }
 
       .nx-region {
         display: flex;
         flex-direction: column;
         width: 100%;
         height: 100%;
+        background: var(--color-surface);
+        color: var(--color-text);
       }
 
       .nx-region-header {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 0.75rem 1rem;
-        background: var(--surface-color);
-        border-bottom: 1px solid var(--border-color);
+        gap: 0.5rem;
+        min-height: 3rem;
+        padding: 0 0.5rem 0 1rem;
+        border-bottom: 1px solid var(--color-border);
         flex-shrink: 0;
       }
 
-      .nx-region-title {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 500;
-      }
+      .nx-region-title { flex: 1; margin: 0; font-size: 0.875rem; font-weight: 600; }
 
       .nx-region-toggle {
-        width: 1.5rem;
-        height: 1.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
         padding: 0;
         border: none;
+        border-radius: var(--radius-sm);
         background: transparent;
+        color: var(--color-text-secondary);
         cursor: pointer;
-        transition: transform 0.2s;
+        transition: transform var(--transition-duration) var(--transition-easing);
       }
 
-      .nx-region-toggle svg {
-        width: 100%;
-        height: 100%;
-        fill: currentColor;
-      }
+      .nx-region-toggle:hover { background: var(--color-accent); color: var(--color-text); }
+      .collapsed .nx-region-toggle { transform: rotate(-90deg); }
 
-      .collapsed .nx-region-toggle {
-        transform: rotate(-90deg);
-      }
-
-      .nx-region-body {
-        flex: 1;
-        overflow: auto;
-      }
-
-      .collapsed .nx-region-body {
-        display: none;
-      }
+      .nx-region-body { flex: 1; min-height: 0; overflow: auto; }
+      .collapsed .nx-region-body { display: none; }
     `;
-  }
-
-  protected afterRender(): void {
-    const toggle = this.$('.nx-region-toggle');
-    if (toggle) {
-      this.on(toggle, 'click', () => this.toggle());
-    }
   }
 
   toggle(): void {

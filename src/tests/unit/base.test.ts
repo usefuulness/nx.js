@@ -135,3 +135,17 @@ describe('helpers', () => {
     expect(escapeHTML(null)).toBe('');
   });
 });
+
+describe('configure() with undefined', () => {
+  it('clears instead of calling setters with undefined', async () => {
+    const { NX } = await import('@/index');
+    const button = NX.create({ xtype: 'button', text: 'Hi' });
+    expect(button.getAttribute('text')).toBe('Hi');
+    (button as any).configure({ text: undefined });
+    expect(button.hasAttribute('text')).toBe(false);
+    const menu = NX.create({ xtype: 'menu', icon: 'more' });
+    document.body.append(menu);
+    const trigger = menu.shadowRoot!.querySelector('nx-button')!;
+    expect(trigger.hasAttribute('text')).toBe(false);
+  });
+});

@@ -2,7 +2,7 @@
  * @file @/components/ui/menubar.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
-import { BaseComponent, escapeHTML } from '@/components/abstracts/base';
+import { BaseComponent } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { showMenu, type MenuItem, type NXMenuPopup } from '@/components/ui/menu';
@@ -44,19 +44,21 @@ export class NXMenuBar extends BaseComponent {
     this.scheduleUpdate();
   }
 
-  protected render(): string {
-    return `
-      <nav class="bar" part="container" role="menubar">
-        ${this.items.map((item, i) => `
-          <button class="entry" part="item" role="menuitem" data-index="${i}"
-                  aria-haspopup="menu" aria-expanded="false"
-                  tabindex="${i === 0 ? 0 : -1}" ${item.disabled ? 'disabled' : ''}>
-            ${item.icon ? `<span class="icon">${Icons.get(item.icon)}</span>` : ''}
-            ${escapeHTML(item.text ?? '')}
+  protected render(): Node {
+    return (
+      <nav class="bar" part="container" role="menubar" onKeyDown={(e: KeyboardEvent) => this.onKeyDown(e)}>
+        {this.items.map((item, i) => (
+          <button class="entry" part="item" role="menuitem" data-index={i} aria-haspopup="menu" aria-expanded="false"
+                  tabindex={i === 0 ? 0 : -1} disabled={!!item.disabled}
+                  onClick={() => (this.openIndex === i ? this.closeMenu() : this.openAt(i))}
+                  // Switch menus on hover while one is open, like a desktop menu bar
+                  onPointerEnter={() => this.openIndex >= 0 && this.openIndex !== i && this.openAt(i)}>
+            {item.icon && <span class="icon" html={Icons.get(item.icon)} />}
+            {item.text ?? ''}
           </button>
-        `).join('')}
+        ))}
       </nav>
-    `;
+    );
   }
 
   private entries(): HTMLButtonElement[] {
@@ -97,47 +99,27 @@ export class NXMenuBar extends BaseComponent {
     popup?.close();
   }
 
-  protected afterRender(): void {
-    const root = this.shadow!;
-
-    this.on(root, 'click', (e: Event) => {
-      const entry = (e.target as HTMLElement).closest('.entry') as HTMLElement | null;
-      if (!entry) return;
-      const index = Number(entry.dataset.index);
-      this.openIndex === index ? this.closeMenu() : this.openAt(index);
-    });
-
-    // Switch menus on hover while one is open
-    this.on(root, 'pointerover', (e: Event) => {
-      const entry = (e.target as HTMLElement).closest('.entry') as HTMLElement | null;
-      if (!entry || this.openIndex < 0) return;
-      const index = Number(entry.dataset.index);
-      if (index !== this.openIndex) this.openAt(index);
-    });
-
-    this.on(root, 'keydown', (e: Event) => {
-      const key = (e as KeyboardEvent).key;
-      const entries = this.entries();
-      const current = entries.indexOf((root as ShadowRoot).activeElement as HTMLButtonElement);
-      if (current < 0) return;
-      const move = (to: number) => {
-        const next = (to + entries.length) % entries.length;
-        entries.forEach((el, i) => (el.tabIndex = i === next ? 0 : -1));
-        if (this.openIndex >= 0) this.openAt(next);
-        else entries[next].focus();
-      };
-      switch (key) {
-        case 'ArrowRight': move(current + 1); break;
-        case 'ArrowLeft': move(current - 1); break;
-        case 'ArrowDown':
-        case 'Enter':
-        case ' ':
-          this.openAt(current, true);
-          break;
-        default: return;
-      }
-      e.preventDefault();
-    });
+  private onKeyDown(e: KeyboardEvent): void {
+    const entries = this.entries();
+    const current = entries.indexOf(this.shadow!.activeElement as HTMLButtonElement);
+    if (current < 0) return;
+    const move = (to: number) => {
+      const next = (to + entries.length) % entries.length;
+      entries.forEach((el, i) => (el.tabIndex = i === next ? 0 : -1));
+      if (this.openIndex >= 0) this.openAt(next);
+      else entries[next].focus();
+    };
+    switch (e.key) {
+      case 'ArrowRight': move(current + 1); break;
+      case 'ArrowLeft': move(current - 1); break;
+      case 'ArrowDown':
+      case 'Enter':
+      case ' ':
+        this.openAt(current, true);
+        break;
+      default: return;
+    }
+    e.preventDefault();
   }
 
   protected cleanup(): void {

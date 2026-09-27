@@ -2,7 +2,7 @@
  * @file @/components/ui/modal.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
-import { BaseComponent, escapeHTML } from '@/components/abstracts/base';
+import { BaseComponent } from '@/components/abstracts/base';
 import { ComponentRegistry, define, type ItemConfig } from '@/core/registry';
 import { Icons } from '@/core/icons';
 
@@ -76,80 +76,63 @@ export class NXModal extends BaseComponent {
     return this.$('dialog') as HTMLDialogElement | null;
   }
 
-  protected render(): string {
+  protected render(): Node {
     const title = this.getProp<string>('title', '');
     const description = this.getProp<string>('description', '');
-    const size = this.getProp('size', 'md');
     const closable = this.getProp('closable', true);
-    const hasFooter = this.buttons.length > 0 || !!this.querySelector('[slot="footer"]');
+    const hasFooter = this.buttons.length > 0 || !!this.querySelector(':scope > [slot="footer"]');
 
-    return `
-      <dialog class="nx-modal size-${size}" part="dialog" aria-labelledby="title" ${this.isOpen ? 'open' : ''}>
-        ${title || closable ? `
+    return (
+      <dialog class={['nx-modal', `size-${this.getProp('size', 'md')}`]} part="dialog"
+              aria-labelledby={title ? 'title' : undefined} aria-label={title ? undefined : 'Dialog'}
+              onCancel={(e: Event) => {
+                e.preventDefault();
+                if (this.getProp('close-on-escape', true)) this.close();
+              }}
+              onClick={(e: MouseEvent) => this.onDialogClick(e)}>
+        {(title || closable) && (
           <header class="nx-modal-header" part="header">
             <div class="nx-modal-heading">
-              ${title ? `<h2 id="title" class="nx-modal-title" part="title">${escapeHTML(title)}</h2>` : ''}
-              ${description ? `<p class="nx-modal-description" part="description">${escapeHTML(description)}</p>` : ''}
+              {title && <h2 id="title" class="nx-modal-title" part="title">{title}</h2>}
+              {description && <p class="nx-modal-description" part="description">{description}</p>}
             </div>
-            ${closable ? `
-              <button type="button" class="nx-modal-close" part="close" aria-label="Close">${Icons.get('close')}</button>
-            ` : ''}
+            {closable && (
+              <button type="button" class="nx-modal-close" part="close" aria-label="Close" html={Icons.get('close')} onClick={() => this.close()} />
+            )}
           </header>
-        ` : ''}
-        <div class="nx-modal-body" part="body"><slot></slot></div>
-        ${hasFooter ? `
+        )}
+        <div class="nx-modal-body" part="body"><slot /></div>
+        {hasFooter && (
           <footer class="nx-modal-footer" part="footer">
-            <slot name="footer"></slot>
-            <span class="nx-modal-buttons"></span>
+            <slot name="footer" />
+            {/* Footer buttons are real nx-buttons so they look like the rest of the app */}
+            <span class="nx-modal-buttons">
+              {this.buttons.map(config => (
+                <nx-button text={config.text} icon={config.icon} variant={config.variant ?? 'outline'}
+                           onClick={async () => {
+                             const keepOpen = (await config.handler?.(this)) === false;
+                             if (!keepOpen) this.close(config.value);
+                           }} />
+              ))}
+            </span>
           </footer>
-        ` : ''}
+        )}
       </dialog>
-    `;
+    );
+  }
+
+  /** Backdrop click: the click target is the <dialog> itself, outside its box. */
+  private onDialogClick(e: MouseEvent): void {
+    const dialog = this.dialog;
+    if (!dialog || e.target !== dialog || !this.getProp('close-on-backdrop', true)) return;
+    const r = dialog.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) this.close();
   }
 
   protected afterRender(): void {
-    const dialog = this.dialog!;
-
     // Re-rendering replaces the <dialog>; keep it modal if we were open
-    if (this.isOpen && !dialog.open) {
-      dialog.removeAttribute('open');
-      dialog.showModal();
-    }
-
-    // Footer buttons are real nx-buttons so they look like the rest of the app
-    const holder = this.$('.nx-modal-buttons');
-    this.buttons.forEach(config => {
-      const button = ComponentRegistry.build({
-        xtype: 'button',
-        text: config.text,
-        icon: config.icon,
-        variant: config.variant ?? 'outline'
-      });
-      if (!button || !holder) return;
-      button.addEventListener('click', async () => {
-        const keepOpen = (await config.handler?.(this)) === false;
-        if (!keepOpen) this.close(config.value);
-      });
-      holder.appendChild(button);
-    });
-
-    this.on(this.$('.nx-modal-close') ?? dialog, 'click', (e: Event) => {
-      if ((e.target as Element).closest('.nx-modal-close')) this.close();
-    });
-
-    // Backdrop click: the click target is the <dialog> itself
-    this.on(dialog, 'click', (e: Event) => {
-      if (e.target === dialog && this.getProp('close-on-backdrop', true)) {
-        const rect = dialog.getBoundingClientRect();
-        const { clientX: x, clientY: y } = e as MouseEvent;
-        if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) this.close();
-      }
-    });
-
-    this.on(dialog, 'cancel', (e: Event) => {
-      e.preventDefault();
-      if (this.getProp('close-on-escape', true)) this.close();
-    });
+    const dialog = this.dialog!;
+    if (this.isOpen && !dialog.open) dialog.showModal();
   }
 
   /**
@@ -352,7 +335,7 @@ export function dialog(config: ModalConfig): Promise<any> {
 export function alert(message: string, options: { title?: string; okText?: string } = {}): Promise<void> {
   return dialog({
     title: options.title ?? 'Notice',
-    html: `<p style="margin:0">${escapeHTML(message)}</p>`,
+    items: [<p style="margin: 0">{message}</p>],
     size: 'sm',
     buttons: [{ text: options.okText ?? 'OK', variant: 'primary' }]
   });

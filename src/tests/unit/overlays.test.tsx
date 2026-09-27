@@ -109,3 +109,17 @@ describe('dialog helpers', () => {
     expect(await answer).toBe('Ada');
   });
 });
+
+describe('toast', () => {
+  it('escapes strings, accepts JSX and runs actions', async () => {
+    const { NX } = await import('@/index');
+    const undo = vi.fn();
+    NX.toast('<img src=x onerror=alert(1)>', { description: <b>bold</b>, action: { text: 'Undo', handler: undo }, duration: 0 });
+    const root = document.querySelector('nx-toast')!.shadowRoot!;
+    expect(root.querySelector('.message img')).toBeNull();
+    expect(root.querySelector('.message')!.textContent).toContain('<img');
+    expect(root.querySelector('.description b')!.textContent).toBe('bold');
+    (root.querySelector('.action') as HTMLElement).click();
+    expect(undo).toHaveBeenCalledOnce();
+  });
+});

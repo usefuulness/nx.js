@@ -2,7 +2,7 @@
  * @file @/components/ui/tabpanel.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
-import { BaseComponent, ComponentState, escapeHTML } from '@/components/abstracts/base';
+import { BaseComponent, ComponentState } from '@/components/abstracts/base';
 import { ComponentRegistry, define, type ComponentConfig, type ItemConfig, type ItemsAware } from '@/core/registry';
 import { Icons } from '@/core/icons';
 
@@ -137,58 +137,78 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
     if (activate) this.setState('activeTab', tabs.length - 1);
   }
 
-  protected render(): string {
+  protected render(): Node {
     const tabs = this.getState<TabConfig[]>('tabs', []);
     const activeTab = this.getState('activeTab', 0);
     const position = this.getProp<string>('position', 'top');
-    const variant = this.getProp('variant', 'default');
+    const vertical = position === 'left' || position === 'right';
 
-    const tabsHtml = `
-      <div class="nx-tabs" part="tabs" role="tablist" aria-orientation="${position === 'left' || position === 'right' ? 'vertical' : 'horizontal'}">
-        ${tabs.map((tab, index) => `
-          <div class="nx-tab ${index === activeTab ? 'active' : ''} ${tab.disabled ? 'disabled' : ''}"
-               part="tab${index === activeTab ? ' tab-active' : ''}"
-               role="tab"
-               id="tab-${tab.id}"
-               data-index="${index}"
-               aria-selected="${index === activeTab}"
-               aria-controls="panel-${tab.id}"
-               aria-disabled="${!!tab.disabled}"
-               tabindex="${index === activeTab ? 0 : -1}">
-            ${tab.icon ? `<span class="nx-tab-icon">${Icons.get(tab.icon)}</span>` : ''}
-            <span class="nx-tab-title">${escapeHTML(tab.title)}</span>
-            ${tab.closable ? `
-              <button class="nx-tab-close" tabindex="-1" aria-label="Close ${escapeHTML(tab.title)}">
-                ${Icons.get('close')}
-              </button>
-            ` : ''}
-          </div>
-        `).join('')}
-        <slot name="tabs-end"></slot>
+    const tabList = (
+      <div class="nx-tabs" part="tabs" role="tablist" aria-orientation={vertical ? 'vertical' : 'horizontal'}
+           onKeyDown={(e: KeyboardEvent) => this.onTabKeyDown(e)}>
+        {tabs.map((tab, index) => {
+          const active = index === activeTab;
+          return (
+            <div class={['nx-tab', { active, disabled: tab.disabled }]} part={active ? 'tab tab-active' : 'tab'}
+                 role="tab" id={`tab-${tab.id}`} data-index={index} aria-selected={String(active)}
+                 aria-controls={`panel-${tab.id}`} aria-disabled={String(!!tab.disabled)} tabindex={active ? 0 : -1}
+                 onClick={() => this.selectTab(index)}>
+              {tab.icon && <span class="nx-tab-icon" html={Icons.get(tab.icon)} />}
+              <span class="nx-tab-title">{tab.title}</span>
+              {tab.closable && (
+                <button class="nx-tab-close" tabindex={-1} aria-label={`Close ${tab.title}`} html={Icons.get('close')}
+                        onClick={(e: MouseEvent) => {
+                          e.stopPropagation();
+                          this.closeTab(index);
+                        }} />
+              )}
+            </div>
+          );
+        })}
+        <slot name="tabs-end" />
       </div>
-    `;
+    );
 
-    const panelsHtml = `
-      <div class="nx-panels" part="panels">
-        ${tabs.map((tab, index) => `
-          <div class="nx-tab-panel ${index === activeTab ? 'active' : ''}"
-               part="panel"
-               role="tabpanel"
-               id="panel-${tab.id}"
-               aria-labelledby="tab-${tab.id}"
-               ${index === activeTab ? '' : 'hidden'}>
-            ${tab.content || ''}
-            <slot name="tab-${tab.id}"></slot>
-          </div>
-        `).join('')}
+    return (
+      <div part="container" class={['nx-tabpanel', `position-${position}`, `variant-${this.getProp('variant', 'default')}`]}>
+        {tabList}
+        <div class="nx-panels" part="panels">
+          {tabs.map((tab, index) => (
+            <div class={['nx-tab-panel', { active: index === activeTab }]} part="panel" role="tabpanel"
+                 id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={index !== activeTab}>
+              {tab.content && <div html={tab.content} />}
+              <slot name={`tab-${tab.id}`} />
+            </div>
+          ))}
+        </div>
       </div>
-    `;
+    );
+  }
 
-    return `
-      <div class="nx-tabpanel position-${position} variant-${variant}" part="container">
-        ${tabsHtml}${panelsHtml}
-      </div>
-    `;
+  private onTabKeyDown(e: KeyboardEvent): void {
+    const target = e.target as HTMLElement;
+    if (!target.classList.contains('nx-tab')) return;
+    const index = Number(target.dataset.index);
+
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      this.selectTab(index);
+      return;
+    }
+    if (e.key === 'Delete') {
+      e.preventDefault();
+      this.closeTab(index);
+      return;
+    }
+
+    const enabled = Array.from(this.$$('.nx-tab:not(.disabled)')) as HTMLElement[];
+    const current = enabled.indexOf(target);
+    const next = { ArrowRight: current + 1, ArrowDown: current + 1, ArrowLeft: current - 1, ArrowUp: current - 1, Home: 0, End: enabled.length - 1 }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    const to = Number(enabled[(next + enabled.length) % enabled.length].dataset.index);
+    this.selectTab(to);
+    requestAnimationFrame(() => (this.$(`.nx-tab[data-index="${to}"]`) as HTMLElement | null)?.focus());
   }
 
   protected styles(): string {
@@ -364,65 +384,6 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
         to { opacity: 1; transform: none; }
       }
     `;
-  }
-
-  protected afterRender(): void {
-    this.on(this.shadow!, 'click', (e: Event) => {
-      const target = e.target as Element;
-      const close = target.closest('.nx-tab-close');
-      const tab = target.closest('.nx-tab') as HTMLElement | null;
-      if (!tab) return;
-      const index = parseInt(tab.dataset.index || '0');
-      if (close) {
-        e.stopPropagation();
-        this.closeTab(index);
-      } else {
-        this.selectTab(index);
-      }
-    });
-
-    this.on(this.shadow!, 'keydown', (e: Event) => {
-      const keyEvent = e as KeyboardEvent;
-      const target = keyEvent.target as HTMLElement;
-      if (!target.classList.contains('nx-tab')) return;
-
-      const tabs = Array.from(this.$$('.nx-tab:not(.disabled)')) as HTMLElement[];
-      const current = tabs.indexOf(target);
-      let next = -1;
-
-      switch (keyEvent.key) {
-        case 'ArrowRight':
-        case 'ArrowDown':
-          next = (current + 1) % tabs.length;
-          break;
-        case 'ArrowLeft':
-        case 'ArrowUp':
-          next = (current - 1 + tabs.length) % tabs.length;
-          break;
-        case 'Home':
-          next = 0;
-          break;
-        case 'End':
-          next = tabs.length - 1;
-          break;
-        case 'Enter':
-        case ' ':
-          keyEvent.preventDefault();
-          this.selectTab(parseInt(target.dataset.index || '0'));
-          return;
-        case 'Delete':
-          keyEvent.preventDefault();
-          this.closeTab(parseInt(target.dataset.index || '0'));
-          return;
-        default:
-          return;
-      }
-
-      keyEvent.preventDefault();
-      const index = parseInt(tabs[next].dataset.index || '0');
-      this.selectTab(index);
-      requestAnimationFrame(() => (this.$(`.nx-tab[data-index="${index}"]`) as HTMLElement)?.focus());
-    });
   }
 
   getActiveTab(): number {
