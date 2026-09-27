@@ -1,4 +1,4 @@
-import { BaseComponent, toKebab } from '@/components/abstracts/base';
+import { BaseComponent, eventName, toKebab } from '@/components/abstracts/base';
 
 /**
  * A declarative component config. `xtype` picks the component
@@ -408,7 +408,7 @@ function applyToElement(element: HTMLElement, config: Record<string, any>): void
         return;
     }
     if (typeof value === 'function' && /^on[A-Z]/.test(key)) {
-      element.addEventListener(toKebab(key.slice(2)), value);
+      element.addEventListener(eventName(key), value);
     } else if (typeof value === 'object') {
       (element as any)[key] = value;
     } else {

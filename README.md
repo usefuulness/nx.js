@@ -1,37 +1,36 @@
 # Nexaro
 
-Declarative web components with an ExtJS-style config API and a shadcn-style look.
-Zero runtime dependencies, works with any framework or none, light and dark themes built in.
+shadcn-style web components you write like HTML. JSX without React, zero runtime dependencies, light and dark themes built in, and the same components also work from plain HTML or config objects.
 
-```ts
-import { NX } from 'nx.js';
+```tsx
+import { NX, Button, Card, CardFooter, Input } from 'nx.js';
 
-NX.app({
-  title: 'Admin',
-  stores: { users: { data: users } },
-  items: [
-    { xtype: 'toolbar', region: 'north', title: 'Admin', items: ['->', { xtype: 'button', icon: 'moon', handler: () => NX.theme.toggle() }] },
-    { xtype: 'panel', region: 'west', width: 240, items: [{ xtype: 'tree', data: nav }] },
-    { xtype: 'outlet' } // routes render here
-  ],
-  router: [
-    { path: '/', title: 'Users', view: { xtype: 'grid', store: 'users', search: true, pageSize: 20, columns } }
-  ]
-});
+NX.render(
+  <Card title="Create project" subtitle="Deploy your new project in one click.">
+    <Input name="name" label="Name" placeholder="my-app" required />
+    <CardFooter>
+      <Button variant="outline">Cancel</Button>
+      <Button onClick={() => NX.toast.success('Deployed!')}>Deploy</Button>
+    </CardFooter>
+  </Card>,
+  '#root'
+);
 ```
 
-That is a complete app: responsive shell, routing, a searchable, sortable, paged grid bound to a store, and persisted theme switching.
+JSX here creates **real DOM elements**. There is no virtual DOM and no framework to learn: `<div class="x" onClick={fn}>` is a `div`, `<Button>` is an `<nx-button>` custom element, and you can `append()` either anywhere.
 
 ## Contents
 
 - [Getting started](#getting-started)
-- [The config model](#the-config-model)
+- [Writing UI with JSX](#writing-ui-with-jsx)
+- [Config objects](#the-config-model) (the same components, as data)
 - [App shell and routing](#app-shell-and-routing)
 - [Layout](#layout)
 - [Components](#components)
 - [Data grid and stores](#data-grid-and-stores)
 - [Forms](#forms)
 - [Dialogs and toasts](#dialogs-and-toasts)
+- [Menus](#menus)
 - [Theming](#theming)
 - [Icons](#icons)
 - [Custom components](#custom-components)
@@ -42,33 +41,96 @@ That is a complete app: responsive shell, routing, a searchable, sortable, paged
 
 ```bash
 pnpm install
-pnpm dev        # demo app at http://localhost:5173
-pnpm build      # library → dist/ (ESM, UMD, .d.ts)
+pnpm dev        # demo app at http://localhost:5173 (src/main.tsx)
+pnpm build      # library → dist/ (ESM, CJS, UMD, .d.ts)
 ```
 
-**ES modules:**
+Point TypeScript (or esbuild, Vite, Bun…) at the JSX runtime:
 
-```ts
-import { NX } from 'nx.js';
-
-NX.render({ xtype: 'button', text: 'Hello', handler: () => NX.toast('Hi!') }, '#root');
+```jsonc
+// tsconfig.json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "nx.js"
+  }
+}
 ```
 
-**Script tag** (UMD build):
+No CSS import is needed. Design tokens and base styles are injected on load.
+
+**Script tag** (no build step, use config objects or `NX.h`):
 
 ```html
 <div id="root"></div>
-<script src="dist/nx.umd.cjs"></script>
+<script src="dist/nx.umd.js"></script>
 <script>
   NX.render({ xtype: 'button', text: 'Hello', handler: () => NX.toast('Hi!') }, '#root');
 </script>
 ```
 
-No CSS import is needed. Design tokens and base styles are injected on load.
+## Writing UI with JSX
+
+Write it like HTML. Attributes, `class`, `style`, events and children all do what you'd expect:
+
+```tsx
+const panel = (
+  <section class={['panel', { active: isActive }]} style={{ padding: 16, '--accent': 'tomato' }}>
+    <h2>Hello</h2>
+    <input type="email" placeholder="you@example.com" onInput={e => console.log((e.target as HTMLInputElement).value)} />
+    {items.map(item => <li>{item.name}</li>)}
+    {loading && <Spinner />}
+  </section>
+);
+document.body.append(panel);
+```
+
+| You write | You get |
+| --- | --- |
+| `class="a"`, `class={['a', cond && 'b', { c: on }]}`, `className` | joined class names (`cn()` rules) |
+| `style="…"` or `style={{ marginTop: 8, '--x': 1 }}` | inline styles; numbers get `px` |
+| `onClick`, `onKeyDown`, `onInput` | native listeners (`click`, `keydown`, `input`) |
+| `onTabChange`, `onRowClick`, `onSelectionChange` | component events (`tab-change`, `row-click`, …) |
+| `ref={el => …}` or `ref={{ current: null }}` | the created element |
+| `html={markup}` | `innerHTML` (you own the escaping) |
+| `<>…</>` | a `DocumentFragment` |
+| `(props) => <div/>` | a function component |
+
+**Components** are PascalCase wrappers around the `<nx-*>` elements, with typed props (autocomplete, and `variant="nope"` is a type error):
+
+| Group | Components |
+| --- | --- |
+| Actions | `Button`, `Menu`, `MenuBar`, `Badge` |
+| Layout | `Box`, `HStack`, `VStack`, `Grid`, `Spacer`, `Separator`, `Divider`, `Panel`, `Card`, `CardFooter`, `CardActions`, `Toolbar`, `Viewport`, `Outlet` |
+| Navigation | `Tabs`, `Tab`, `Tree`, `Breadcrumb`, `Accordion`, `Drawer` |
+| Data | `DataGrid` (alias `DataTable`) |
+| Forms | `Form`, `Input`, `Textarea`, `Select`, `Checkbox`, `Switch` |
+| Feedback | `Dialog`, `DialogFooter`, `Progress`, `Spinner`, `Skeleton`, plus `NX.toast()` / `NX.confirm()` / … |
+| Helpers | `Show`, `Fragment`, `cn()`, `variants()` |
+
+You can also use the tags directly, which are typed too: `<nx-button variant="outline">`.
+
+Composition is plain functions:
+
+```tsx
+const Stat = ({ label, value }: { label: string; value: string }) => (
+  <Card>
+    <p class="muted">{label}</p>
+    <strong style={{ fontSize: 28 }}>{value}</strong>
+  </Card>
+);
+
+<Grid minColumnWidth={220} gap={16}>
+  <Stat label="Revenue" value="$45,231" />
+  <Stat label="Customers" value="2,350" />
+</Grid>
+```
+
+For state, use a component (see [Custom components](#custom-components)) or keep a `ref` and update the element. JSX builds the DOM once, and nothing re-renders behind your back.
 
 ## The config model
 
-Everything is a plain object with an `xtype`:
+Every component can also be described as data, which is handy for generated UIs, JSON-driven screens or script-tag usage. JSX props and config keys are the same thing: `<Button variant="outline" onClick={fn}>` equals `{ xtype: 'button', variant: 'outline', handler: fn }`. Configs and JSX elements can be mixed freely in `items`.
 
 ```ts
 const button = NX.create({
@@ -112,19 +174,32 @@ NX.get('save').configure({ text: 'Saved', icon: 'check', loading: false });
 
 ## App shell and routing
 
-`NX.app()` builds a full-screen border layout. Put items in regions with `region: 'north' | 'south' | 'west' | 'east' | 'center'`. Items without a region go to the center.
+`NX.app()` builds a full-screen border layout. Put children in regions with `region="north" | "south" | "west" | "east" | "center"`. Children without a region go to the center.
 
-```ts
+```tsx
 const app = NX.app({
-  el: '#app',               // default: document.body
-  title: 'Admin',           // document title; route titles become "Users · Admin"
-  theme: 'dark',            // default theme; a theme the user picked wins
+  el: '#app',                 // default: document.body
+  title: 'Admin',             // document title; route titles become "Users · Admin"
+  theme: 'dark',              // default theme; a theme the user picked wins
   stores: { users: { data } },
-  items: [...],
+
+  items: [
+    <Toolbar region="north">
+      <Button icon="menu" class="nx-mobile-only" onClick={() => app.toggleRegion('west')} />
+      <strong>Admin</strong>
+      <Spacer />
+      <Button icon="moon" onClick={() => NX.theme.toggle()} />
+    </Toolbar>,
+    <Panel region="west" width={240}>
+      <Tree data={[{ text: 'Home', icon: 'home', route: '/' }, { text: 'Users', icon: 'users', route: '/users' }]} />
+    </Panel>,
+    <Outlet region="center" />
+  ],
+
   router: [
-    { path: '/', view: { xtype: 'html', html: '<h1>Home</h1>' } },
-    { path: '/users/:id', title: 'User', view: route => userView(route.params.id) }, // may be async
-    { path: '*', view: { html: 'Not found' } }
+    { path: '/', view: () => <HomePage /> },
+    { path: '/users/:id', title: 'User', view: route => <UserPage id={route.params.id} /> }, // may be async
+    { path: '*', view: () => <p>Not found</p> }
   ],
   ready: app => {}
 });
@@ -133,22 +208,22 @@ app.navigate('/users/42');
 app.toggleRegion('west');   // open the side nav on phones, collapse a collapsible panel on desktop
 ```
 
-- Routes render their `view` into the `{ xtype: 'outlet' }` component.
+- Routes render their `view` into the `<Outlet />`.
 - Tree nodes with a `route` navigate when clicked, and the tree highlights the node for the current route.
-- Below 768px, `west`/`east` regions turn into off-canvas drawers. Add a menu button with `cls: 'nx-mobile-only'` that calls `app.toggleRegion('west')`. `nx-desktop-only` hides things on phones.
+- Below 768px, `west`/`east` regions turn into off-canvas drawers. Use `class="nx-mobile-only"` / `"nx-desktop-only"` to show things per screen size.
 
 ## Layout
 
-```ts
-{ xtype: 'hbox', gap: 8, align: 'center', items: [...] }            // row
-{ xtype: 'vbox', gap: 16, padding: 24, items: [...] }                // column
-{ xtype: 'container', layout: 'grid', columns: 3, gap: 16, items }   // fixed grid
-{ xtype: 'container', layout: 'grid', minColumnWidth: 240, items }   // responsive grid
-{ xtype: 'panel', title: 'Details', icon: 'file', collapsible: true, closable: true, bodyPadding: 0, items }
-{ xtype: 'card', title: 'Revenue', subtitle: 'Last 30 days', icon: 'chart', items }
+```tsx
+<HStack gap={8} align="center">…</HStack>                   // row
+<VStack gap={16} padding={24}>…</VStack>                     // column
+<Grid columns={3} gap={16}>…</Grid>                          // fixed grid
+<Grid minColumnWidth={240} gap={16}>…</Grid>                 // responsive grid
+<Panel title="Details" icon="file" collapsible closable bodyPadding={0}>…</Panel>
+<Card title="Revenue" subtitle="Last 30 days" icon="chart">…</Card>
 ```
 
-`align` (`start` | `center` | `end` | `stretch` | `baseline`) and `pack` (`start` | `center` | `end` | `between` | `around` | `evenly`) map to flexbox alignment.
+`align` (`start` | `center` | `end` | `stretch` | `baseline`) and `pack` (`start` | `center` | `end` | `between` | `around` | `evenly`) map to flexbox alignment. The config equivalents are `{ xtype: 'hbox' | 'vbox' | 'container', layout: 'grid', … }`.
 
 ## Components
 
@@ -276,6 +351,26 @@ NX.toast.success('Saved');
 NX.toast.error('Upload failed', { action: { text: 'Retry', handler: retry }, duration: 0 });
 ```
 
+## Menus
+
+```tsx
+<Menu text="Actions" items={[
+  { text: 'Edit', icon: 'edit', shortcut: '⌘E', handler: edit },
+  { text: 'Share', items: [{ text: 'Email' }, { text: 'Copy link' }] },   // submenu
+  '-',
+  { heading: 'Danger zone' },
+  { text: 'Delete', icon: 'trash', danger: true, handler: remove }
+]} />
+
+<Button variant="outline" menu={[{ text: 'CSV' }, { text: 'JSON' }]}>Export</Button>
+
+<div onContextMenu={e => { e.preventDefault(); NX.menu([{ text: 'Copy' }, { text: 'Paste' }], e); }} />
+
+<MenuBar items={[{ text: 'File', items: [...] }, { text: 'Edit', items: [...] }]} />
+```
+
+Menus render in the browser's top layer, so `overflow: hidden` containers never clip them. They flip when there is no room and support full keyboard navigation and type-ahead. Item options are `checked`, `disabled` and `href`.
+
 ## Theming
 
 Three themes ship built in: `light`, `dark` and `midnight`. The user's choice persists in localStorage. With no choice saved, the app's `theme` applies, then the OS preference.
@@ -315,43 +410,51 @@ NX.icons.register('rocket', '<path d="…"/>');   // inner markup of a 24x24 str
 
 ## Custom components
 
-For quick components, use `NX.define`:
+The house style (the shadcn "copy a file you own" approach): a class with a shadow root, a `variants()` map for the look, a JSX `render()` and token-based styles. `src/components/ui/badge.tsx` is the reference implementation, and [CONTRIBUTING.md](CONTRIBUTING.md) walks through it.
 
-```ts
-NX.define('stat', {
-  observedAttributes: ['label', 'value'],
-  render() {
-    return `<div class="label">${this.getProp('label')}</div><div class="value">${this.getProp('value')}</div>`;
-  },
-  styles() {
-    return `.value { font-size: 1.75rem; font-weight: 700; }`;
-  }
+```tsx
+import { BaseComponent, define, variants } from 'nx.js';
+
+const counter = variants({
+  base: 'counter',
+  variants: { tone: { neutral: '', brand: 'brand' } },
+  defaultVariants: { tone: 'neutral' }
 });
 
-{ xtype: 'stat', label: 'Revenue', value: '$45k' }
-```
-
-For full control, write a class:
-
-```ts
-import { BaseComponent, define, escapeHTML } from 'nx.js';
-
 class Counter extends BaseComponent {
-  static get observedAttributes() { return ['label']; }
+  static get observedAttributes() { return ['label', 'tone']; }
+
   constructor() { super(); this.attachShadow({ mode: 'open' }); }
+
   protected initializeState() { this.setState('count', 0); }
+
   protected render() {
-    return `<button>${escapeHTML(this.getProp('label', 'Clicks'))}: ${this.getState('count')}</button>`;
+    return (
+      <button class={counter({ tone: this.getProp('tone') })}
+              onClick={() => this.setState('count', this.getState('count') + 1)}>
+        {this.getProp('label', 'Clicks')}: {this.getState('count')}
+      </button>
+    );
   }
-  protected afterRender() {
-    // listeners added here are removed automatically before the next render
-    this.on(this.$('button')!, 'click', () => this.setState('count', this.getState('count') + 1));
+
+  protected styles() {
+    return `
+      .counter { padding: .5rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+      .brand { background: var(--color-primary); color: var(--color-primary-foreground); }
+    `;
   }
 }
-define('x-counter', Counter);   // also registers xtype 'x-counter'
+define('x-counter', Counter);
+
+export const CounterButton = (props: { label?: string; tone?: 'neutral' | 'brand' }) => <x-counter {...props} />;
 ```
 
-`setState` batches re-renders to one per animation frame. Implement `setXxx()` methods to receive config keys, and `applyItems(items, build)` to control how `items` are built.
+- `setState()` re-renders on the next frame. Handlers in JSX are attached to the new nodes, so nothing leaks or doubles up.
+- Keyboard focus and the text caret survive re-renders.
+- Props arrive through attributes or `configure()`. Implement `setXxx()` to receive rich values (`setData`, `setColumns`), and `applyItems(items, build)` to control how children given as `items` are built.
+- String templates still work: `render()` may return a string instead of JSX.
+
+Quick one-offs can use `NX.define('stat', { render() { return <b>{this.getProp('value')}</b>; } })`.
 
 ## Using it from HTML
 
@@ -362,6 +465,11 @@ Every component is a custom element:
   <p>Plain HTML works too.</p>
   <nx-button slot="footer" variant="outline" icon="plus">New</nx-button>
 </nx-card>
+
+<nx-tabpanel>
+  <nx-tab title="Account" icon="user">…</nx-tab>
+  <nx-tab title="Password" icon="lock">…</nx-tab>
+</nx-tabpanel>
 
 <nx-container layout="hbox" gap="8">
   <nx-textfield label="Name" name="name" required></nx-textfield>
@@ -378,7 +486,7 @@ pnpm dev          # demo with HMR (src/main.ts)
 pnpm test         # unit tests (Vitest + jsdom)
 pnpm test:e2e     # end-to-end tests against the demo (Playwright)
 pnpm typecheck
-pnpm build        # library → dist/
+pnpm build        # library → dist/ (index + jsx-runtime entries, ESM/CJS/UMD, .d.ts)
 pnpm build:demo   # demo → dist-demo/
 ```
 
@@ -386,11 +494,12 @@ pnpm build:demo   # demo → dist-demo/
 src/
   index.ts              public entry point (exports + element definitions)
   app.ts                NX facade, application, router outlet
+  jsx/                  JSX runtime + PascalCase components
   core/                 registry/builder, theme, icons, router
   components/abstracts  BaseComponent
   components/ui         buttons, tabs, tree, dialogs, toasts, form fields …
   layout/               container, panel, viewport
   data/                 store, grid
-  main.ts               demo app
+  main.tsx              demo app (the reference for app code)
   tests/                unit + e2e
 ```

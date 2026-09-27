@@ -20,8 +20,16 @@ import '@/components';
 export { NX, NXApplication } from '@/app';
 export type { ApplicationConfig, LayoutConfig, Plugin } from '@/app';
 
+// JSX — write UIs like HTML (set "jsxImportSource": "nx.js" in tsconfig)
+export { jsx, jsxs, h, Fragment, cn } from '@/jsx/jsx-runtime';
+export type { BaseProps, KnownProps, LooseProps, ElementProps, StyleObject, Child, ClassValue, Ref, Component } from '@/jsx/jsx-runtime';
+export * from '@/jsx/components';
+export type { Props, ContainerConfig, MenuConfig, TabProps } from '@/jsx/components';
+export { variants } from '@/core/variants';
+export type { VariantProps, VariantsConfig } from '@/core/variants';
+
 // Core
-export { BaseComponent, escapeHTML, toKebab } from '@/components/abstracts/base';
+export { BaseComponent, escapeHTML, toKebab, eventName } from '@/components/abstracts/base';
 export type { ComponentConfig as BaseComponentConfig } from '@/components/abstracts/base';
 export { ComponentRegistry, define } from '@/core/registry';
 export type { ComponentConfig, ItemConfig, ItemsAware } from '@/core/registry';
@@ -46,6 +54,8 @@ export { NXViewport, NXRegion } from '@/layout/viewport';
 // UI
 export { NXAccordion } from '@/components/ui/accordion';
 export { NXBreadcrumb } from '@/components/ui/breadcrumb';
+export { NXBadge } from '@/components/ui/badge';
+export type { BadgeConfig } from '@/components/ui/badge';
 export { NXButton } from '@/components/ui/button';
 export type { ButtonConfig } from '@/components/ui/button';
 export { NXCard } from '@/components/ui/card';
@@ -59,7 +69,7 @@ export type { ModalConfig, ModalButton } from '@/components/ui/modal';
 export { NXProgress } from '@/components/ui/progress';
 export { NXSkeleton } from '@/components/ui/skeleton';
 export { NXSpinner } from '@/components/ui/spinner';
-export { NXTabPanel } from '@/components/ui/tabpanel';
+export { NXTabPanel, NXTab } from '@/components/ui/tabpanel';
 export type { TabConfig } from '@/components/ui/tabpanel';
 export { NXToast, toast } from '@/components/ui/toast';
 export type { ToastOptions, ToastType } from '@/components/ui/toast';

@@ -104,6 +104,22 @@ export class NXToolbar extends BaseComponent implements ItemsAware {
     `;
   }
 
+  protected afterConnect(): void {
+    // Buttons added as children (JSX/HTML) also default to ghost
+    const ghostify = () => this.querySelectorAll(':scope > nx-button:not([variant])').forEach(b => {
+      if (!(b as any).get?.('variant')) b.setAttribute('variant', 'ghost');
+    });
+    ghostify();
+    this.childObserver ??= new MutationObserver(ghostify);
+    this.childObserver.observe(this, { childList: true });
+  }
+
+  protected beforeDisconnect(): void {
+    this.childObserver?.disconnect();
+  }
+
+  private childObserver: MutationObserver | null = null;
+
   protected afterRender(): void {
     // Roving arrow-key focus between focusable items
     this.on(this, 'keydown', (e: Event) => {

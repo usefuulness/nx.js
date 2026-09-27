@@ -57,6 +57,47 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
     this.attachShadow({ mode: 'open' });
   }
 
+  private observer: MutationObserver | null = null;
+
+  protected initialize(): void {
+    this.adoptTabElements();
+    super.initialize();
+  }
+
+  protected afterConnect(): void {
+    // <nx-tab> children added later (JSX, HTML, appendChild) become tabs too
+    this.observer ??= new MutationObserver(() => this.adoptTabElements());
+    this.observer.observe(this, { childList: true });
+  }
+
+  protected beforeDisconnect(): void {
+    this.observer?.disconnect();
+  }
+
+  /** Turn `<nx-tab title="…">content</nx-tab>` children into tabs. */
+  private adoptTabElements(): void {
+    const fresh = Array.from(this.children).filter(el => el.tagName === 'NX-TAB' && !el.slot) as HTMLElement[];
+    if (!fresh.length) return;
+    const tabs = [...this.getState<TabConfig[]>('tabs', [])];
+    fresh.forEach(el => {
+      const title = el.getAttribute('title') ?? el.getAttribute('label') ?? '';
+      el.removeAttribute('title'); // no native tooltip over the whole tab body
+      const tab: TabConfig = {
+        id: el.id || `t${++tabSeq}`,
+        title,
+        icon: el.getAttribute('icon') ?? undefined,
+        closable: el.hasAttribute('closable') && el.getAttribute('closable') !== 'false',
+        disabled: el.hasAttribute('disabled') && el.getAttribute('disabled') !== 'false'
+      };
+      el.slot = `tab-${tab.id}`;
+      tabs.push(tab);
+    });
+    this.setState('tabs', tabs);
+    if (fresh.some(el => el.hasAttribute('active'))) {
+      this.setState('activeTab', tabs.findIndex(t => t.id && this.querySelector(`:scope > [slot="tab-${t.id}"][active]`)));
+    }
+  }
+
   applyItems(items: ItemConfig[]): void {
     items.forEach(item => {
       if (item && typeof item === 'object' && !(item instanceof Node)) {
@@ -420,4 +461,14 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
   }
 }
 
+/**
+ * A tab inside `<nx-tabpanel>`: `<nx-tab title="Account" icon="user" closable>…</nx-tab>`.
+ */
+export class NXTab extends HTMLElement {
+  connectedCallback(): void {
+    this.style.display = this.style.display || 'block';
+  }
+}
+
 define('nx-tabpanel', NXTabPanel);
+define('nx-tab', NXTab);

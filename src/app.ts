@@ -349,7 +349,7 @@ export const NX = {
   define(xtype: string, config: {
     observedAttributes?: string[];
     initializeState?: (this: any) => void;
-    render?: (this: any) => string;
+    render?: (this: any) => string | Node;
     styles?: (this: any) => string;
     initialize?: (this: any) => void;
     afterRender?: (this: any) => void;
@@ -369,7 +369,7 @@ export const NX = {
         config.initializeState?.call(this);
       }
 
-      protected render(): string {
+      protected render(): string | Node {
         return config.render?.call(this) ?? '<slot></slot>';
       }
 

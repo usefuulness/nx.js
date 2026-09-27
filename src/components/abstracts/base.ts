@@ -22,6 +22,27 @@ export function toKebab(name: string): string {
   return name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
 }
 
+const NATIVE_MULTIWORD_EVENTS = new Set([
+  'keydown', 'keyup', 'keypress', 'dblclick', 'contextmenu', 'beforeinput',
+  'mousedown', 'mouseup', 'mousemove', 'mouseenter', 'mouseleave', 'mouseover', 'mouseout',
+  'pointerdown', 'pointerup', 'pointermove', 'pointerenter', 'pointerleave', 'pointerover', 'pointerout', 'pointercancel',
+  'touchstart', 'touchend', 'touchmove', 'touchcancel', 'focusin', 'focusout',
+  'dragstart', 'dragend', 'dragenter', 'dragleave', 'dragover',
+  'animationstart', 'animationend', 'animationiteration', 'transitionstart', 'transitionend', 'transitionrun',
+  'compositionstart', 'compositionend', 'compositionupdate', 'selectstart', 'toggle', 'beforetoggle'
+]);
+
+/**
+ * Event name for an `onXxx` prop, shared by configs and JSX:
+ * native events are lowercased (`onKeyDown` → `keydown`, `onDblClick` → `dblclick`),
+ * everything else is kebab-cased (`onTabChange` → `tab-change`, `onClick` → `click`).
+ */
+export function eventName(prop: string): string {
+  const name = prop.replace(/^on/, '');
+  const lower = name.toLowerCase();
+  return NATIVE_MULTIWORD_EVENTS.has(lower) ? lower : toKebab(name);
+}
+
 /**
  * Escape a value for safe interpolation into a template string.
  */
@@ -275,7 +296,7 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
    * }
    * ```
    */
-  protected abstract render(): string;
+  protected abstract render(): string | Node;
 
   /**
    * Define component-specific styles.
@@ -334,20 +355,75 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
 
     // Listeners wired to the previous render's DOM are dead weight now
     this.runRenderCleanups();
+    const focus = this.captureFocus();
 
     const template = this.render();
     const styles = this.styles();
+    const css = styles ? `${BASE_STYLES}${styles}` : '';
 
-    this.shadow.innerHTML = `
-      ${styles ? `<style>${BASE_STYLES}${styles}</style>` : ''}
+    if (typeof template === 'string') {
+      this.shadow.innerHTML = `
+      ${css ? `<style>${css}</style>` : ''}
       ${template}
     `;
+    } else {
+      // JSX: real nodes with their own listeners
+      const nodes: Node[] = [];
+      if (css) {
+        const style = document.createElement('style');
+        style.textContent = css;
+        nodes.push(style);
+      }
+      if (template) nodes.push(template);
+      this.shadow.replaceChildren(...nodes);
+    }
+
+    this.restoreFocus(focus);
 
     this.inRenderPhase = true;
     try {
       this.afterRender();
     } finally {
       this.inRenderPhase = false;
+    }
+  }
+
+  /** Remember which shadow element had focus (as a child-index path) and its caret. */
+  private captureFocus(): { path: number[]; start: number | null; end: number | null } | null {
+    const active = this.shadow?.activeElement;
+    if (!active) return null;
+    const path: number[] = [];
+    let node: Element | null = active;
+    while (node && node.parentNode && node.parentNode !== this.shadow) {
+      path.unshift(Array.prototype.indexOf.call(node.parentNode.children, node));
+      node = node.parentElement;
+    }
+    if (!node) return null;
+    path.unshift(Array.prototype.indexOf.call(this.shadow!.children, node));
+    const input = active as HTMLInputElement;
+    let start: number | null = null;
+    let end: number | null = null;
+    try {
+      start = input.selectionStart ?? null;
+      end = input.selectionEnd ?? null;
+    } catch {
+      // not a text control
+    }
+    return { path, start, end };
+  }
+
+  private restoreFocus(focus: ReturnType<BaseComponent['captureFocus']>): void {
+    if (!focus || !this.shadow) return;
+    let node: Element | undefined = this.shadow.children[focus.path[0]];
+    for (const index of focus.path.slice(1)) node = node?.children[index];
+    if (!(node instanceof HTMLElement || node instanceof SVGElement)) return;
+    node.focus({ preventScroll: true });
+    if (focus.start !== null && 'setSelectionRange' in node) {
+      try {
+        (node as HTMLInputElement).setSelectionRange(focus.start, focus.end);
+      } catch {
+        // input type without selection support
+      }
     }
   }
 
@@ -574,9 +650,9 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
         return;
     }
 
-    // onSelect / onTabChange → 'select' / 'tab-change'
+    // onSelect / onTabChange / onKeyDown → 'select' / 'tab-change' / 'keydown'
     if (typeof value === 'function' && /^on[A-Z]/.test(key)) {
-      this.addEventListener(toKebab(key.slice(2)), value);
+      this.addEventListener(eventName(key), value);
       return;
     }
 

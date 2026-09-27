@@ -4,7 +4,7 @@ import path from 'path';
 export default defineConfig({
   test: {
     environment: 'jsdom',
-    include: ['src/tests/unit/**/*.test.ts'],
+    include: ['src/tests/unit/**/*.test.{ts,tsx}'],
     setupFiles: ['./src/tests/setup.ts'],
     coverage: {
       reporter: ['text', 'html'],

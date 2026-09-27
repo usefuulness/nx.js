@@ -3,16 +3,18 @@ import tailwindcss from '@tailwindcss/vite';
 import dts from 'vite-plugin-dts';
 import path from 'path';
 
-// `vite` / `vite build --mode demo` → the demo app (index.html + src/main.ts)
-// `vite build`                      → the library (dist/nx.js, dist/nx.umd.cjs, dist/index.d.ts)
+// `vite` / `vite build --mode demo` → the demo app (index.html + src/main.tsx)
+// `vite build`                      → the library: ESM + CJS entries (index, jsx-runtime, jsx-dev-runtime) + .d.ts
+// `vite build --mode umd`           → dist/nx.umd.js for <script> tags (global `NX`)
 export default defineConfig(({ command, mode }) => {
-  const lib = command === 'build' && mode !== 'demo';
+  const lib = command === 'build' && (mode === 'production' || mode === 'umd');
+  const umd = mode === 'umd';
 
   return {
-    plugins: lib
-      ? [dts({ include: ['src'], exclude: ['src/tests', 'src/main.ts'], rollupTypes: false, entryRoot: 'src' })]
-      : [tailwindcss()],
     publicDir: lib ? false : 'public',
+    plugins: lib
+      ? umd ? [] : [dts({ include: ['src'], exclude: ['src/tests', 'src/main.tsx'], entryRoot: 'src' })]
+      : [tailwindcss()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src')
@@ -20,14 +22,19 @@ export default defineConfig(({ command, mode }) => {
     },
     build: lib
       ? {
-          lib: {
-            entry: path.resolve(__dirname, 'src/index.ts'),
-            name: 'Nexaro',
-            formats: ['es', 'umd'],
-            fileName: format => (format === 'es' ? 'nx.js' : 'nx.umd.cjs')
-          },
+          lib: umd
+            ? { entry: path.resolve(__dirname, 'src/index.ts'), name: 'Nexaro', formats: ['umd'], fileName: () => 'nx.umd.js' }
+            : {
+                entry: {
+                  index: path.resolve(__dirname, 'src/index.ts'),
+                  'jsx-runtime': path.resolve(__dirname, 'src/jsx/jsx-runtime.ts'),
+                  'jsx-dev-runtime': path.resolve(__dirname, 'src/jsx/jsx-dev-runtime.ts')
+                },
+                formats: ['es', 'cjs'],
+                fileName: (format, name) => `${name}.${format === 'es' ? 'js' : 'cjs'}`
+              },
           sourcemap: true,
-          emptyOutDir: true
+          emptyOutDir: !umd
         }
       : {
           outDir: 'dist-demo'

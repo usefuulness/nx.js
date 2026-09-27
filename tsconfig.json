@@ -7,6 +7,10 @@
     "skipLibCheck": true,
     "types": ["vite/client", "node"],
 
+    /* JSX: real DOM via our own runtime (src/jsx/jsx-runtime.ts) */
+    "jsx": "react-jsx",
+    "jsxImportSource": "@/jsx",
+
     /* Module resolution */
     "baseUrl": ".",
     "paths": {

@@ -1,4 +1,62 @@
-/* App-level styles for the demo. Design tokens are injected by ThemeManager. */
+/* App-level styles for the demo. Design tokens are injected by ThemeManager,
+   so plain CSS like this can use them directly. */
 #app {
   height: 100vh;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stat-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.stat-value {
+  margin-top: 0.25rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.stat-delta {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.stat-delta.up { color: var(--color-success); }
+.stat-delta.down { color: var(--color-error); }
+.stat-delta span { color: var(--color-text-secondary); font-weight: 400; }
+
+.goal {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
 }

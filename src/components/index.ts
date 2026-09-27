@@ -7,6 +7,7 @@ import '@/layout/viewport';
 
 // UI
 import '@/components/ui/accordion';
+import '@/components/ui/badge';
 import '@/components/ui/breadcrumb';
 import '@/components/ui/button';
 import '@/components/ui/card';

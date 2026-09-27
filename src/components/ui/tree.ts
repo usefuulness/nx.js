@@ -11,6 +11,8 @@ export interface TreeNode {
   checked?: boolean;
   disabled?: boolean;
   children?: TreeNode[];
+  /** Navigate here when selected (inside an NX.app with a router) */
+  route?: string;
   data?: any;
 }
 

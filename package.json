@@ -4,15 +4,26 @@
   "version": "0.1.0",
   "description": "Declarative, zero-dependency web components with an ExtJS-style config API and a shadcn-style look.",
   "type": "module",
-  "main": "./dist/nx.umd.cjs",
-  "module": "./dist/nx.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/nx.js",
-      "require": "./dist/nx.umd.cjs"
-    }
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/jsx/jsx-runtime.d.ts",
+      "import": "./dist/jsx-runtime.js",
+      "require": "./dist/jsx-runtime.cjs"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./dist/jsx/jsx-dev-runtime.d.ts",
+      "import": "./dist/jsx-dev-runtime.js",
+      "require": "./dist/jsx-dev-runtime.cjs"
+    },
+    "./umd": "./dist/nx.umd.js"
   },
   "files": [
     "dist"
@@ -20,7 +31,7 @@
   "sideEffects": true,
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && vite build --mode umd",
     "build:demo": "vite build --mode demo",
     "preview": "vite build --mode demo && vite preview --outDir dist-demo",
     "typecheck": "tsc --noEmit",
@@ -40,5 +51,6 @@
     "vite": "^7.0.0",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^1.0.0"
-  }
+  },
+  "unpkg": "./dist/nx.umd.js"
 }
