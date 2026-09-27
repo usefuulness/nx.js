@@ -263,15 +263,16 @@ Any unknown `xtype` without a dash (`'section'`, `'h1'`) creates that plain elem
     { field: 'address.city', header: 'City' },                  // dot paths
     { field: 'role', header: 'Role', type: 'badge', badges: { Admin: 'info', Banned: 'error' } },
     { field: 'revenue', header: 'Revenue', type: 'currency', width: 120 }, // number | currency | percent | date | boolean
-    { field: 'name', header: '', sortable: false, width: 60,
-      renderer: (v, row) => `<a href="#/users/${row.id}">Open</a>` } // renderer returns HTML; formatter returns text (escaped)
+    { field: 'name', header: '', sortable: false, width: 90,
+      renderer: (v, row) => <Button size="sm" variant="ghost" onClick={() => open(row)}>Open</Button> }
+      // renderer returns JSX (or an HTML string you escape yourself); formatter returns text
   ],
   onRowClick: e => console.log(e.detail.row),
   onSelectionChange: e => console.log(e.detail.selected)
 }
 ```
 
-The grid API: `getSelected()`, `select(rows)`, `selectAll()`, `clearSelection()`, `sort(field, dir)`, `setFilter(text)`, `setPage(n)`, `setData(rows)`, `exportCSV(filename)`. Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`. Cell values are HTML-escaped unless you use a `renderer`.
+Clicks on buttons, links and inputs inside cells don't select the row. The grid API: `getSelected()`, `select(rows)`, `selectAll()`, `clearSelection()`, `sort(field, dir)`, `setFilter(text)`, `setPage(n)`, `setData(rows)`, `exportCSV(filename)`. Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`. Cell values are always escaped. Only a `renderer` that returns an HTML string bypasses that.
 
 Stores hold records and notify bound components:
 
@@ -452,7 +453,7 @@ export const CounterButton = (props: { label?: string; tone?: 'neutral' | 'brand
 - `setState()` re-renders on the next frame. Handlers in JSX are attached to the new nodes, so nothing leaks or doubles up.
 - Keyboard focus and the text caret survive re-renders.
 - Props arrive through attributes or `configure()`. Implement `setXxx()` to receive rich values (`setData`, `setColumns`), and `applyItems(items, build)` to control how children given as `items` are built.
-- String templates still work: `render()` may return a string instead of JSX.
+- Every built-in component is written this way. `render()` may still return an HTML string, for legacy code.
 
 Quick one-offs can use `NX.define('stat', { render() { return <b>{this.getProp('value')}</b>; } })`.
 

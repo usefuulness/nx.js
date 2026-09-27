@@ -2,7 +2,8 @@
  * @file @/data/grid.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
-import { BaseComponent, escapeHTML } from '@/components/abstracts/base';
+import { BaseComponent } from '@/components/abstracts/base';
+import type { Child } from '@/jsx/jsx-runtime';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { Store } from '@/data/store';
@@ -32,8 +33,8 @@ export interface GridColumn<T = any> {
   currency?: string;
   /** Return plain text (escaped for you) */
   formatter?: (value: any, row: T) => string;
-  /** Return HTML (not escaped — you own it) */
-  renderer?: (value: any, row: T, column: GridColumn<T>) => string;
+  /** Return JSX, or an HTML string (not escaped — you own it) */
+  renderer?: (value: any, row: T, column: GridColumn<T>) => Node | string;
 }
 
 export interface GridConfig<T extends Record<string, any> = any> {
@@ -248,10 +249,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       this.scheduleUpdate();
       return;
     }
-    body.innerHTML = this.renderTable();
-    const footer = this.$('.nx-grid-footer');
-    if (footer) footer.outerHTML = this.renderFooter();
-    this.syncIndeterminate();
+    body.replaceChildren(this.renderTable());
+    this.$('.nx-grid-footer')?.replaceWith(this.renderFooter());
   }
 
   /** Download visible rows as CSV. */
@@ -310,37 +309,44 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     return `align-${col.align ?? (isNumeric(col) ? 'right' : 'left')}`;
   }
 
-  protected render(): string {
+  protected render(): Node {
     const title = this.getProp<string>('title');
     const search = this.getProp('search', false);
-    const hasToolbar = title || search || this.querySelector('[slot="toolbar"]');
-    const classes = [
-      'nx-grid',
-      this.getProp('bordered', true) ? 'bordered' : '',
-      this.getProp('dense', false) ? 'dense' : ''
-    ].filter(Boolean).join(' ');
+    const hasToolbar = title || search || this.querySelector(':scope > [slot="toolbar"]');
 
-    return `
-      <div class="${classes}" part="grid">
-        ${hasToolbar ? `
+    return (
+      <div part="grid" class={['nx-grid', { bordered: this.getProp('bordered', true), dense: this.getProp('dense', false) }]}
+           // Rows are re-rendered often, so events are delegated from here
+           onClick={(e: MouseEvent) => this.onClick(e)}
+           onDblClick={(e: MouseEvent) => {
+             const row = this.rowFromEvent(e);
+             if (row) this.emit('row-dblclick', { row, index: this.rows.indexOf(row) });
+           }}
+           onChange={(e: Event) => this.onCheckboxChange(e)}>
+        {hasToolbar && (
           <div class="nx-grid-toolbar" part="toolbar">
-            ${title ? `<div class="nx-grid-title" part="title">${escapeHTML(title)}</div>` : ''}
-            <slot name="toolbar"></slot>
-            ${search ? `
+            {title && <div class="nx-grid-title" part="title">{title}</div>}
+            <slot name="toolbar" />
+            {search && (
               <label class="nx-grid-search">
-                ${Icons.get('search')}
-                <input type="search" placeholder="Search…" value="${escapeHTML(this.query)}" aria-label="Search rows">
+                <span html={Icons.get('search')} />
+                <input type="search" placeholder="Search…" value={this.query} aria-label="Search rows"
+                       onInput={(e: Event) => {
+                         this.query = (e.target as HTMLInputElement).value;
+                         this.page = 1;
+                         this.refresh();
+                       }} />
               </label>
-            ` : ''}
+            )}
           </div>
-        ` : ''}
-        <div class="nx-grid-body" part="body">${this.renderTable()}</div>
-        ${this.renderFooter()}
+        )}
+        <div class="nx-grid-body" part="body">{this.renderTable()}</div>
+        {this.renderFooter()}
       </div>
-    `;
+    );
   }
 
-  private renderTable(): string {
+  private renderTable(): Node {
     const cols = this.visibleColumns();
     const all = this.getVisibleRows();
     this.page = Math.min(this.page, this.pageCount());
@@ -353,129 +359,119 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     const hoverable = this.getProp('hoverable', true);
     const selectable = this.isSelectable();
 
-    const colgroup = `
-      <colgroup>
-        ${checkbox ? '<col style="width: 3rem">' : ''}
-        ${cols.map(col => `<col${col.width ? ` style="width: ${cssSize(col.width)}"` : ''}>`).join('')}
-      </colgroup>
-    `;
-
-    const head = `
-      <thead>
-        <tr>
-          ${checkbox ? `
-            <th class="check">
-              <input type="checkbox" class="check-all" aria-label="Select all"
-                     ${allChecked ? 'checked' : ''} ${someChecked && !allChecked ? 'data-indeterminate' : ''}>
-            </th>` : ''}
-          ${cols.map(col => {
-            const sortable = col.sortable !== false;
-            const active = this.sortField === String(col.field);
-            return `
-              <th class="${this.align(col)} ${sortable ? 'sortable' : ''} ${active ? 'sorted' : ''}"
-                  data-field="${escapeHTML(String(col.field))}"
-                  ${active ? `aria-sort="${this.sortDirection === 'asc' ? 'ascending' : 'descending'}"` : ''}>
-                <span class="th">
-                  ${escapeHTML(this.headerText(col))}
-                  ${sortable ? `<span class="sort-icon">${Icons.get(active && this.sortDirection === 'desc' ? 'chevron-down' : 'chevron-up')}</span>` : ''}
-                </span>
-              </th>`;
-          }).join('')}
-        </tr>
-      </thead>
-    `;
-
-    const body = rows.length ? rows.map((row, i) => {
-      const index = this.rows.indexOf(row);
-      const isSelected = this.selected.has(row);
-      const classes = [
-        striped && i % 2 ? 'striped' : '',
-        hoverable ? 'hoverable' : '',
-        isSelected ? 'selected' : '',
-        selectable ? 'clickable' : ''
-      ].filter(Boolean).join(' ');
-      return `
-        <tr class="${classes}" data-index="${index}" ${selectable ? `aria-selected="${isSelected}"` : ''}>
-          ${checkbox ? `<td class="check"><input type="checkbox" class="check-row" aria-label="Select row" ${isSelected ? 'checked' : ''}></td>` : ''}
-          ${cols.map(col => `<td class="${this.align(col)}">${this.renderCell(row, col)}</td>`).join('')}
-        </tr>`;
-    }).join('') : `
-      <tr class="empty"><td colspan="${cols.length + (checkbox ? 1 : 0)}">
-        <div class="nx-grid-empty">
-          ${Icons.get(this.query ? 'search' : 'table')}
-          <span>${escapeHTML(this.query ? `No results for “${this.query}”` : this.getProp('empty-text', 'No data to display'))}</span>
-        </div>
-      </td></tr>
-    `;
-
     // Auto-width columns get at least 10rem; below that the body scrolls sideways
     const fixed = cols.filter(c => c.width).map(c => cssSize(c.width));
-    const autoCount = cols.length - fixed.length;
-    const minWidth = `calc(${[...fixed, `${autoCount * 10}rem`, checkbox ? '3rem' : '0px'].join(' + ')})`;
+    const minWidth = `calc(${[...fixed, `${(cols.length - fixed.length) * 10}rem`, checkbox ? '3rem' : '0px'].join(' + ')})`;
 
-    return `<table class="nx-grid-table" part="table" style="min-width: ${minWidth}">${colgroup}${head}<tbody>${body}</tbody></table>`;
+    return (
+      <table class="nx-grid-table" part="table" style={{ minWidth }}>
+        <colgroup>
+          {checkbox && <col style="width: 3rem" />}
+          {cols.map(col => <col style={col.width ? { width: cssSize(col.width) } : undefined} />)}
+        </colgroup>
+        <thead>
+          <tr>
+            {checkbox && (
+              <th class="check">
+                <input type="checkbox" class="check-all" aria-label="Select all" checked={allChecked} indeterminate={someChecked && !allChecked} />
+              </th>
+            )}
+            {cols.map(col => {
+              const sortable = col.sortable !== false;
+              const active = this.sortField === String(col.field);
+              return (
+                <th class={[this.align(col), { sortable, sorted: active }]} data-field={String(col.field)}
+                    aria-sort={active ? (this.sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}>
+                  <span class="th">
+                    {this.headerText(col)}
+                    {sortable && <span class="sort-icon" html={Icons.get(active && this.sortDirection === 'desc' ? 'chevron-down' : 'chevron-up')} />}
+                  </span>
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length ? rows.map((row, i) => {
+            const isSelected = this.selected.has(row);
+            return (
+              <tr class={{ striped: striped && i % 2, hoverable, selected: isSelected, clickable: selectable }}
+                  data-index={this.rows.indexOf(row)} aria-selected={selectable ? String(isSelected) : undefined}>
+                {checkbox && <td class="check"><input type="checkbox" class="check-row" aria-label="Select row" checked={isSelected} /></td>}
+                {cols.map(col => <td class={this.align(col)}>{this.renderCell(row, col)}</td>)}
+              </tr>
+            );
+          }) : (
+            <tr class="empty">
+              <td colspan={cols.length + (checkbox ? 1 : 0)}>
+                <div class="nx-grid-empty">
+                  <span html={Icons.get(this.query ? 'search' : 'table')} />
+                  <span>{this.query ? `No results for “${this.query}”` : this.getProp('empty-text', 'No data to display')}</span>
+                </div>
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    );
   }
 
-  private renderCell(row: T, col: GridColumn<T>): string {
+  private renderCell(row: T, col: GridColumn<T>): Child {
     const value = this.value(row, col.field);
-    if (col.renderer) return col.renderer(value, row, col);
-    if (col.formatter) return escapeHTML(col.formatter(value, row));
-    if (value === null || value === undefined || value === '') return '<span class="muted">—</span>';
+    if (col.renderer) {
+      const out = col.renderer(value, row, col);
+      // Strings are HTML (you own escaping); nodes (JSX) are used as-is
+      return typeof out === 'string' ? <span class="cell-html" html={out} /> : out;
+    }
+    if (col.formatter) return col.formatter(value, row);
+    if (value === null || value === undefined || value === '') return <span class="muted">—</span>;
 
     switch (col.type) {
       case 'number':
-        return escapeHTML(Number(value).toLocaleString());
+        return Number(value).toLocaleString();
       case 'currency':
-        return escapeHTML(Number(value).toLocaleString(undefined, { style: 'currency', currency: col.currency ?? 'USD' }));
+        return Number(value).toLocaleString(undefined, { style: 'currency', currency: col.currency ?? 'USD' });
       case 'percent':
-        return escapeHTML(`${Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`);
+        return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
       case 'date': {
         const date = value instanceof Date ? value : new Date(value);
-        return escapeHTML(isNaN(date.getTime())
-          ? String(value)
-          : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }));
+        return isNaN(date.getTime()) ? String(value) : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
       }
       case 'boolean':
         return value
-          ? `<span class="bool yes" aria-label="Yes">${Icons.get('check')}</span>`
-          : `<span class="bool no" aria-label="No">${Icons.get('minus')}</span>`;
-      case 'badge': {
-        const tone = col.badges?.[String(value)] ?? 'neutral';
-        return `<span class="badge tone-${tone}">${escapeHTML(value)}</span>`;
-      }
+          ? <span class="bool yes" aria-label="Yes" html={Icons.get('check')} />
+          : <span class="bool no" aria-label="No" html={Icons.get('minus')} />;
+      case 'badge':
+        return <span class={['badge', `tone-${col.badges?.[String(value)] ?? 'neutral'}`]}>{String(value)}</span>;
       default:
-        return escapeHTML(value);
+        return String(value);
     }
   }
 
-  private renderFooter(): string {
+  private renderFooter(): Node {
     const perPage = this.pageSize();
     const total = this.getVisibleRows().length;
     const selectedCount = this.selected.size;
-    if (!perPage && !selectedCount) return '<div class="nx-grid-footer" hidden></div>';
+    if (!perPage && !selectedCount) return <div class="nx-grid-footer" hidden />;
 
     const pages = this.pageCount();
     const from = total ? (this.page - 1) * (perPage || total) + 1 : 0;
     const to = perPage ? Math.min(total, this.page * perPage) : total;
 
-    return `
+    return (
       <div class="nx-grid-footer" part="footer">
-        <span class="info">
-          ${selectedCount ? `${selectedCount} of ${this.rows.length} selected` : `${from}–${to} of ${total}`}
-        </span>
-        ${perPage ? `
+        <span class="info">{selectedCount ? `${selectedCount} of ${this.rows.length} selected` : `${from}–${to} of ${total}`}</span>
+        {perPage > 0 && (
           <span class="pager">
-            <span class="info">Page ${this.page} of ${pages}</span>
-            <button class="page-btn" data-page="prev" aria-label="Previous page" ${this.page <= 1 ? 'disabled' : ''}>${Icons.get('chevron-left')}</button>
-            <button class="page-btn" data-page="next" aria-label="Next page" ${this.page >= pages ? 'disabled' : ''}>${Icons.get('chevron-right')}</button>
+            <span class="info">Page {this.page} of {pages}</span>
+            <button class="page-btn" aria-label="Previous page" disabled={this.page <= 1} html={Icons.get('chevron-left')}
+                    onClick={() => this.setPage(this.page - 1)} />
+            <button class="page-btn" aria-label="Next page" disabled={this.page >= pages} html={Icons.get('chevron-right')}
+                    onClick={() => this.setPage(this.page + 1)} />
           </span>
-        ` : ''}
+        )}
       </div>
-    `;
-  }
-
-  private syncIndeterminate(): void {
-    this.$$('input[data-indeterminate]').forEach(el => ((el as HTMLInputElement).indeterminate = true));
+    );
   }
 
   private selectionChanged(): void {
@@ -483,73 +479,49 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     this.emit('selection-change', { selected: this.getSelected() });
   }
 
-  protected afterRender(): void {
-    this.syncIndeterminate();
-    const root = this.shadow!;
-
-    this.on(root, 'input', (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      if (target.closest('.nx-grid-search')) {
-        this.query = target.value;
-        this.page = 1;
-        this.refresh();
-      }
-    });
-
-    this.on(root, 'change', (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      if (target.classList.contains('check-all')) {
-        this.currentPageRows(this.getVisibleRows())
-          .forEach(row => target.checked ? this.selected.add(row) : this.selected.delete(row));
-        this.selectionChanged();
-      } else if (target.classList.contains('check-row')) {
-        const row = this.rowFromEvent(e);
-        if (row) {
-          target.checked ? this.selected.add(row) : this.selected.delete(row);
-          this.selectionChanged();
-        }
-      }
-    });
-
-    this.on(root, 'click', (e: Event) => {
-      const target = e.target as HTMLElement;
-
-      const th = target.closest('th.sortable') as HTMLElement | null;
-      if (th) {
-        this.sort(th.dataset.field!);
-        return;
-      }
-
-      const pageBtn = target.closest('.page-btn') as HTMLElement | null;
-      if (pageBtn) {
-        this.setPage(this.page + (pageBtn.dataset.page === 'next' ? 1 : -1));
-        return;
-      }
-
-      if (target.closest('input[type="checkbox"]')) return;
-
+  private onCheckboxChange(e: Event): void {
+    const target = e.target as HTMLInputElement;
+    if (target.classList.contains('check-all')) {
+      this.currentPageRows(this.getVisibleRows()).forEach(row => (target.checked ? this.selected.add(row) : this.selected.delete(row)));
+      this.selectionChanged();
+    } else if (target.classList.contains('check-row')) {
       const row = this.rowFromEvent(e);
       if (!row) return;
+      target.checked ? this.selected.add(row) : this.selected.delete(row);
+      this.selectionChanged();
+    }
+  }
 
-      if (this.isSelectable()) {
-        const mouse = e as MouseEvent;
-        if (this.isMulti() && (mouse.metaKey || mouse.ctrlKey || this.getProp('checkbox-selection', false))) {
-          this.selected.has(row) ? this.selected.delete(row) : this.selected.add(row);
-        } else {
-          const onlyThis = this.selected.size === 1 && this.selected.has(row);
-          this.selected.clear();
-          if (!onlyThis) this.selected.add(row);
-        }
-        this.selectionChanged();
+  private onClick(e: MouseEvent): void {
+    const target = e.target as HTMLElement;
+
+    const th = target.closest('th.sortable') as HTMLElement | null;
+    if (th) {
+      this.sort(th.dataset.field!);
+      return;
+    }
+
+    const row = this.rowFromEvent(e);
+    if (!row) return;
+
+    // Buttons, links and inputs inside cells (e.g. from a renderer) handle their own clicks
+    const interactive = e.composedPath().some(el =>
+      el instanceof Element && el.matches('a, button, input, select, textarea, label, nx-button, nx-menu, nx-checkbox, [data-no-row-click]')
+    );
+    if (interactive) return;
+
+    if (this.isSelectable()) {
+      if (this.isMulti() && (e.metaKey || e.ctrlKey || this.getProp('checkbox-selection', false))) {
+        this.selected.has(row) ? this.selected.delete(row) : this.selected.add(row);
+      } else {
+        const onlyThis = this.selected.size === 1 && this.selected.has(row);
+        this.selected.clear();
+        if (!onlyThis) this.selected.add(row);
       }
+      this.selectionChanged();
+    }
 
-      this.emit('row-click', { row, index: this.rows.indexOf(row) });
-    });
-
-    this.on(root, 'dblclick', (e: Event) => {
-      const row = this.rowFromEvent(e);
-      if (row) this.emit('row-dblclick', { row, index: this.rows.indexOf(row) });
-    });
+    this.emit('row-click', { row, index: this.rows.indexOf(row) });
   }
 
   private rowFromEvent(e: Event): T | null {

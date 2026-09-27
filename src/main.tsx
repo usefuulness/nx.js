@@ -43,7 +43,7 @@ const orders = Array.from({ length: 6 }, (_, i) => ({
 const Page = ({ title, description, actions, children }: { title: string; description: string; actions?: Child; children?: Child }) => (
   <VStack gap={24} style="max-width: 1200px; margin: 0 auto; width: 100%; padding: clamp(1rem, 4vw, 2rem)">
     <HStack align="end" gap={12} wrap>
-      <VStack flex={1} gap={4}>
+      <VStack flex="1 1 16rem" gap={4}>
         <h1 class="page-title">{title}</h1>
         <p class="muted">{description}</p>
       </VStack>

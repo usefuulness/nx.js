@@ -114,19 +114,19 @@ export interface ComponentConfig {
  *     this.setState('internalValue', '');
  *   }
  *   
- *   protected render(): string {
- *     return `
- *       <div class="my-component">
- *         ${this.getProp('value', 'default')}
+ *   protected render() {
+ *     return (
+ *       <div class="my-component" onClick={() => this.setState('internalValue', 'clicked')}>
+ *         {this.getProp('value', 'default')}
  *       </div>
- *     `;
+ *     );
  *   }
  *   
  *   protected styles(): string {
  *     return `
  *       .my-component {
  *         padding: 1rem;
- *         background: var(--surface-color);
+ *         background: var(--color-surface);
  *       }
  *     `;
  *   }
@@ -278,21 +278,20 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
   protected abstract initializeState(): void;
 
   /**
-   * Render component template.
-   * Must be implemented by subclasses to return HTML template.
-   * 
-   * @returns {string} HTML template string
+   * Render the component's shadow DOM. Return JSX (the house style, see
+   * CONTRIBUTING.md) or, for legacy code, an HTML string.
+   *
    * @protected
    * @abstract
-   * 
+   *
    * @example
-   * ```typescript
-   * protected render(): string {
-   *   return `
+   * ```tsx
+   * protected render() {
+   *   return (
    *     <div class="container">
-   *       <slot></slot>
+   *       <slot />
    *     </div>
-   *   `;
+   *   );
    * }
    * ```
    */

@@ -84,3 +84,45 @@ describe('NXGrid', () => {
     expect(grid.shadowRoot!.querySelector('tbody img')).toBeNull();
   });
 });
+
+describe('NXGrid JSX renderers', () => {
+  it('renders JSX from renderer, and clicks on cell buttons do not select the row', () => {
+    const onDelete = vi.fn();
+    const onRowClick = vi.fn();
+    const grid = NX.create<NXGrid>({
+      xtype: 'grid',
+      selectable: true,
+      data: rows,
+      onRowClick,
+      columns: [
+        { field: 'name', header: 'Name' },
+        { field: 'name', header: '', renderer: (_v: any, row: any) => <button class="del" onClick={() => onDelete(row.name)}>Delete</button> }
+      ]
+    });
+    document.body.appendChild(grid);
+    (grid.shadowRoot!.querySelector('button.del') as HTMLElement).click();
+    expect(onDelete).toHaveBeenCalledWith('Charlie');
+    expect(grid.getSelected()).toEqual([]);
+    expect(onRowClick).not.toHaveBeenCalled();
+
+    (grid.shadowRoot!.querySelector('tbody td') as HTMLElement).click();
+    expect(grid.getSelected()).toEqual([rows[0]]);
+    expect(onRowClick).toHaveBeenCalledOnce();
+  });
+
+  it('still supports HTML string renderers', () => {
+    const grid = NX.create<NXGrid>({ xtype: 'grid', data: rows, columns: [{ field: 'name', renderer: (v: any) => `<em>${v}</em>` }] });
+    document.body.appendChild(grid);
+    expect(grid.shadowRoot!.querySelector('tbody em')!.textContent).toBe('Charlie');
+  });
+
+  it('keeps the search input across refreshes', () => {
+    const grid = NX.create<NXGrid>({ xtype: 'grid', data: rows, search: true, columns });
+    document.body.appendChild(grid);
+    const input = grid.shadowRoot!.querySelector('.nx-grid-search input') as HTMLInputElement;
+    input.value = 'bob';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(grid.shadowRoot!.querySelector('.nx-grid-search input')).toBe(input);
+    expect(cellText(grid)).toEqual(['Bob']);
+  });
+});
