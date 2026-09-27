@@ -58,3 +58,53 @@ describe('container', () => {
     expect(css).toContain('gap: 8px');
   });
 });
+
+describe('display components', () => {
+  it('loader hide()/show() actually toggle it', async () => {
+    const loader = NX.create<any>({ xtype: 'loader', text: 'Saving' });
+    document.body.appendChild(loader);
+    expect(loader.shadowRoot!.textContent).toContain('Saving');
+    loader.hide();
+    await nextFrame();
+    expect(loader.shadowRoot!.querySelector('[part="loader"]')).toBeNull();
+    loader.show();
+    await nextFrame();
+    expect(loader.shadowRoot!.querySelector('[part="loader"]')).not.toBeNull();
+  });
+
+  it('breadcrumb links navigate unless the navigate event is cancelled', () => {
+    const crumb = NX.create({ xtype: 'breadcrumb', items: [{ text: 'Home', href: '#/' }, { text: 'Here' }] });
+    document.body.appendChild(crumb);
+    const link = crumb.shadowRoot!.querySelector('a')!;
+    const click = () => {
+      const e = new MouseEvent('click', { bubbles: true, cancelable: true });
+      link.dispatchEvent(e);
+      return e.defaultPrevented;
+    };
+    expect(click()).toBe(false);
+    crumb.addEventListener('navigate', e => e.preventDefault());
+    expect(click()).toBe(true);
+    expect(crumb.shadowRoot!.querySelector('[aria-current="page"]')!.textContent).toBe('Here');
+  });
+
+  it('progress reflects value changes from attributes and API', async () => {
+    const bar = NX.create<any>({ xtype: 'progress', value: 25 });
+    document.body.appendChild(bar);
+    const width = () => (bar.shadowRoot!.querySelector('[part="bar"]') as HTMLElement).style.width;
+    expect(width()).toBe('25%');
+    bar.setAttribute('value', '50');
+    await nextFrame();
+    expect(width()).toBe('50%');
+    bar.complete();
+    await nextFrame();
+    expect(width()).toBe('100%');
+  });
+
+  it('text skeletons have a height without explicit sizing', () => {
+    const sk = NX.create({ xtype: 'skeleton', count: 3 });
+    document.body.appendChild(sk);
+    const lines = sk.shadowRoot!.querySelectorAll('.skeleton');
+    expect(lines).toHaveLength(3);
+    expect((lines[0] as HTMLElement).style.height).toBe('');
+  });
+});

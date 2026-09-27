@@ -79,7 +79,7 @@ describe('JSX runtime', () => {
       </Card>
     ) as HTMLElement;
     document.body.append(card);
-    expect(card.shadowRoot!.querySelector('.nx-card-footer')).not.toBeNull();
+    expect(card.shadowRoot!.querySelector('[part="footer"]')).not.toBeNull();
     expect(card.querySelector('[slot="footer"] nx-button')).not.toBeNull();
     expect(card.hasAttribute('title')).toBe(false);
   });
