@@ -1,0 +1,25 @@
+{# Jinja (Flask, Django with Jinja2). tojson escapes <, > and &, so it is safe in <script> and attributes. #}
+{% extends "layout.html.j2" %}
+
+{% block body %}
+  {% if flash %}<nx-card title="Saved"><p>{{ flash }}</p></nx-card>{% endif %}
+
+  <nx-grid id="users" title="Users" search striped columns='{{ columns|tojson }}'>
+    <script type="application/json" data-nx-config>{"data": {{ users|tojson }}}</script>
+  </nx-grid>
+
+  <nx-card title="Invite someone">
+    <form method="post" action="{{ url_for('create_user') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <nx-form columns="2">
+        <nx-textfield name="name" label="Name" value="{{ form.name or '' }}" required></nx-textfield>
+        <nx-textfield name="email" type="email" label="Email" value="{{ form.email or '' }}" required
+                      {% if errors.email %}error-text="{{ errors.email }}"{% endif %}></nx-textfield>
+        <nx-select name="role" label="Role" value="{{ form.role or 'Viewer' }}">
+          {% for role in roles %}<option>{{ role }}</option>{% endfor %}
+        </nx-select>
+      </nx-form>
+      <nx-button type="submit" icon="send">Invite</nx-button>
+    </form>
+  </nx-card>
+{% endblock %}

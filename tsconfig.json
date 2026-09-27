@@ -14,7 +14,12 @@
     /* Module resolution */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      // The public package paths, so examples/ read like consumer code
+      "nx.js": ["src/index.ts"],
+      "nx.js/ssr": ["src/ssr/index.ts"],
+      "nx.js/jsx-runtime": ["src/jsx/jsx-runtime.ts"],
+      "nx.js/jsx-dev-runtime": ["src/jsx/jsx-dev-runtime.ts"]
     },
 
     /* Bundler mode */
@@ -39,5 +44,5 @@
     "noImplicitThis": true,
     "alwaysStrict": true
   },
-  "include": ["src", "vitest.config.ts", "playwright.config.ts"]
+  "include": ["src", "examples", "vitest.config.ts", "playwright.config.ts"]
 }

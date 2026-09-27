@@ -1,0 +1,25 @@
+{# Twig (Symfony, Craft…). Attributes are auto-escaped; json_encode escapes "/" so </script> can't break out. #}
+{% extends 'layout.twig' %}
+
+{% block body %}
+  {% if flash %}<nx-card title="Saved"><p>{{ flash }}</p></nx-card>{% endif %}
+
+  <nx-grid id="users" title="Users" search striped columns="{{ columns|json_encode }}">
+    <script type="application/json" data-nx-config>{"data": {{ users|json_encode|raw }}}</script>
+  </nx-grid>
+
+  <nx-card title="Invite someone">
+    <form method="post" action="{{ path('users_create') }}">
+      <input type="hidden" name="_token" value="{{ csrf_token('invite') }}">
+      <nx-form columns="2">
+        <nx-textfield name="name" label="Name" value="{{ form.name }}" required></nx-textfield>
+        <nx-textfield name="email" type="email" label="Email" value="{{ form.email }}" required
+                      {% if errors.email %}error-text="{{ errors.email }}"{% endif %}></nx-textfield>
+        <nx-select name="role" label="Role" value="{{ form.role|default('Viewer') }}">
+          {% for role in roles %}<option>{{ role }}</option>{% endfor %}
+        </nx-select>
+      </nx-form>
+      <nx-button type="submit" icon="send">Invite</nx-button>
+    </form>
+  </nx-card>
+{% endblock %}

@@ -23,7 +23,21 @@
       "import": "./dist/jsx-dev-runtime.js",
       "require": "./dist/jsx-dev-runtime.cjs"
     },
-    "./umd": "./dist/nx.umd.js"
+    "./umd": "./dist/nx.umd.js",
+    "./ssr": {
+      "types": "./dist/ssr/index.d.ts",
+      "import": "./dist/ssr.js",
+      "require": "./dist/ssr.cjs"
+    },
+    "./ssr/register": {
+      "types": "./dist/ssr/dom.d.ts",
+      "import": "./dist/ssr-dom.js",
+      "require": "./dist/ssr-dom.cjs"
+    },
+    "./nx.css": "./dist/nx.css"
+  },
+  "bin": {
+    "nx-ssr": "./dist/ssr-cli.js"
   },
   "files": [
     "dist"
@@ -31,14 +45,24 @@
   "sideEffects": true,
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && vite build --mode umd",
+    "build": "tsc --noEmit && vite build && vite build --mode umd && node dist/ssr-cli.js --css > dist/nx.css",
     "build:demo": "vite build --mode demo",
     "preview": "vite build --mode demo && vite preview --outDir dist-demo",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "tsc --noEmit && vitest run"
+    "check": "tsc --noEmit && vitest run",
+    "example:ssg": "tsx examples/ssg/build.tsx",
+    "example:server": "tsx examples/server/app.ts"
+  },
+  "peerDependencies": {
+    "happy-dom": ">=17"
+  },
+  "peerDependenciesMeta": {
+    "happy-dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -46,10 +70,10 @@
     "@tailwindcss/vite": "^4.1.10",
     "@testing-library/jest-dom": "^6.1.0",
     "@types/node": "^24.0.7",
-    "happy-dom": "^15.11.7",
+    "happy-dom": "^20.14.5",
     "jsdom": "^25.0.1",
-    "linkedom": "^0.18.13",
     "tailwindcss": "^4.1.11",
+    "tsx": "^4.23.15",
     "typescript": "~5.8.3",
     "vite": "^7.0.0",
     "vite-plugin-dts": "^4.5.4",

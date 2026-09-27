@@ -94,6 +94,15 @@ Nexaro follows the shadcn approach: every component is a small, readable file yo
 - **Icons:** use `Icons.get(name)`. Add new icons to `src/core/icons.ts` (24px, 2px stroke).
 - **Overlays:** anything that floats (menus, popovers) must render in the top layer (see `nx-menu-popup`), or `overflow: hidden` ancestors will clip it.
 
+## Server rendering rules
+
+Components also run on the server (`src/ssr`, happy-dom) and upgrade over their own server-rendered HTML. `src/tests/unit/ssr.test.tsx` and `src/tests/e2e/ssr.spec.ts` cover this. To keep it working:
+
+- **No DOM access at module load.** Touch `document`/`window` in lifecycle methods only. `src/jsx/jsx-runtime.ts` and `src/core/dom-utils.ts` must stay DOM-free, because the JSX runtime import is hoisted above everything else in a `.tsx` file.
+- **State that matters lives in the DOM.** Examples are `<nx-tab active>`, `<nx-accordion-item expanded>`, a field's `value` attribute and `<option>` children. Derive from children, and follow later changes with a `MutationObserver`, since parsers can upgrade an element before its children arrive.
+- **Rich config must be JSON.** Values set through `configure()` are serialized for hydration automatically. Keep functions optional, and offer an event for the same behaviour (`row-click` next to `onRowClick`).
+- **Forms stay native.** Fields keep their `ElementInternals` value and validity in sync, so a plain `<form>` posts and validates them without JS handlers.
+
 ## App code
 
 Write app code like `src/main.tsx`: pages are plain function components, and data comes from stores (`NX.store`), refs (`ref={{ current: null }}`) and the promise-based helpers (`NX.confirm`, `NX.dialog`, `NX.toast`).
@@ -103,6 +112,6 @@ Write app code like `src/main.tsx`: pages are plain function components, and dat
 ```bash
 pnpm dev          # demo with HMR
 pnpm check        # typecheck + unit tests (run before every commit)
-pnpm test:e2e     # Playwright against the demo
+pnpm test:e2e     # Playwright: demo, a11y, SSR/hydration, native forms
 pnpm build        # library → dist/
 ```

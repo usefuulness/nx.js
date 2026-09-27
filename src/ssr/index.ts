@@ -24,6 +24,7 @@ import { openTag, serializeNode, type SerializeContext } from '@/ssr/serialize';
 import { ComponentRegistry, ThemeManager, type ComponentConfig } from '@/index';
 
 export { settle };
+export { createProxy, proxyHandler, themeFromCookie, type ProxyOptions } from '@/ssr/proxy';
 
 export interface RenderOptions {
   /** Called with config that couldn't be serialized for hydration (functions) */
@@ -31,7 +32,10 @@ export interface RenderOptions {
 }
 
 export interface RenderHTMLOptions extends RenderOptions {
-  /** Add `<style id="nx-styles">` with the full stylesheet to <head> (full documents only). Default true */
+  /**
+   * Add `<style id="nx-styles">` (every theme) and the theme bootstrap script
+   * (`themeScript()`) to <head> — full documents only. Default true
+   */
   injectStyles?: boolean;
   /** Set `<html data-theme>` so the page renders in this theme */
   theme?: string;
@@ -116,7 +120,9 @@ export async function renderHTML(html: string, options: RenderHTMLOptions = {}):
       const style = parsed.createElement('style');
       style.id = 'nx-styles';
       style.textContent = stylesheet();
-      head.prepend(style);
+      const script = parsed.createElement('script');
+      script.textContent = themeScript();
+      head.prepend(script, style);
     }
 
     const body = Array.from(container.childNodes).map(node => serializeNode(node, ctx)).join('');
@@ -126,6 +132,54 @@ export async function renderHTML(html: string, options: RenderHTMLOptions = {}):
   } finally {
     container.remove();
   }
+}
+
+export interface DocumentOptions extends RenderOptions {
+  title?: string;
+  lang?: string;
+  /** Initial theme (`<html data-theme>`); a theme the visitor saved still wins, see `themeScript()` */
+  theme?: string;
+  /** Extra HTML for <head> (meta tags, links…) */
+  head?: string;
+  /** Module scripts to load, e.g. the client bundle that hydrates the page */
+  scripts?: string[];
+  /** Inline the stylesheet (default) — or pass `false` and link your own nx.css */
+  inlineStyles?: boolean;
+}
+
+/**
+ * A complete HTML page: rendered body, stylesheet, theme bootstrap and your
+ * client scripts. The one call an SSG build needs per page.
+ */
+export async function renderDocument(input: Renderable, options: DocumentOptions = {}): Promise<string> {
+  const body = await renderToString(input, options);
+  const attr = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  const text = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  return [
+    '<!doctype html>',
+    `<html lang="${attr(options.lang ?? 'en')}"${options.theme ? ` data-theme="${attr(options.theme)}"` : ''}>`,
+    '<head>',
+    '<meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width, initial-scale=1">',
+    options.title ? `<title>${text(options.title)}</title>` : '',
+    `<script>${themeScript()}</script>`,
+    options.inlineStyles === false ? '' : `<style id="nx-styles">${stylesheet()}</style>`,
+    options.head ?? '',
+    ...(options.scripts ?? []).map(src => `<script type="module" src="${attr(src)}"></script>`),
+    '</head>',
+    `<body>${body}</body>`,
+    '</html>'
+  ].filter(Boolean).join('\n');
+}
+
+/**
+ * Inline `<script>` body that applies the theme a visitor picked (localStorage
+ * or the `nx-theme` cookie) before first paint. Put it in <head>, before
+ * the stylesheet, on pages a server can't personalize (SSG, CDN caches).
+ */
+export function themeScript(): string {
+  return "(function(){try{var t=localStorage.getItem('nx-theme')||(document.cookie.match(/(?:^|; )nx-theme=([^;]+)/)||[])[1];" +
+    "if(t)document.documentElement.setAttribute('data-theme',decodeURIComponent(t))}catch(e){}})()";
 }
 
 /**

@@ -15,6 +15,7 @@ export const ComponentState = Symbol('ComponentState');
  */
 export const ComponentProps = Symbol('ComponentProps');
 
+import '@/core/require-dom';
 import { ATTRIBUTE_NAMES, HOST_KEYS, NX_COMPONENT, applyStyle, escapeHTML, eventName, toKebab } from '@/core/dom-utils';
 
 export { applyStyle, escapeHTML, eventName, toKebab };

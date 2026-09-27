@@ -1,0 +1,16 @@
+<!--
+  The layout every engine shares. Two lines make Nexaro work:
+  the stylesheet (every theme; or let nx-ssr/renderHTML inline it) and the client bundle.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/assets/nx.css">   <!-- node_modules/nx.js/dist/nx.css -->
+  <script type="module" src="/assets/app.js"></script>  <!-- import 'nx.js' (+ your listeners) -->
+</head>
+<body>
+  <!-- block body -->
+</body>
+</html>

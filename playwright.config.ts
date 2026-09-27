@@ -16,9 +16,17 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } }
   ],
-  webServer: {
-    command: 'pnpm dev --port 5173 --strictPort',
-    port: 5173,
-    reuseExistingServer: !process.env.CI
-  }
+  webServer: [
+    {
+      command: 'pnpm dev --port 5173 --strictPort',
+      port: 5173,
+      reuseExistingServer: !process.env.CI
+    },
+    {
+      // examples/server: a non-JSX template app pre-rendered with renderHTML()
+      command: 'PORT=5174 pnpm example:server',
+      port: 5174,
+      reuseExistingServer: !process.env.CI
+    }
+  ]
 });

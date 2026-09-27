@@ -35,6 +35,7 @@ JSX here creates **real DOM elements**. There is no virtual DOM and no framework
 - [Icons](#icons)
 - [Custom components](#custom-components)
 - [Using it from HTML](#using-it-from-html)
+- [Server rendering: SSR, SSG and any template engine](#server-rendering-ssr-ssg-and-any-template-engine)
 - [Development](#development)
 
 ## Getting started
@@ -317,7 +318,8 @@ NX.store('orders', { proxy: { type: 'rest', url: '/api/orders' }, autoLoad: true
 - Common field options: `name`, `label`, `helperText`, `errorText`, `required`, `disabled`, `placeholder`, `icon`, `clearable`, `validator`, `size`.
 - The form API: `getValues()`, `setValues()`, `validate()`, `isValid()`, `submit()`, `reset()`, `getField(name)`.
 - Errors appear after a field is touched or on submit. Enter in a single-line field submits.
-- Fields are form-associated custom elements, so they also work inside a native `<form>`.
+- Fields are form-associated custom elements, so they work inside a native `<form>`: they post their values, block submission while invalid (showing the error), and reset with the form. `<nx-button type="submit" name="intent" value="save">` submits it like a `<button>`, including `name`/`value` and `formaction`.
+- `<nx-form action="/users" method="post">` validates, fires a cancelable `submit`, then posts natively. Call `e.preventDefault()` in `onSubmit` to handle it in JS instead. An `<nx-form>` without `action` inside a native `<form>` hands the submission to that form.
 
 ## Dialogs and toasts
 
@@ -480,15 +482,68 @@ Every component is a custom element:
 </nx-container>
 ```
 
+## Server rendering: SSR, SSG and any template engine
+
+Components can be rendered to HTML on the server. The output uses [Declarative Shadow DOM](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTemplateElement/shadowRootMode), so pages are complete and themed **before any JavaScript loads**. When `nx.js` loads in the browser, the elements upgrade in place, with no re-creation and no flash. It needs `happy-dom` (`pnpm add -D happy-dom`), an optional peer dependency.
+
+### SSG and Node SSR with JSX
+
+```tsx
+import { renderDocument, renderToString } from 'nx.js/ssr';   // first: it installs the server DOM
+import { Page } from './page';                                 // then anything that uses components
+
+const html = await renderDocument(<Page />, { title: 'Home', scripts: ['/client.js'] });  // a whole page
+const fragment = await renderToString(<Card title="Hi">…</Card>);                        // or a fragment
+```
+
+`client.js` is just `import 'nx.js'` plus your event listeners. See [`examples/ssg`](examples/ssg) (`pnpm example:ssg`). If import order is awkward in your setup, run Node with `--import nx.js/ssr/register` instead.
+
+**What survives into the HTML:** attributes, text and serializable props (strings, numbers, arrays, plain objects). Rich props such as a grid's `data` are written into a `<script type="application/json" data-nx-config>` child and restored on upgrade. Functions (`onClick`, `formatter`) can't be serialized. You get a warning naming them, and you attach behaviour in the client with `addEventListener`.
+
+### Any template engine (Twig, Blade, Jinja, ERB, Go, Handlebars…)
+
+Templates just write the tags. Attributes take strings, and JSON goes into attributes or a config script:
+
+```twig
+<nx-grid title="Users" search columns="{{ columns|json_encode }}">
+  <script type="application/json" data-nx-config>{"data": {{ users|json_encode|raw }}}</script>
+</nx-grid>
+
+<form method="post" action="/users">
+  <nx-textfield name="email" type="email" label="Email" value="{{ old.email }}" required
+                error-text="{{ errors.email }}"></nx-textfield>
+  <nx-select name="role" label="Role" value="Editor"><option>Admin</option><option>Editor</option></nx-select>
+  <nx-button type="submit">Invite</nx-button>
+</form>
+```
+
+Forms post natively, so validation errors come back from the server as `error-text`. Complete Twig, Blade and Jinja versions are in [`examples/server/templates`](examples/server/templates).
+
+This works with **no Node at all**: link `nx.css` and the client bundle, and the elements render once `nx.js` loads. To also get the fully rendered first paint, pre-render the HTML:
+
+| Setup | How |
+| --- | --- |
+| Backend in any language | `nx-ssr --proxy http://127.0.0.1:8000 --port 3000`, a reverse proxy in front of your app. It renders every `text/html` response, renders in the visitor's theme (from the `nx-theme` cookie), and passes everything else (assets, JSON, form posts, redirects) through. |
+| Node backend | `res.send(await renderHTML(html, { theme: themeFromCookie(req) }))`, see [`examples/server`](examples/server) (`pnpm example:server`) |
+| Static output from any generator | `nx-ssr public/**/*.html` renders files in place, or `nx-ssr < in.html > out.html` |
+
+`renderHTML()` accepts fragments or whole documents. For documents it also injects the stylesheet and a tiny theme bootstrap into `<head>`, unless you pass `injectStyles: false` and link `nx.css` yourself.
+
+### Theme without a flash
+
+`NX.theme.set()` also writes an `nx-theme` cookie, so servers can render `<html data-theme="…">`. The proxy and `themeFromCookie()` do this for you. Static pages get `themeScript()`, an inline script that `renderDocument`/`renderHTML` add automatically. `nx.css` (or `stylesheet()`) contains every theme plus the OS light/dark fallback, and hides not-yet-upgraded elements that were *not* server-rendered.
+
 ## Development
 
 ```bash
 pnpm dev          # demo with HMR (src/main.ts)
 pnpm test         # unit tests (Vitest + jsdom)
-pnpm test:e2e     # end-to-end tests against the demo (Playwright)
+pnpm test:e2e     # end-to-end tests: demo, a11y audit, SSR/hydration and native forms (Playwright)
 pnpm typecheck
-pnpm build        # library → dist/ (index + jsx-runtime entries, ESM/CJS/UMD, .d.ts)
+pnpm build        # library → dist/ (index, jsx-runtime, ssr, nx-ssr CLI; ESM/CJS/UMD, .d.ts, nx.css)
 pnpm build:demo   # demo → dist-demo/
+pnpm example:ssg      # examples/ssg → static pages in examples/ssg/dist
+pnpm example:server   # examples/server → a template-engine app on http://localhost:3000
 ```
 
 ```
@@ -501,6 +556,7 @@ src/
   components/ui         buttons, tabs, tree, dialogs, toasts, form fields …
   layout/               container, panel, viewport
   data/                 store, grid
+  ssr/                  server rendering: renderToString/renderHTML, proxy, nx-ssr CLI
   main.tsx              demo app (the reference for app code)
   tests/                unit + e2e
 ```
