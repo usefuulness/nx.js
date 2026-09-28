@@ -49,6 +49,33 @@ describe('tree', () => {
   });
 });
 
+describe('tree keyboard', () => {
+  it('Home/End jump to the ends and letters jump to the next match', async () => {
+    const tree = NX.create<NXTree>({
+      xtype: 'tree',
+      data: [{ id: 'a', text: 'Apples' }, { id: 'b', text: 'Bananas' }, { id: 'c', text: 'Berries' }, { id: 'd', text: 'Cherries' }]
+    });
+    document.body.appendChild(tree);
+    await nextFrame();
+    const nodes = Array.from(tree.shadowRoot!.querySelectorAll('.nx-tree-node-content')) as HTMLElement[];
+    const press = (key: string) => {
+      const active = tree.shadowRoot!.activeElement as HTMLElement;
+      active.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, composed: true }));
+    };
+    const focused = () => (tree.shadowRoot!.activeElement as HTMLElement).textContent!.trim();
+
+    nodes[0].focus();
+    press('End');
+    expect(focused()).toBe('Cherries');
+    press('Home');
+    expect(focused()).toBe('Apples');
+    press('b');
+    expect(focused()).toBe('Bananas');
+    press('b');
+    expect(focused()).toBe('Berries');
+  });
+});
+
 describe('container', () => {
   it('lays out children with gap / columns', () => {
     const box = NX.create({ xtype: 'container', layout: 'grid', columns: 3, gap: 8, items: [{ html: 'a' }] });

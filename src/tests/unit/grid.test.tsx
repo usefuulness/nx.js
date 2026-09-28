@@ -125,4 +125,16 @@ describe('NXGrid JSX renderers', () => {
     expect(grid.shadowRoot!.querySelector('.nx-grid-search input')).toBe(input);
     expect(cellText(grid)).toEqual(['Bob']);
   });
+
+  it('sorts from a header button, so the keyboard can sort too', async () => {
+    const grid = mount({ data: rows });
+    await nextFrame();
+    const header = () => grid.shadowRoot!.querySelector('th[data-field="age"]')!;
+    const button = header().querySelector('button.sort-btn') as HTMLButtonElement;
+    expect(button).not.toBeNull();
+    expect(button.textContent).toContain('Age');
+    button.click(); // Enter / Space on a <button> fire click
+    await nextFrame();
+    expect(header().getAttribute('aria-sort')).toBe('ascending');
+  });
 });

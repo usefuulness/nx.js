@@ -18,9 +18,13 @@ export interface TreeNode {
 
 export interface TreeConfig {
   data: TreeNode[];
+  /** Select several nodes with Ctrl/⌘ and Shift */
   multiSelect?: boolean;
+  /** A checkbox on every node (emits `check`) */
   checkboxes?: boolean;
+  /** Clicking a parent node expands or collapses it */
   expandOnClick?: boolean;
+  /** Show node icons */
   icons?: boolean;
 }
 
@@ -367,11 +371,30 @@ export class NXTree extends BaseComponent {
           this.toggleNode(nodeId, true);
         }
         break;
+      case 'Home':
+        e.preventDefault();
+        focus(all[0]);
+        break;
+      case 'End':
+        e.preventDefault();
+        focus(all[all.length - 1]);
+        break;
       case 'Enter':
       case ' ':
         e.preventDefault();
         this.selectNode(nodeId, e);
         break;
+      default:
+        // Type-ahead: jump to the next visible node starting with that letter
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          const char = e.key.toLowerCase();
+          const order = [...all.slice(index + 1), ...all.slice(0, index + 1)];
+          const match = order.find(el => el.textContent?.trim().toLowerCase().startsWith(char));
+          if (match) {
+            e.preventDefault();
+            focus(match);
+          }
+        }
     }
   }
 }

@@ -44,17 +44,25 @@ export interface GridConfig<T extends Record<string, any> = any> {
   data?: T[];
   /** …or a Store instance / registered store name */
   store?: string | Store<T>;
+  /** Toolbar heading */
   title?: string;
   /** Show a search box that filters across all visible columns */
   search?: boolean;
+  /** Alternate row shading */
   striped?: boolean;
+  /** Highlight the row under the pointer */
   hoverable?: boolean;
+  /** Compact rows */
   dense?: boolean;
+  /** Borders between cells */
   bordered?: boolean;
+  /** Row selection: `true` or `'single'` for one row, `'multiple'` for several */
   selectable?: boolean | 'single' | 'multiple';
+  /** A checkbox column for selecting rows */
   checkboxSelection?: boolean;
   /** Rows per page; omit for no paging */
   pageSize?: number;
+  /** Shown when there are no rows */
   emptyText?: string;
 }
 
@@ -388,10 +396,15 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
               return (
                 <th class={[this.align(col), { sortable, sorted: active }]} data-field={String(col.field)}
                     aria-sort={active ? (this.sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}>
-                  <span class="th">
-                    {this.headerText(col)}
-                    {sortable && <span class="sort-icon" html={Icons.get(active && this.sortDirection === 'desc' ? 'chevron-down' : 'chevron-up')} />}
-                  </span>
+                  {sortable ? (
+                    // A real button, so sorting works from the keyboard too
+                    <button type="button" class="th sort-btn" part="sort">
+                      {this.headerText(col)}
+                      <span class="sort-icon" aria-hidden="true" html={Icons.get(active && this.sortDirection === 'desc' ? 'chevron-down' : 'chevron-up')} />
+                    </button>
+                  ) : (
+                    <span class="th">{this.headerText(col)}</span>
+                  )}
                 </th>
               );
             })}
@@ -658,7 +671,23 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
         transition: opacity var(--transition-duration);
       }
 
-      th.sortable:hover .sort-icon { opacity: 0.5; }
+      .sort-btn {
+        padding: 0;
+        border: 0;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        text-align: inherit;
+        cursor: pointer;
+      }
+
+      .sort-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px var(--color-ring);
+      }
+
+      th.sortable:hover .sort-icon, .sort-btn:focus-visible .sort-icon { opacity: 0.5; }
       th.sorted .sort-icon { opacity: 1; }
 
       .align-right { text-align: right; }
