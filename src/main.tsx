@@ -3,8 +3,8 @@
  * JSX that reads like HTML, shadcn-style components, and the public API only.
  */
 import {
-  NX, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, DataGrid, Form, Grid, HStack,
-  Input, Menu, Outlet, Panel, Progress, RadioGroup, Select, Spacer, Switch, Tab, Tabs, Textarea, Toolbar, Tree,
+  NX, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, DataGrid, Form, Grid, HStack,
+  Input, Menu, Outlet, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Spacer, Switch, Tab, Tabs, Textarea, Toolbar, Tooltip, Tree,
   VStack, type Child, type GridColumn, type NXGrid, type NXForm
 } from '@/index';
 
@@ -266,6 +266,30 @@ const ComponentsPage = () => (
           <Button variant="outline" onClick={async () => NX.toast(`You chose: ${(await NX.confirm('Continue with this action?')) ? 'yes' : 'no'}`)}>Confirm</Button>
           <Button variant="outline" onClick={async () => { const name = await NX.prompt('What is your name?'); if (name) NX.toast(`Hello, ${name}!`); }}>Prompt</Button>
         </HStack>
+      </Card>
+
+      <Card title="Popover, tooltip, combobox" subtitle="Floating UI in the top layer.">
+        <VStack gap={16}>
+          <HStack gap={8} wrap>
+            <Popover label="Dimensions">
+              <PopoverTrigger><Button variant="outline" icon="layout">Dimensions</Button></PopoverTrigger>
+              <VStack gap={12}>
+                <strong>Dimensions</strong>
+                <Input name="width" label="Width" value="100%" size="sm" />
+                <Input name="height" label="Height" value="25px" size="sm" />
+              </VStack>
+            </Popover>
+            <Tooltip content="Add to library">
+              <Button variant="outline" icon="plus" aria-label="Add" />
+            </Tooltip>
+            <Tooltip content="Copies the link to your clipboard" placement="bottom">
+              <Button variant="ghost" icon="copy">Copy link</Button>
+            </Tooltip>
+          </HStack>
+          <Combobox name="framework" label="Framework" placeholder="Search frameworks…" options={[
+            'Nexaro', 'Astro', 'Next.js', 'Nuxt', 'Remix', 'SvelteKit', 'Laravel', 'Django', 'Rails', 'Phoenix'
+          ]} />
+        </VStack>
       </Card>
 
       <Card title="Badges & menus">

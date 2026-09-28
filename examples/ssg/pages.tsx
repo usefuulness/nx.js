@@ -6,9 +6,9 @@
  * HTML. Behaviour belongs in client.ts, which listens for component events.
  */
 import {
-  Accordion, AccordionItem, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, DataGrid, Dialog, DialogFooter,
-  Divider, Drawer, Form, Grid, HStack, Input, Menu, MenuBar, Panel, Progress, RadioGroup, Select, Separator, Skeleton, Spinner, Switch,
-  Tab, Tabs, Textarea, Toolbar, Tree, VStack
+  Accordion, AccordionItem, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, DataGrid, Dialog, DialogFooter,
+  Divider, Drawer, Form, Grid, HStack, Input, Menu, MenuBar, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Skeleton, Spinner, Switch,
+  Tab, Tabs, Textarea, Toolbar, Tooltip, Tree, VStack
 } from 'nx.js';
 
 const releases = [
@@ -124,6 +124,8 @@ export const Components = () => (
           <Checkbox name="terms" label="Accept terms" checked />
           <Switch name="alerts" label="Email alerts" description="Weekly summary." />
           <RadioGroup name="size" label="Size" value="m" orientation="horizontal" options={{ s: 'Small', m: 'Medium', l: 'Large' }} />
+          <Combobox name="country" label="Country" value="de" placeholder="Search…"
+                    options={{ de: 'Germany', fr: 'France', it: 'Italy', es: 'Spain', nl: 'Netherlands' }} />
         </VStack>
       </Card>
     </Grid>
@@ -141,9 +143,16 @@ export const Components = () => (
           <Button icon="refresh" aria-label="Refresh" />
         </Toolbar>
         <Divider label="or" />
-        <HStack gap={8}>
+        <HStack gap={8} wrap>
           <Button id="open-dialog" variant="outline">Open dialog</Button>
           <Button id="open-drawer" variant="outline">Open drawer</Button>
+          <Popover label="Share">
+            <PopoverTrigger><Button variant="outline" icon="send">Share</Button></PopoverTrigger>
+            <Input name="link" label="Link" value="https://nexaro.dev/ssg" readonly />
+          </Popover>
+          <Tooltip content="Server-rendered tooltip">
+            <Button variant="ghost" icon="info" aria-label="About" />
+          </Tooltip>
         </HStack>
       </VStack>
     </Card>

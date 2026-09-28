@@ -48,6 +48,19 @@ for (const theme of themes) {
     await audit(page);
   });
 
+  test(`a11y: open popover, tooltip and combobox (${theme})`, async ({ page }) => {
+    await open(page, '/components', theme);
+    await page.getByRole('combobox', { name: 'Framework' }).fill('n');
+    await audit(page);
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Add' }).hover();
+    await expect(page.getByRole('tooltip', { name: 'Add to library' })).toBeVisible();
+    await audit(page);
+    await page.getByRole('button', { name: 'Dimensions' }).click();
+    await expect(page.getByRole('dialog', { name: 'Dimensions' })).toBeVisible();
+    await audit(page);
+  });
+
   test(`a11y: form errors (${theme})`, async ({ page }) => {
     await open(page, '/forms', theme);
     await page.locator('nx-button', { hasText: 'Save changes' }).click();

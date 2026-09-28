@@ -26,7 +26,7 @@ type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 let fieldSeq = 0;
 
 /** Every Nexaro form field tag, HTML aliases included (for `matches()`/`querySelector()`). */
-export const FIELD_TAGS = 'nx-textfield, nx-input, nx-textarea, nx-select, nx-checkbox, nx-switch, nx-radio-group';
+export const FIELD_TAGS = 'nx-textfield, nx-input, nx-textarea, nx-select, nx-checkbox, nx-switch, nx-radio-group, nx-combobox';
 
 export abstract class NXField extends BaseComponent {
   static formAssociated = true;

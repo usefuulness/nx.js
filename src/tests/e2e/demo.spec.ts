@@ -64,3 +64,67 @@ test('menus inside a modal dialog are usable (not inert)', async ({ page }) => {
   await page.getByRole('menuitem', { name: 'Pick me' }).click();
   expect(await page.evaluate(() => (window as any).picked)).toBe('yes');
 });
+
+test.describe('floating UI', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/#/components');
+    await page.waitForFunction(() => !!customElements.get('nx-popover'));
+  });
+
+  test('popover opens, moves focus in, and closes with Escape, outside click or the trigger', async ({ page }) => {
+    const trigger = page.getByRole('button', { name: 'Dimensions' });
+    const panel = page.getByRole('dialog', { name: 'Dimensions' });
+
+    await trigger.click();
+    await expect(panel).toBeVisible();
+    await expect(page.locator('nx-popover nx-button')).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByLabel('Width')).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+    await expect(trigger).toBeFocused();
+
+    await trigger.click();
+    await expect(panel).toBeVisible();
+    await trigger.click(); // the trigger toggles; light dismiss must not reopen it
+    await expect(panel).toBeHidden();
+
+    await trigger.click();
+    await page.mouse.click(5, 5);
+    await expect(panel).toBeHidden();
+  });
+
+  test('tooltip shows on hover and keyboard focus, hides with Escape', async ({ page }) => {
+    const button = page.getByRole('button', { name: 'Add', exact: true });
+    const tooltip = page.getByRole('tooltip', { name: 'Add to library' });
+
+    await button.hover();
+    await expect(tooltip).toBeVisible();
+    await page.mouse.move(0, 0);
+    await expect(tooltip).toBeHidden();
+
+    await page.getByRole('button', { name: 'Dimensions' }).focus();
+    await page.keyboard.press('Tab');
+    await expect(button).toBeFocused();
+    await expect(tooltip).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(tooltip).toBeHidden();
+    // Described by the tooltip for assistive tech
+    await expect(page.locator('nx-tooltip nx-button').first()).toHaveAttribute('aria-describedby', /nx-tooltip-/);
+  });
+
+  test('combobox filters and picks with the keyboard', async ({ page }) => {
+    const box = page.getByRole('combobox', { name: 'Framework' });
+    await box.fill('re');
+    await expect(page.getByRole('option')).toHaveText(['Remix']);
+    await box.press('Enter');
+    await expect(box).toHaveValue('Remix');
+    await expect(box).toHaveAttribute('aria-expanded', 'false');
+
+    await box.press('ArrowDown');
+    await expect(page.getByRole('listbox')).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Remix' })).toHaveAttribute('aria-selected', 'true');
+    await box.press('Escape');
+    await expect(page.getByRole('listbox')).toBeHidden();
+  });
+});

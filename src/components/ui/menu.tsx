@@ -9,6 +9,7 @@
  *   - `{ xtype: 'menubar', items: [{ text: 'File', items: [...] }] }`
  *   - `NX.menu(items, event)`                               context menus
  */
+import { place, type Placement } from '@/core/position';
 import { BaseComponent } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
@@ -133,36 +134,8 @@ export class NXMenuPopup extends BaseComponent {
     return this.$('.list') as HTMLElement | null;
   }
 
-  private position(anchor: Element | { x: number; y: number }, placement: string): void {
-    const list = this.rootList()!;
-    const margin = 8;
-    const { innerWidth: vw, innerHeight: vh } = window;
-    const width = list.offsetWidth;
-    const height = list.offsetHeight;
-    let x: number;
-    let y: number;
-
-    if (anchor instanceof Element) {
-      const rect = anchor.getBoundingClientRect();
-      if (placement === 'right-start') {
-        x = rect.right + 4;
-        y = rect.top - 4;
-      } else {
-        x = placement === 'bottom-end' ? rect.right - width : rect.left;
-        y = rect.bottom + 4;
-        // Flip above when there is no room below
-        if (y + height > vh - margin && rect.top - height - 4 > margin) y = rect.top - height - 4;
-      }
-    } else {
-      x = anchor.x;
-      y = anchor.y;
-      if (y + height > vh - margin) y = Math.max(margin, y - height);
-    }
-
-    x = Math.max(margin, Math.min(x, vw - width - margin));
-    y = Math.max(margin, Math.min(y, vh - height - margin));
-    this.style.left = `${Math.round(x)}px`;
-    this.style.top = `${Math.round(y)}px`;
+  private position(anchor: Element | { x: number; y: number }, placement: Placement): void {
+    place(this, anchor, placement);
   }
 
   // ────────── Rendering ──────────

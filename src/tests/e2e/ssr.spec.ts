@@ -192,7 +192,7 @@ async function layout(page: Page) {
     .filter(el => el.localName.startsWith('nx-'))
     .map(el => {
       const r = el.getBoundingClientRect();
-      return `${el.localName} ${[r.x, r.y, r.width, r.height].map(Math.round).join(',')} ${(el as HTMLElement).innerText.replace(/\s+/g, ' ').trim().slice(0, 60)}`;
+      return `${el.localName} ${[r.x, r.y, r.width, r.height].map(Math.round).join(',')} ${el.checkVisibility() ? (el as HTMLElement).innerText.replace(/\s+/g, ' ').trim().slice(0, 60) : '(not rendered)'}`;
     }));
 }
 

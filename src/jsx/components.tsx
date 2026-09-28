@@ -31,6 +31,9 @@ import type { TreeConfig } from '@/components/ui/tree';
 import type { GridConfig } from '@/data/grid';
 import type { FormConfig } from '@/components/ui/form';
 import type { RadioGroupConfig } from '@/components/ui/form/radio';
+import type { ComboboxConfig } from '@/components/ui/form/combobox';
+import type { PopoverConfig } from '@/components/ui/popover';
+import type { TooltipConfig } from '@/components/ui/tooltip';
 import type { TextFieldConfig } from '@/components/ui/form/textfield';
 import type { SelectConfig } from '@/components/ui/form/select';
 import type { CheckboxConfig } from '@/components/ui/form/checkbox';
@@ -103,6 +106,9 @@ declare module './jsx-runtime' {
     'nx-input': Props<TextFieldConfig>;
     'nx-textarea': Props<Omit<TextFieldConfig, 'multiline'>>;
     'nx-radio-group': Props<RadioGroupConfig>;
+    'nx-combobox': Props<ComboboxConfig>;
+    'nx-popover': Props<PopoverConfig>;
+    'nx-tooltip': Props<TooltipConfig>;
     'nx-select': Props<SelectConfig>;
     'nx-checkbox': Props<CheckboxConfig>;
     'nx-switch': Props<Omit<CheckboxConfig, 'switch'>>;
@@ -183,6 +189,8 @@ export const Select = (props: Props<SelectConfig>) => <nx-select {...props} />;
 export const Checkbox = (props: Props<CheckboxConfig>) => <nx-checkbox {...props} />;
 export const Switch = (props: Props<Omit<CheckboxConfig, 'switch'>>) => <nx-switch {...props} />;
 export const RadioGroup = (props: Props<RadioGroupConfig>) => <nx-radio-group {...props} />;
+/** Searchable select: type to filter the options */
+export const Combobox = (props: Props<ComboboxConfig>) => <nx-combobox {...props} />;
 
 // ────────── Overlays ──────────
 
@@ -191,6 +199,18 @@ export const RadioGroup = (props: Props<RadioGroupConfig>) => <nx-radio-group {.
  * then `dialog.open()`. For one-off dialogs prefer `NX.dialog()` / `NX.confirm()`.
  */
 export const Dialog = (props: Props<Omit<ModalConfig, 'items' | 'html'>>) => <nx-dialog {...props} />;
+/** Hint on hover/focus: `<Tooltip content="Save"><Button icon="save" aria-label="Save" /></Tooltip>` */
+export const Tooltip = (props: Props<TooltipConfig>) => <nx-tooltip {...props} />;
+/** Rich content anchored to a trigger: `<Popover><PopoverTrigger><Button>Open</Button></PopoverTrigger>…</Popover>` */
+export const Popover = (props: Props<PopoverConfig>) => <nx-popover {...props} />;
+export const PopoverTrigger = ({ children }: { children?: Child }): Node => {
+  // The trigger element itself goes into the slot (it must be focusable and get aria-expanded)
+  const nodes = (Array.isArray(children) ? children : [children]).filter((c): c is Element => c instanceof Element);
+  nodes.forEach(el => (el.slot = 'trigger'));
+  const fragment = document.createDocumentFragment();
+  fragment.append(...nodes);
+  return fragment;
+};
 export const DialogFooter = ({ children, ...rest }: Props<{}, HTMLDivElement>) => <div slot="footer" style="display: contents" {...rest}>{children}</div>;
 
 // ────────── Helpers ──────────

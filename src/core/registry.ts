@@ -74,6 +74,8 @@ export class ComponentRegistry {
     this.alias('checkbox', 'nx-checkbox');
     this.alias('radio', 'nx-radio-group');
     this.alias('radiogroup', 'nx-radio-group');
+    this.alias('combobox', 'nx-combobox');
+    this.alias('autocomplete', 'nx-combobox');
     this.alias('modal', 'nx-modal');
     this.alias('dialog', 'nx-modal');
     this.alias('toast', 'nx-toast');

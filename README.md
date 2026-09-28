@@ -237,7 +237,9 @@ app.toggleRegion('west');   // open the side nav on phones, collapse a collapsib
 | `tabpanel` | Each item is a tab: `title`, `icon`, `closable`, `disabled`; the rest of the item is the tab body. `variant` (`default` `pills` `underlined`), `position`. Events: `tab-change`, `tab-close`. |
 | `tree` | `data: TreeNode[]` (`text`, `icon`, `children`, `expanded`, `route`, …), `checkboxes`, `multiSelect`. Full keyboard support. Events: `select`, `toggle`, `check` (detail includes the `node`). |
 | `grid` | See [below](#data-grid-and-stores). |
-| `form`, `textfield`, `select`, `checkbox`, `switch`, `radio` | See [Forms](#forms). |
+| `form`, `textfield`, `select`, `combobox`, `checkbox`, `switch`, `radio` | See [Forms](#forms). |
+| `popover` | Rich content anchored to a trigger (`slot="trigger"`, or `<PopoverTrigger>` in JSX). Closes on Escape, outside click or the trigger, and returns focus. `placement`, `width`. Events: `open`, `close`. |
+| `tooltip` | Wraps a trigger: `content`, `placement` (`top` `bottom` `left` `right`, `-start`/`-end`), `delay`. Shows on hover and keyboard focus, is linked with `aria-describedby`, and hides on Escape. |
 | `modal` | See [Dialogs](#dialogs-and-toasts). |
 | `progress` | `value`, `max`, `variant`, `size`, `indeterminate`, `striped`. |
 | `accordion`, `breadcrumb`, `menu`, `menubar` | `items` as data. |
@@ -316,7 +318,7 @@ NX.store('orders', { proxy: { type: 'rest', url: '/api/orders' }, autoLoad: true
 }
 ```
 
-- Field xtypes: `textfield` (set `type` for `url`, `tel`, `time`, …), `textarea`, `email`, `password`, `numberfield`, `datefield`, `search`, `select`, `checkbox`, `switch`, `radio` (a radio group; `variant: 'cards'` for plan pickers).
+- Field xtypes: `textfield` (set `type` for `url`, `tel`, `time`, …), `textarea`, `email`, `password`, `numberfield`, `datefield`, `search`, `select`, `combobox` (type to filter; `freeText` to accept any text), `checkbox`, `switch`, `radio` (a radio group; `variant: 'cards'` for plan pickers).
 - Common field options: `name`, `label`, `helperText`, `errorText`, `required`, `disabled`, `placeholder`, `icon`, `clearable`, `validator`, `size`.
 - The form API: `getValues()`, `setValues()`, `validate()`, `isValid()`, `submit()`, `reset()`, `getField(name)`.
 - Errors appear after a field is touched or on submit. Enter in a single-line field submits.
@@ -487,7 +489,16 @@ Every component is a custom element, named like its JSX component (`<Input>` is 
   <option value="free" data-description="For side projects">Free</option>
   <option value="pro" data-description="For growing teams">Pro</option>
 </nx-radio-group>
+<nx-combobox name="country" label="Country" placeholder="Search…">
+  <option value="de">Germany</option><option value="fr">France</option>
+</nx-combobox>
 <nx-textarea name="bio" label="Bio"></nx-textarea>
+
+<nx-tooltip content="Add to library"><nx-button icon="plus" aria-label="Add"></nx-button></nx-tooltip>
+<nx-popover>
+  <nx-button slot="trigger" variant="outline">Dimensions</nx-button>
+  <nx-input label="Width" value="100%"></nx-input>
+</nx-popover>
 <nx-switch name="alerts" label="Email alerts" checked></nx-switch>
 
 <nx-grid title="Users" columns='[{"field":"name","header":"Name"}]'>
