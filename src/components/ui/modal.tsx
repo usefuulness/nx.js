@@ -20,6 +20,10 @@ export interface ModalButton {
 
 export interface ModalConfig {
   title?: string;
+  /** Accessible name when there is no visible title */
+  label?: string;
+  /** No padding around the body (for full-bleed content such as a command palette) */
+  flush?: boolean;
   description?: string;
   /** Body HTML */
   html?: string;
@@ -55,7 +59,7 @@ export interface ModalConfig {
  */
 export class NXModal extends BaseComponent {
   static get observedAttributes(): string[] {
-    return ['title', 'description', 'size', 'closable', 'close-on-backdrop', 'close-on-escape'];
+    return ['title', 'label', 'flush', 'description', 'size', 'closable', 'close-on-backdrop', 'close-on-escape'];
   }
 
   private buttons: ModalButton[] = [];
@@ -86,7 +90,7 @@ export class NXModal extends BaseComponent {
 
     return (
       <dialog class={['nx-modal', `size-${this.getProp('size', 'md')}`]} part="dialog"
-              aria-labelledby={title ? 'title' : undefined} aria-label={title ? undefined : 'Dialog'}
+              aria-labelledby={title ? 'title' : undefined} aria-label={title ? undefined : this.getProp('label', 'Dialog')}
               onCancel={(e: Event) => {
                 e.preventDefault();
                 if (this.getProp('close-on-escape', true)) this.close();
@@ -103,7 +107,7 @@ export class NXModal extends BaseComponent {
             )}
           </header>
         )}
-        <div class="nx-modal-body" part="body"><slot /></div>
+        <div class={['nx-modal-body', { flush: this.getProp('flush', false) }]} part="body"><slot /></div>
         {hasFooter && (
           <footer class="nx-modal-footer" part="footer">
             <slot name="footer" />
@@ -309,6 +313,8 @@ export class NXModal extends BaseComponent {
         font-size: 0.875rem;
         line-height: 1.6;
       }
+
+      .nx-modal-body.flush { padding: 0; }
 
       .nx-modal-footer {
         display: flex;

@@ -6,8 +6,8 @@
  * HTML. Behaviour belongs in client.ts, which listens for component events.
  */
 import {
-  Accordion, AccordionItem, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, DataGrid, Dialog, DialogFooter,
-  Divider, Drawer, Form, Grid, HStack, Input, Menu, MenuBar, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Skeleton, Spinner, Switch,
+  Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
+  Divider, Drawer, Form, Grid, HStack, Input, Menu, MenuBar, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Switch,
   Tab, Tabs, Textarea, Toolbar, Tooltip, Tree, VStack
 } from 'nx.js';
 
@@ -88,6 +88,7 @@ export const Contact = () => (
 export const Components = () => (
   <Layout title="Components">
     <Breadcrumb items={[{ text: 'Home', href: './index.html' }, { text: 'Components' }]} />
+    <Alert variant="success" title="Server-rendered">Every component on this page was rendered at build time.</Alert>
 
     <Grid minColumnWidth="16rem" gap={16}>
       <Card title="Buttons">
@@ -126,6 +127,8 @@ export const Components = () => (
           <RadioGroup name="size" label="Size" value="m" orientation="horizontal" options={{ s: 'Small', m: 'Medium', l: 'Large' }} />
           <Combobox name="country" label="Country" value="de" placeholder="Search…"
                     options={{ de: 'Germany', fr: 'France', it: 'Italy', es: 'Spain', nl: 'Netherlands' }} />
+          <Slider name="volume" label="Volume" value={30} showValue unit="%" />
+          <DatePicker name="due" label="Due date" value="2025-06-15" locale="en-US" />
         </VStack>
       </Card>
     </Grid>
@@ -150,6 +153,8 @@ export const Components = () => (
             <PopoverTrigger><Button variant="outline" icon="send">Share</Button></PopoverTrigger>
             <Input name="link" label="Link" value="https://nexaro.dev/ssg" readonly />
           </Popover>
+          <Avatar alt="Ada Lovelace" status="online" />
+          <Button variant="outline" icon="settings" tooltip="Settings" />
           <Tooltip content="Server-rendered tooltip">
             <Button variant="ghost" icon="info" aria-label="About" />
           </Tooltip>
@@ -172,6 +177,14 @@ export const Components = () => (
         </Form>
       </Card>
     </Grid>
+
+    <Card title="Command">
+      <Command placeholder="Search…" items={[
+        { text: 'Home', icon: 'home', group: 'Pages' },
+        { text: 'Contact', icon: 'mail', group: 'Pages' },
+        { text: 'Toggle theme', icon: 'theme', group: 'Actions' }
+      ]} />
+    </Card>
 
     <Dialog id="dialog" title="Server-rendered dialog" description="Closed until you open it.">
       <p>Dialogs render in the HTML too, closed.</p>

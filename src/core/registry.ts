@@ -76,6 +76,10 @@ export class ComponentRegistry {
     this.alias('radiogroup', 'nx-radio-group');
     this.alias('combobox', 'nx-combobox');
     this.alias('autocomplete', 'nx-combobox');
+    this.alias('slider', 'nx-slider');
+    this.alias('range', 'nx-slider');
+    this.alias('datepicker', 'nx-datepicker');
+    this.alias('date', 'nx-datepicker');
     this.alias('modal', 'nx-modal');
     this.alias('dialog', 'nx-modal');
     this.alias('toast', 'nx-toast');

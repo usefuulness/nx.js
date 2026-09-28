@@ -34,6 +34,11 @@ import type { RadioGroupConfig } from '@/components/ui/form/radio';
 import type { ComboboxConfig } from '@/components/ui/form/combobox';
 import type { PopoverConfig } from '@/components/ui/popover';
 import type { TooltipConfig } from '@/components/ui/tooltip';
+import type { SliderConfig } from '@/components/ui/form/slider';
+import type { DatePickerConfig } from '@/components/ui/form/datepicker';
+import type { AvatarConfig } from '@/components/ui/avatar';
+import type { AlertConfig } from '@/components/ui/alert';
+import type { CommandConfig } from '@/components/ui/command';
 import type { TextFieldConfig } from '@/components/ui/form/textfield';
 import type { SelectConfig } from '@/components/ui/form/select';
 import type { CheckboxConfig } from '@/components/ui/form/checkbox';
@@ -109,6 +114,11 @@ declare module './jsx-runtime' {
     'nx-combobox': Props<ComboboxConfig>;
     'nx-popover': Props<PopoverConfig>;
     'nx-tooltip': Props<TooltipConfig>;
+    'nx-slider': Props<SliderConfig>;
+    'nx-datepicker': Props<DatePickerConfig>;
+    'nx-avatar': Props<AvatarConfig>;
+    'nx-alert': Props<AlertConfig>;
+    'nx-command': Props<CommandConfig>;
     'nx-select': Props<SelectConfig>;
     'nx-checkbox': Props<CheckboxConfig>;
     'nx-switch': Props<Omit<CheckboxConfig, 'switch'>>;
@@ -129,6 +139,10 @@ declare module './jsx-runtime' {
 
 export const Button = (props: Props<ButtonConfig>) => <nx-button {...props} />;
 export const Badge = (props: Props<BadgeConfig>) => <nx-badge {...props} />;
+export const Avatar = (props: Props<AvatarConfig>) => <nx-avatar {...props} />;
+export const Alert = (props: Props<AlertConfig>) => <nx-alert {...props} />;
+/** Inline command list; for the ⌘K dialog use `NX.command()` */
+export const Command = (props: Props<CommandConfig>) => <nx-command {...props} />;
 export const Spinner = (props: Props<SpinnerConfig>) => <nx-spinner {...props} />;
 export const Skeleton = (props: Props<SkeletonConfig>) => <nx-skeleton {...props} />;
 export const Progress = (props: Props<ProgressConfig>) => <nx-progress {...props} />;
@@ -191,6 +205,9 @@ export const Switch = (props: Props<Omit<CheckboxConfig, 'switch'>>) => <nx-swit
 export const RadioGroup = (props: Props<RadioGroupConfig>) => <nx-radio-group {...props} />;
 /** Searchable select: type to filter the options */
 export const Combobox = (props: Props<ComboboxConfig>) => <nx-combobox {...props} />;
+export const Slider = (props: Props<SliderConfig>) => <nx-slider {...props} />;
+/** Calendar in a popover; value is `YYYY-MM-DD` */
+export const DatePicker = (props: Props<DatePickerConfig>) => <nx-datepicker {...props} />;
 
 // ────────── Overlays ──────────
 

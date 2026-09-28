@@ -8,6 +8,8 @@ import { Icons } from '@/core/icons';
 import { showMenu, type MenuItemLike, type NXMenuPopup } from '@/components/ui/menu';
 import { variants } from '@/core/variants';
 import { submitForm } from '@/core/forms';
+import { TOOLTIP_CSS, TooltipController } from '@/components/ui/tooltip';
+import type { Placement } from '@/core/position';
 
 const button = variants({
   base: 'nx-button',
@@ -47,7 +49,9 @@ export interface ButtonConfig {
   fullWidth?: boolean;
   /** Link target — renders the button as an `<a>` */
   href?: string;
+  /** Hint shown on hover and keyboard focus (also the accessible name of icon-only buttons) */
   tooltip?: string;
+  tooltipPlacement?: Placement;
   handler?: (e: MouseEvent) => void;
   /** Dropdown menu opened by this button */
   menu?: MenuItemLike[];
@@ -74,7 +78,7 @@ export class NXButton extends BaseComponent {
   static get observedAttributes(): string[] {
     return [
       'text', 'type', 'variant', 'size', 'icon', 'icon-position', 'href', 'tooltip',
-      'disabled', 'loading', 'full-width', 'aria-label', 'tabindex'
+      'disabled', 'loading', 'full-width', 'aria-label', 'tabindex', 'tooltip-placement'
     ];
   }
 
@@ -91,6 +95,14 @@ export class NXButton extends BaseComponent {
         e.preventDefault();
       }
     }, { capture: true });
+
+    new TooltipController(this, {
+      anchor: () => this,
+      surface: () => this.$('.nx-tip') as HTMLElement | null,
+      placement: () => this.getProp<Placement>('tooltip-placement', 'top'),
+      delay: () => 400,
+      enabled: () => !!this.getProp<string>('tooltip') && !this.menuPopup?.opened
+    });
 
     try {
       this.internals = this.attachInternals();
@@ -139,7 +151,9 @@ export class NXButton extends BaseComponent {
     const href = this.getProp<string>('href');
     const tooltip = this.getProp<string>('tooltip');
     const hasLabel = !!text || this.hasLabelContent();
-    const ariaLabel = this.getProp<string>('aria-label') || tooltip || (!hasLabel ? icon : undefined);
+    // Icon-only buttons are named by their tooltip; otherwise the tooltip describes them
+    const ariaLabel = this.getProp<string>('aria-label') || (!hasLabel ? tooltip || icon : undefined);
+    const describedBy = tooltip && ariaLabel !== tooltip ? 'tip' : undefined;
 
     const cls = button({
       variant,
@@ -164,13 +178,20 @@ export class NXButton extends BaseComponent {
       part: 'button',
       class: cls,
       'aria-label': ariaLabel,
-      title: tooltip,
+      'aria-describedby': describedBy,
       'aria-busy': loading ? 'true' : undefined
     };
 
-    return href && !disabled
+    const control = href && !disabled
       ? <a {...common} href={href}>{inner}</a>
       : <button {...common} type={this.getProp('type', 'button')} disabled={disabled || loading}>{inner}</button>;
+    if (!tooltip) return control;
+    return (
+      <>
+        {control}
+        <div class="nx-tip" part="tooltip" id="tip" role="tooltip" popover="manual">{tooltip}</div>
+      </>
+    );
   }
 
   private hasLabelContent(): boolean {
@@ -185,6 +206,8 @@ export class NXButton extends BaseComponent {
         display: inline-flex;
         vertical-align: middle;
       }
+
+      ${TOOLTIP_CSS}
 
       :host([full-width]) {
         display: flex;

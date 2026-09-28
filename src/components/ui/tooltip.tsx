@@ -19,9 +19,114 @@ let tooltipSeq = 0;
 /** When the last tooltip closed — moving straight to the next one shows it at once. */
 let lastHidden = 0;
 
+/** The bubble's look, shared by `<nx-tooltip>` and `<nx-button tooltip="…">`. */
+export const TOOLTIP_CSS = `
+  .nx-tip {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    max-width: min(20rem, calc(100vw - 1rem));
+    padding: 0.375rem 0.625rem;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    color: var(--color-primary-foreground);
+    box-shadow: var(--shadow-md);
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1.4;
+    white-space: normal;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .nx-tip:popover-open {
+    animation: nx-tooltip-in 120ms var(--transition-easing);
+  }
+
+  @keyframes nx-tooltip-in {
+    from { opacity: 0; transform: scale(0.96); }
+  }
+`;
+
+export interface TooltipTarget {
+  /** Element the bubble is placed against */
+  anchor(): HTMLElement | null;
+  /** The bubble (in a shadow root, shown in the top layer) */
+  surface(): HTMLElement | null;
+  placement(): Placement;
+  delay(): number;
+  enabled(): boolean;
+}
+
+/**
+ * Tooltip behaviour: shows on hover (after a delay, skipped when moving between
+ * tooltips) and on keyboard focus; hides on leave, blur, press, scroll and Escape.
+ */
+export class TooltipController {
+  private timer = 0;
+  private shown = false;
+  private readonly target: TooltipTarget;
+
+  constructor(host: HTMLElement, target: TooltipTarget) {
+    this.target = target;
+    host.addEventListener('pointerover', () => this.schedule());
+    host.addEventListener('pointerout', (e) => {
+      if (!host.contains(e.relatedTarget as Node | null)) this.hide();
+    });
+    host.addEventListener('focusin', () => {
+      if (focusVisible()) this.schedule(0);
+    });
+    host.addEventListener('focusout', () => this.hide());
+    host.addEventListener('pointerdown', () => this.hide());
+  }
+
+  private schedule(delay?: number): void {
+    if (this.shown || !this.target.enabled()) return;
+    clearTimeout(this.timer);
+    const wait = delay ?? (Date.now() - lastHidden < 300 ? 0 : this.target.delay());
+    this.timer = window.setTimeout(() => this.show(), wait);
+  }
+
+  show(): void {
+    const anchor = this.target.anchor();
+    const surface = this.target.surface();
+    if (!anchor || !surface || !this.target.enabled()) return;
+    showTopLayer(surface);
+    place(surface, anchor, this.target.placement(), 6);
+    this.shown = true;
+    document.addEventListener('keydown', this.onKey, true);
+    window.addEventListener('scroll', this.hideNow, true);
+  }
+
+  hide(): void {
+    clearTimeout(this.timer);
+    if (!this.shown) return;
+    this.shown = false;
+    lastHidden = Date.now();
+    const surface = this.target.surface();
+    if (surface) hideTopLayer(surface);
+    document.removeEventListener('keydown', this.onKey, true);
+    window.removeEventListener('scroll', this.hideNow, true);
+  }
+
+  private onKey = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape') this.hide();
+  };
+
+  private hideNow = (): void => this.hide();
+}
+
+function focusVisible(): boolean {
+  let active = document.activeElement;
+  while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+  return !!active?.matches(':focus-visible');
+}
+
 /**
  * Tooltip: a short hint shown on hover and keyboard focus. Wrap the trigger:
  * `<nx-tooltip content="Save changes"><nx-button icon="save" aria-label="Save"></nx-button></nx-tooltip>`
+ * (buttons also take `tooltip="…"` directly).
  *
  * The hint is linked to the trigger with `aria-describedby`, dismisses with
  * Escape, and renders in the top layer, so it is never clipped. (The text is a
@@ -35,24 +140,20 @@ export class NXTooltip extends BaseComponent {
 
   private bubble: HTMLElement | null = null;
   private ownBubble = false;
-  private timer = 0;
-  private shown = false;
+  private controller: TooltipController;
 
   protected initializeState(): void {}
 
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-
-    this.addEventListener('pointerover', () => this.schedule());
-    this.addEventListener('pointerout', (e) => {
-      if (!this.contains(e.relatedTarget as Node | null)) this.hide();
+    this.controller = new TooltipController(this, {
+      anchor: () => this.trigger,
+      surface: () => this.$('.nx-tip') as HTMLElement | null,
+      placement: () => this.getProp<Placement>('placement', 'top'),
+      delay: () => Number(this.getProp('delay', 400)),
+      enabled: () => !this.getProp('disabled', false) && !!this.bubble && (!!this.bubble.textContent?.trim() || !!this.bubble.children.length)
     });
-    this.addEventListener('focusin', () => {
-      if (this.focusVisible()) this.schedule(0);
-    });
-    this.addEventListener('focusout', () => this.hide());
-    this.addEventListener('pointerdown', () => this.hide());
   }
 
   /** The element that shows the tooltip (the first child that isn't the bubble). */
@@ -95,58 +196,21 @@ export class NXTooltip extends BaseComponent {
     }
   }
 
-  private focusVisible(): boolean {
-    let active = document.activeElement;
-    while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
-    return !!active?.matches(':focus-visible');
-  }
-
-  private schedule(delay?: number): void {
-    if (this.shown || this.getProp('disabled', false)) return;
-    clearTimeout(this.timer);
-    const wait = delay ?? (Date.now() - lastHidden < 300 ? 0 : Number(this.getProp('delay', 400)));
-    this.timer = window.setTimeout(() => this.show(), wait);
-  }
-
-  private surface(): HTMLElement | null {
-    return this.$('.bubble') as HTMLElement | null;
-  }
-
   /** Show now. */
   show(): void {
-    const trigger = this.trigger;
-    const surface = this.surface();
-    if (!this.bubble || !surface || !trigger || (!this.bubble.textContent?.trim() && !this.bubble.children.length)) return;
-    showTopLayer(surface);
-    place(surface, trigger, this.getProp<Placement>('placement', 'top'), 6);
-    this.shown = true;
-    document.addEventListener('keydown', this.onKey, true);
-    window.addEventListener('scroll', this.onScroll, true);
+    this.controller.show();
   }
 
   /** Hide now. */
   hide(): void {
-    clearTimeout(this.timer);
-    if (!this.shown) return;
-    this.shown = false;
-    lastHidden = Date.now();
-    const surface = this.surface();
-    if (surface) hideTopLayer(surface);
-    document.removeEventListener('keydown', this.onKey, true);
-    window.removeEventListener('scroll', this.onScroll, true);
+    this.controller.hide();
   }
-
-  private onKey = (e: KeyboardEvent): void => {
-    if (e.key === 'Escape') this.hide();
-  };
-
-  private onScroll = (): void => this.hide();
 
   protected render(): Node {
     return (
       <>
         <slot />
-        <div class="bubble" part="tooltip" popover="manual"><slot name="tooltip" /></div>
+        <div class="nx-tip" part="tooltip" popover="manual"><slot name="tooltip" /></div>
       </>
     );
   }
@@ -154,31 +218,7 @@ export class NXTooltip extends BaseComponent {
   protected styles(): string {
     return `
       :host { display: contents; }
-
-      .bubble {
-        position: fixed;
-        inset: auto;
-        margin: 0;
-        max-width: min(20rem, calc(100vw - 1rem));
-        padding: 0.375rem 0.625rem;
-        border: 0;
-        border-radius: var(--radius-md);
-        background: var(--color-primary);
-        color: var(--color-primary-foreground);
-        box-shadow: var(--shadow-md);
-        font-size: 0.75rem;
-        line-height: 1.4;
-        pointer-events: none;
-        overflow: visible;
-      }
-
-      .bubble:popover-open {
-        animation: nx-tooltip-in 120ms var(--transition-easing);
-      }
-
-      @keyframes nx-tooltip-in {
-        from { opacity: 0; transform: scale(0.96); }
-      }
+      ${TOOLTIP_CSS}
     `;
   }
 }

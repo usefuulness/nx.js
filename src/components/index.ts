@@ -18,6 +18,9 @@ import '@/components/ui/menubar';
 import '@/components/ui/modal';
 import '@/components/ui/popover';
 import '@/components/ui/tooltip';
+import '@/components/ui/avatar';
+import '@/components/ui/alert';
+import '@/components/ui/command';
 import '@/components/ui/progress';
 import '@/components/ui/skeleton';
 import '@/components/ui/spinner';
@@ -33,6 +36,8 @@ import '@/components/ui/form/select';
 import '@/components/ui/form/checkbox';
 import '@/components/ui/form/radio';
 import '@/components/ui/form/combobox';
+import '@/components/ui/form/slider';
+import '@/components/ui/form/datepicker';
 
 // Data
 import '@/data/grid';

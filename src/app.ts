@@ -12,6 +12,7 @@ import { Store, type StoreConfig as CoreStoreConfig } from '@/data/store';
 import { toast } from '@/components/ui/toast';
 import { alert, confirm, dialog, prompt, type ModalConfig } from '@/components/ui/modal';
 import { showMenu } from '@/components/ui/menu';
+import { command } from '@/components/ui/command';
 
 export type { ComponentConfig, ItemConfig } from '@/core/registry';
 
@@ -420,6 +421,8 @@ export const NX = {
   confirm,
   prompt,
   dialog,
+  /** Command palette: `NX.command(items)`, `NX.command.bind('mod+k', items)` */
+  command,
 
   // Theming
   theme: {

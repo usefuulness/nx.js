@@ -83,3 +83,12 @@ export function hideTopLayer(el: HTMLElement): void {
     // not open
   }
 }
+
+/** Scroll `container` just enough to show `item` — never the page (unlike `scrollIntoView`). */
+export function keepInView(container: HTMLElement, item: HTMLElement | null | undefined): void {
+  if (!item) return;
+  const top = item.offsetTop - container.clientTop;
+  const bottom = top + item.offsetHeight;
+  if (top < container.scrollTop) container.scrollTop = top;
+  else if (bottom > container.scrollTop + container.clientHeight) container.scrollTop = bottom - container.clientHeight;
+}

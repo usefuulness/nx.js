@@ -4,7 +4,7 @@
  */
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
-import { hideTopLayer, place, showTopLayer } from '@/core/position';
+import { hideTopLayer, keepInView, place, showTopLayer } from '@/core/position';
 import { NXField, type FieldConfig } from '@/components/ui/form/field';
 import { normalizeOptions, type SelectOption } from '@/components/ui/form/select';
 
@@ -290,7 +290,7 @@ export class NXCombobox extends NXField {
 
     if (this.active >= 0 && this.filtered[this.active]) {
       input.setAttribute('aria-activedescendant', id(this.active));
-      (listbox.children[this.active] as HTMLElement | undefined)?.scrollIntoView?.({ block: 'nearest' });
+      keepInView(listbox, listbox.children[this.active] as HTMLElement | undefined);
     } else {
       input.removeAttribute('aria-activedescendant');
     }

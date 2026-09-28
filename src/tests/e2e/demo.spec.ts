@@ -115,16 +115,96 @@ test.describe('floating UI', () => {
 
   test('combobox filters and picks with the keyboard', async ({ page }) => {
     const box = page.getByRole('combobox', { name: 'Framework' });
+    const list = page.getByRole('listbox', { name: 'Framework' });
     await box.fill('re');
-    await expect(page.getByRole('option')).toHaveText(['Remix']);
+    await expect(list.getByRole('option')).toHaveText(['Remix']);
     await box.press('Enter');
     await expect(box).toHaveValue('Remix');
     await expect(box).toHaveAttribute('aria-expanded', 'false');
 
     await box.press('ArrowDown');
-    await expect(page.getByRole('listbox')).toBeVisible();
-    await expect(page.getByRole('option', { name: 'Remix' })).toHaveAttribute('aria-selected', 'true');
+    await expect(list).toBeVisible();
+    await expect(list.getByRole('option', { name: 'Remix' })).toHaveAttribute('aria-selected', 'true');
     await box.press('Escape');
-    await expect(page.getByRole('listbox')).toBeHidden();
+    await expect(list).toBeHidden();
+  });
+});
+
+test.describe('more components', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/#/components');
+    await page.waitForFunction(() => !!customElements.get('nx-command'));
+  });
+
+  test('button tooltips are real tooltips that describe the button', async ({ page }) => {
+    await page.goto('/#/');
+    const toggle = page.getByRole('button', { name: 'Toggle theme' });
+    await toggle.hover();
+    await expect(page.getByRole('tooltip', { name: 'Toggle theme' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('tooltip', { name: 'Toggle theme' })).toBeHidden();
+  });
+
+  test('slider moves with the keyboard and shows its value', async ({ page }) => {
+    const slider = page.getByRole('slider', { name: 'Opacity' });
+    await slider.focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await expect(slider).toHaveValue('72');
+    await expect(slider).toHaveAttribute('aria-valuetext', '72%');
+    await page.keyboard.press('End');
+    await expect(page.locator('nx-slider[name=demo-slider]')).toContainText('100%');
+  });
+
+  test('date picker: calendar grid keyboard, picking, and the form value', async ({ page }) => {
+    const trigger = page.getByRole('button', { name: /Due date/ });
+    await expect(trigger).toContainText('Jun 15, 2025');
+    await trigger.click();
+    const calendar = page.getByRole('dialog', { name: 'Choose date' });
+    await expect(calendar).toBeVisible();
+    await expect(calendar.getByRole('grid', { name: 'June 2025' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sunday, June 15, 2025' })).toBeFocused();
+
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('PageDown');
+    await expect(calendar.getByRole('grid', { name: 'July 2025' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Wednesday, July 16, 2025' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(calendar).toBeHidden();
+    await expect(trigger).toContainText('Jul 16, 2025');
+    await expect(trigger).toBeFocused();
+    expect(await page.locator('nx-datepicker[name=demo-date]').evaluate(el => (el as any).value)).toBe('2025-07-16');
+  });
+
+  test('date picker respects max and reports it in a form', async ({ page }) => {
+    await page.goto('/#/forms');
+    await page.waitForFunction(() => !!customElements.get('nx-datepicker'));
+    const picker = page.locator('nx-datepicker[name=birthday]');
+    await picker.evaluate(el => ((el as any).value = '2024-05-01'));
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(picker).toContainText('Choose Dec 31, 2020 or earlier.');
+  });
+
+  test('command palette opens with the shortcut, filters and runs', async ({ page }) => {
+    await page.keyboard.press('ControlOrMeta+k');
+    const palette = page.getByRole('dialog', { name: 'Command palette' });
+    await expect(palette).toBeVisible();
+    const search = page.locator('nx-modal').getByRole('combobox');
+    await expect(search).toBeFocused();
+    await search.fill('pref');
+    await expect(page.locator('nx-modal').getByRole('option')).toHaveText(['Settings']);
+    await page.keyboard.press('Enter');
+    await expect(palette).toBeHidden();
+    await expect(page).toHaveURL(/#\/forms$/);
+  });
+
+  test('avatar falls back to initials when the image fails; alerts dismiss', async ({ page }) => {
+    const broken = page.getByRole('img', { name: 'Grace Hopper' });
+    await expect(broken).toContainText('GH');
+    await expect(broken.locator('img')).toHaveCount(0);
+
+    const alert = page.locator('nx-alert', { hasText: 'Heads up!' });
+    await alert.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(alert).toHaveCount(0);
   });
 });

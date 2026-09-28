@@ -230,14 +230,17 @@ app.toggleRegion('west');   // open the side nav on phones, collapse a collapsib
 
 | xtype | Highlights |
 | --- | --- |
-| `button` | `text`, `icon`, `variant` (`primary` `secondary` `outline` `ghost` `danger` `link`), `size` (`sm` `md` `lg`), `loading`, `disabled`, `href`, `tooltip`, `iconPosition`, `fullWidth`. Icon-only buttons become square automatically. |
+| `button` | `text`, `icon`, `variant` (`primary` `secondary` `outline` `ghost` `danger` `link`), `size` (`sm` `md` `lg`), `loading`, `disabled`, `href`, `tooltip` (a real tooltip; it also names icon-only buttons), `iconPosition`, `fullWidth`. Icon-only buttons become square automatically. |
 | `toolbar` | Items are components; buttons default to `ghost`. `'->'` pushes items right. Arrow-key navigation. |
 | `panel` | `title`, `icon`, `collapsible`, `collapsed`, `closable`, `resizable`, `width`, `height`, `bodyPadding`, `border`. In a region it draws only the inner edge. West/east panels collapse to a rail. |
 | `card` | `title`, `subtitle`, `icon`, `elevation`, `padding`. Slots: `header-actions`, `footer`. |
 | `tabpanel` | Each item is a tab: `title`, `icon`, `closable`, `disabled`; the rest of the item is the tab body. `variant` (`default` `pills` `underlined`), `position`. Events: `tab-change`, `tab-close`. |
 | `tree` | `data: TreeNode[]` (`text`, `icon`, `children`, `expanded`, `route`, …), `checkboxes`, `multiSelect`. Full keyboard support. Events: `select`, `toggle`, `check` (detail includes the `node`). |
 | `grid` | See [below](#data-grid-and-stores). |
-| `form`, `textfield`, `select`, `combobox`, `checkbox`, `switch`, `radio` | See [Forms](#forms). |
+| `form`, `textfield`, `select`, `combobox`, `checkbox`, `switch`, `radio`, `slider`, `datepicker` | See [Forms](#forms). |
+| `alert` | Inline callout: `variant` (`default` `info` `success` `warning` `destructive`), `title`, `icon`, `dismissible`. Warnings and errors use `role="alert"`. |
+| `avatar` | `src`, `alt` (name, and the initials fallback), `fallback`, `size`, `shape`, `status` (`online` `away` `busy` `offline`). |
+| `command` | Searchable command list (items with `text`, `icon`, `shortcut`, `group`, `keywords`, `handler`). `NX.command(items)` opens it as a dialog, and `NX.command.bind('mod+k', items)` adds ⌘K / Ctrl+K. |
 | `popover` | Rich content anchored to a trigger (`slot="trigger"`, or `<PopoverTrigger>` in JSX). Closes on Escape, outside click or the trigger, and returns focus. `placement`, `width`. Events: `open`, `close`. |
 | `tooltip` | Wraps a trigger: `content`, `placement` (`top` `bottom` `left` `right`, `-start`/`-end`), `delay`. Shows on hover and keyboard focus, is linked with `aria-describedby`, and hides on Escape. |
 | `modal` | See [Dialogs](#dialogs-and-toasts). |
@@ -318,7 +321,7 @@ NX.store('orders', { proxy: { type: 'rest', url: '/api/orders' }, autoLoad: true
 }
 ```
 
-- Field xtypes: `textfield` (set `type` for `url`, `tel`, `time`, …), `textarea`, `email`, `password`, `numberfield`, `datefield`, `search`, `select`, `combobox` (type to filter; `freeText` to accept any text), `checkbox`, `switch`, `radio` (a radio group; `variant: 'cards'` for plan pickers).
+- Field xtypes: `textfield` (set `type` for `url`, `tel`, `time`, …), `textarea`, `email`, `password`, `numberfield`, `datefield`, `search`, `select`, `combobox` (type to filter; `freeText` to accept any text), `slider` (`min`, `max`, `step`, `showValue`, `unit`), `datepicker` (calendar popover, `min`, `max`, `locale`, value `YYYY-MM-DD`; `datefield` is the native input), `checkbox`, `switch`, `radio` (a radio group; `variant: 'cards'` for plan pickers).
 - Common field options: `name`, `label`, `helperText`, `errorText`, `required`, `disabled`, `placeholder`, `icon`, `clearable`, `validator`, `size`.
 - The form API: `getValues()`, `setValues()`, `validate()`, `isValid()`, `submit()`, `reset()`, `getField(name)`.
 - Errors appear after a field is touched or on submit. Enter in a single-line field submits.

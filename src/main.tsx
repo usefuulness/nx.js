@@ -3,8 +3,9 @@
  * JSX that reads like HTML, shadcn-style components, and the public API only.
  */
 import {
-  NX, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, DataGrid, Form, Grid, HStack,
-  Input, Menu, Outlet, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Spacer, Switch, Tab, Tabs, Textarea, Toolbar, Tooltip, Tree,
+  NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Form, Grid,
+  HStack, Input, Menu, Outlet, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Switch, Tab, Tabs,
+  Textarea, Toolbar, Tooltip, Tree,
   VStack, type Child, type GridColumn, type NXGrid, type NXForm
 } from '@/index';
 
@@ -220,6 +221,8 @@ const SettingsPage = () => (
           validator={(v: string) => (v && !/\d/.test(v) ? 'Include at least one number' : undefined)}
         />
         <Input name="age" type="number" label="Age" min={0} max={150} />
+        <DatePicker name="birthday" label="Birthday" max="2020-12-31" placeholder="Pick your birthday" />
+        <Slider name="volume" label="Notification volume" value={60} showValue unit="%" />
         <Textarea name="bio" label="Bio" placeholder="Tell us a little about yourself" style="grid-column: 1 / -1" />
         <RadioGroup name="plan" label="Plan" value="pro" variant="cards" orientation="horizontal" style="grid-column: 1 / -1" options={[
           { value: 'free', text: 'Free', description: 'For side projects' },
@@ -237,7 +240,11 @@ const SettingsPage = () => (
 );
 
 const ComponentsPage = () => (
-  <Page title="Components" description="A quick tour.">
+  <Page title="Components" description="A quick tour. Press ⌘K / Ctrl+K for the command palette.">
+    <Alert variant="info" title="Heads up!" dismissible>
+      You can add components and dependencies to your app using the registry.
+    </Alert>
+
     <Card title="Buttons">
       <HStack gap={8} wrap align="center">
         <Button>Primary</Button>
@@ -289,6 +296,35 @@ const ComponentsPage = () => (
           <Combobox name="framework" label="Framework" placeholder="Search frameworks…" options={[
             'Nexaro', 'Astro', 'Next.js', 'Nuxt', 'Remix', 'SvelteKit', 'Laravel', 'Django', 'Rails', 'Phoenix'
           ]} />
+        </VStack>
+      </Card>
+
+      <Card title="Avatar, slider, date picker">
+        <VStack gap={16}>
+          <HStack gap={8} align="center">
+            <Avatar alt="Ada Lovelace" status="online" />
+            <Avatar alt="Grace Hopper" src="/does-not-exist.png" />
+            <Avatar alt="Alan Turing" size="lg" shape="square" status="away" />
+          </HStack>
+          <Slider name="demo-slider" label="Opacity" value={70} showValue unit="%" />
+          <DatePicker name="demo-date" label="Due date" value="2025-06-15" />
+        </VStack>
+      </Card>
+
+      <Card title="Command" subtitle="Inline, or as a ⌘K dialog.">
+        <VStack gap={12}>
+          <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden">
+            <Command placeholder="Search commands…" items={commands()} />
+          </div>
+          <Button variant="outline" icon="search" onClick={() => NX.command(commands())}>Open command palette</Button>
+        </VStack>
+      </Card>
+
+      <Card title="Alerts">
+        <VStack gap={12}>
+          <Alert variant="success" title="Saved">Your changes have been saved.</Alert>
+          <Alert variant="warning" title="Trial ends soon">Upgrade to keep your projects.</Alert>
+          <Alert variant="destructive" title="Payment failed">Your card was declined.</Alert>
         </VStack>
       </Card>
 
@@ -362,10 +398,22 @@ const ComponentsPage = () => (
   </Page>
 );
 
+/** The ⌘K / Ctrl+K palette: navigate, switch theme, run actions. */
+const commands = () => [
+  { text: 'Dashboard', icon: 'dashboard', group: 'Go to', handler: () => app.navigate('/') },
+  { text: 'Users', icon: 'users', group: 'Go to', handler: () => app.navigate('/users') },
+  { text: 'Settings', icon: 'settings', group: 'Go to', keywords: ['profile', 'preferences'], handler: () => app.navigate('/forms') },
+  { text: 'Components', icon: 'components', group: 'Go to', handler: () => app.navigate('/components') },
+  { text: 'Toggle theme', icon: 'theme', group: 'Actions', shortcut: '⇧D', keywords: ['dark', 'light'], handler: () => NX.theme.toggle() },
+  { text: 'Invite user', icon: 'plus', group: 'Actions', keywords: ['add', 'new'], handler: () => NX.toast('Invite sent') }
+];
+
 // ────────── App ──────────
 
 const themeIcon = () => (NX.theme.get() === 'light' ? 'moon' : 'sun');
 const themeButton = { current: null as HTMLElement | null };
+
+NX.command.bind('mod+k', commands);
 
 const app = NX.app({
   el: '#app',

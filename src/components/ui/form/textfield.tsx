@@ -216,7 +216,6 @@ export const TEXTFIELD_VARIANTS: Record<string, Partial<TextFieldConfig>> = {
   numberfield: { type: 'number' },
   number: { type: 'number' },
   datefield: { type: 'date' },
-  datepicker: { type: 'date' },
   password: { type: 'password' },
   email: { type: 'email' },
   search: { type: 'search', icon: 'search', clearable: true }

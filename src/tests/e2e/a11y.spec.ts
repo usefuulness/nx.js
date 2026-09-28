@@ -61,6 +61,19 @@ for (const theme of themes) {
     await audit(page);
   });
 
+  test(`a11y: open date picker and command palette (${theme})`, async ({ page }) => {
+    await open(page, '/components', theme);
+    await page.getByRole('button', { name: /Due date/ }).click();
+    await expect(page.getByRole('dialog', { name: 'Choose date' })).toBeVisible();
+    await page.waitForTimeout(200);
+    await audit(page);
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('ControlOrMeta+k');
+    await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+    await page.waitForTimeout(300); // opening animation (opacity)
+    await audit(page);
+  });
+
   test(`a11y: form errors (${theme})`, async ({ page }) => {
     await open(page, '/forms', theme);
     await page.locator('nx-button', { hasText: 'Save changes' }).click();
