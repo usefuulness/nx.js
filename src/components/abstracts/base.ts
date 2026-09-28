@@ -607,6 +607,23 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
   }
 
   /**
+   * Config that HTML can't carry — values that are or contain functions
+   * (listeners, formatters, handlers in items). `hydrate()` re-applies it to the
+   * server-rendered element.
+   * @internal
+   */
+  liveConfig(): Record<string, unknown> {
+    const seen = new WeakSet<object>();
+    const hasFunction = (value: unknown): boolean => {
+      if (typeof value === 'function') return true;
+      if (!value || typeof value !== 'object' || seen.has(value) || value instanceof Node) return false;
+      seen.add(value);
+      return Object.values(value).some(hasFunction);
+    };
+    return Object.fromEntries(Object.entries(this.configRecord).filter(([, value]) => hasFunction(value)));
+  }
+
+  /**
    * The config needed to recreate this component from its HTML, as JSON — used by
    * server rendering, which writes it into a `<script type="application/json" data-nx-config>`
    * child. Functions can't be serialized; their paths are reported in `dropped`.

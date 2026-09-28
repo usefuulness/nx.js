@@ -17,12 +17,15 @@ await mkdir(outDir, { recursive: true });
 for (const [name, Page] of Object.entries(pages)) {
   const html = await renderDocument(<Page />, {
     title: `${name} · Nexaro SSG`,
-    scripts: ['./client.js']
+    scripts: ['./client.js'],
+    bodyAttributes: { 'data-page': name },
+    // Handlers (onClick…) can't be written into HTML; client.tsx's hydrate() attaches them
+    onDropped: () => {}
   });
   await writeFile(path.join(outDir, `${name}.html`), html);
   console.log(`  ${name}.html  ${(html.length / 1024).toFixed(1)} kB`);
 }
 
 // The browser bundle: `import 'nx.js'` upgrades the pre-rendered elements
-await bundleClient(path.join(here, 'client.ts'), outDir);
+await bundleClient(path.join(here, 'client.tsx'), outDir);
 console.log('  client.js');

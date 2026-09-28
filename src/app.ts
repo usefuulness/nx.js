@@ -13,6 +13,7 @@ import { toast } from '@/components/ui/toast';
 import { alert, confirm, dialog, prompt, type ModalConfig } from '@/components/ui/modal';
 import { showMenu } from '@/components/ui/menu';
 import { command } from '@/components/ui/command';
+import { hydrate } from '@/jsx/hydrate';
 
 export type { ComponentConfig, ItemConfig } from '@/core/registry';
 
@@ -421,6 +422,9 @@ export const NX = {
   confirm,
   prompt,
   dialog,
+  /** Make server-rendered JSX interactive: `NX.hydrate(() => <Page />)` */
+  hydrate,
+
   /** Command palette: `NX.command(items)`, `NX.command.bind('mod+k', items)` */
   command,
 

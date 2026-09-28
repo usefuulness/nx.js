@@ -179,6 +179,7 @@ export class NXTooltip extends BaseComponent {
     if (!bubble) {
       bubble = document.createElement('div');
       bubble.slot = 'tooltip';
+      bubble.setAttribute('data-nx-generated', '');
       this.ownBubble = true;
       this.appendChild(bubble);
     }

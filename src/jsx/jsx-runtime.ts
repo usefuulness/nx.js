@@ -27,7 +27,7 @@
  * - `ref={el => …}` or `ref={{ current: null }}` gives you the element.
  */
 // DOM-free imports only: this module loads first in every .tsx file (see dom-utils)
-import { NX_COMPONENT, applyStyle, eventName, hooks } from '@/core/dom-utils';
+import { NX_COMPONENT, applyStyle, eventName, hooks, bindings, type JsxBindings } from '@/core/dom-utils';
 
 type ConfigurableElement = HTMLElement & { configure(config: Record<string, any>): unknown };
 
@@ -78,6 +78,13 @@ function appendChildren(parent: Node, children: Child): void {
   }
 }
 
+/** Remember listeners/refs for hydrate(). */
+function record(el: Element): JsxBindings {
+  let entry = bindings.get(el);
+  if (!entry) bindings.set(el, (entry = { listeners: [] }));
+  return entry;
+}
+
 function setRef<T>(ref: Ref<T> | undefined, el: T): void {
   if (!ref) return;
   if (typeof ref === 'function') ref(el);
@@ -105,6 +112,7 @@ function applyDomProps(el: HTMLElement | SVGElement, props: Record<string, any>,
     if (/^on[A-Z]/.test(key) && typeof value === 'function') {
       // onClick → click, onKeyDown → keydown, onTabChange → tab-change
       el.addEventListener(eventName(key), value);
+      record(el).listeners.push([eventName(key), value]);
       continue;
     }
 
@@ -172,6 +180,7 @@ function create(type: any, props: Record<string, any>): Node {
 
   appendChildren(el, children);
   setRef(ref, el);
+  if (ref) record(el).ref = ref;
   return el;
 }
 

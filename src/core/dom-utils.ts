@@ -135,3 +135,16 @@ export interface NativeStandIn {
 
 /** Marks stand-ins in the light DOM (removed on upgrade). */
 export const NATIVE_ATTR = 'data-nx-native';
+
+/**
+ * What JSX attached to an element that the HTML can't carry — event listeners
+ * and refs — so `hydrate()` can attach the same to server-rendered elements.
+ */
+export interface JsxBindings {
+  listeners: Array<[string, EventListener]>;
+  ref?: unknown;
+}
+export const bindings = new WeakMap<Element, JsxBindings>();
+
+/** Elements the server wrote or components generate that JSX doesn't know about. */
+export const GENERATED = 'script[data-nx-config], [data-nx-native], [data-nx-generated]';

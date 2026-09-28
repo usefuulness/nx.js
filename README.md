@@ -528,13 +528,25 @@ Components can be rendered to HTML on the server. The output uses [Declarative S
 import { renderDocument, renderToString } from 'nx.js/ssr';   // first: it installs the server DOM
 import { Page } from './page';                                 // then anything that uses components
 
-const html = await renderDocument(<Page />, { title: 'Home', scripts: ['/client.js'] });  // a whole page
+const html = await renderDocument(<Page />, { title: 'Home', scripts: ['/client.js'] });  // a whole page (+ hydrate() in client.js)
 const fragment = await renderToString(<Card title="Hi">…</Card>);                        // or a fragment
 ```
 
-`client.js` is just `import 'nx.js'` plus your event listeners. See [`examples/ssg`](examples/ssg) (`pnpm example:ssg`). If import order is awkward in your setup, run Node with `--import nx.js/ssr/register` instead.
+`client.js` imports `nx.js` and calls `hydrate(() => <Page />)`. See [`examples/ssg`](examples/ssg) (`pnpm example:ssg`). If import order is awkward in your setup, run Node with `--import nx.js/ssr/register` instead.
 
-**What survives into the HTML:** attributes, text and serializable props (strings, numbers, arrays, plain objects). Rich props such as a grid's `data` are written into a `<script type="application/json" data-nx-config>` child and restored on upgrade. Functions (`onClick`, `formatter`) can't be serialized. You get a warning naming them, and you attach behaviour in the client with `addEventListener`.
+**What survives into the HTML:** attributes, text and serializable props (strings, numbers, arrays, plain objects). Rich props such as a grid's `data` are written into a `<script type="application/json" data-nx-config>` child and restored on upgrade.
+
+**Event handlers: hydrate the same JSX.** Functions (`onClick`, `onSubmit`, refs, a column's `formatter`, `handler`s in menu items) can't be written into HTML. So the client renders the same page once more with `hydrate()`, and attaches exactly those to the server-rendered elements. Nothing is re-created or re-painted, and anything typed so far is kept:
+
+```tsx
+// client.tsx
+import { hydrate } from 'nx.js';
+import { Page } from './page';
+
+hydrate(() => <Page />);            // or hydrate(() => <Page />, document.getElementById('app')!)
+```
+
+If the client's JSX doesn't match the HTML, only the differing subtree is re-rendered, with a warning that names it. Template-engine pages without JSX simply use `addEventListener` (or `NX.get(id)`).
 
 ### Any template engine (Twig, Blade, Jinja, ERB, Go, Handlebars…)
 

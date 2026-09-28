@@ -1,15 +1,19 @@
 /**
- * Pages of the static site. Plain JSX that reads like HTML — the same code
- * would run in the browser, but here it is rendered once at build time.
- *
- * Only serializable props (strings, numbers, arrays, objects) survive into the
- * HTML. Behaviour belongs in client.ts, which listens for component events.
+ * Pages of the static site. Plain JSX that reads like HTML, with its event
+ * handlers inline: build.tsx renders it to HTML at build time, and client.tsx
+ * hydrates the same JSX in the browser (the HTML stays; the handlers attach).
  */
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
   Divider, Drawer, Form, Grid, HStack, Input, Menu, MenuBar, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Switch,
-  Tab, Tabs, Textarea, Toolbar, Tooltip, Tree, VStack
+  Tab, Tabs, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
+
+type Openable = HTMLElement & { open(): void; close(): void };
+const dialog = { current: null as Openable | null };
+const drawer = { current: null as Openable | null };
+
+const toggleTheme = () => NX.theme.set(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
 
 const releases = [
   { version: '0.3.0', date: '2025-06-02', notes: 'Server rendering, template engines' },
@@ -24,7 +28,7 @@ const Layout = ({ title, children }: { title: string; children?: any }) => (
       <Badge variant="success">static</Badge>
       <span style="flex: 1" />
       <nav><a href="./index.html">Home</a> · <a href="./components.html">Components</a> · <a href="./contact.html">Contact</a></nav>
-      <Button id="theme" variant="ghost" icon="moon" aria-label="Toggle theme" />
+      <Button id="theme" variant="ghost" icon="moon" aria-label="Toggle theme" onClick={toggleTheme} />
     </HStack>
     {children}
   </main>
@@ -35,7 +39,7 @@ export const Home = () => (
     <Card title="Rendered at build time" subtitle="Declarative Shadow DOM: this card is visible before any JavaScript loads.">
       <p>The client bundle only upgrades the elements; nothing is re-created.</p>
       <CardFooter>
-        <Button id="hello" icon="zap">Say hello</Button>
+        <Button id="hello" icon="zap" onClick={() => NX.toast.success('Hello from the client')}>Say hello</Button>
       </CardFooter>
     </Card>
 
@@ -147,8 +151,8 @@ export const Components = () => (
         </Toolbar>
         <Divider label="or" />
         <HStack gap={8} wrap>
-          <Button id="open-dialog" variant="outline">Open dialog</Button>
-          <Button id="open-drawer" variant="outline">Open drawer</Button>
+          <Button id="open-dialog" variant="outline" onClick={() => dialog.current?.open()}>Open dialog</Button>
+          <Button id="open-drawer" variant="outline" onClick={() => drawer.current?.open()}>Open drawer</Button>
           <Popover label="Share">
             <PopoverTrigger><Button variant="outline" icon="send">Share</Button></PopoverTrigger>
             <Input name="link" label="Link" value="https://nexaro.dev/ssg" readonly />
@@ -170,7 +174,8 @@ export const Components = () => (
         ]} />
       </Panel>
       <Card title="Form" subtitle="Validates, then fires submit">
-        <Form id="profile" columns={1}>
+        <Form id="profile" columns={1}
+              onSubmit={(e: CustomEvent) => NX.toast.success('Saved', { description: JSON.stringify(e.detail.values) })}>
           <Input name="name" label="Name" required />
           <Textarea name="bio" label="Bio" rows={2} />
           <Button slot="buttons" type="submit">Save</Button>
@@ -186,11 +191,11 @@ export const Components = () => (
       ]} />
     </Card>
 
-    <Dialog id="dialog" title="Server-rendered dialog" description="Closed until you open it.">
+    <Dialog ref={dialog} id="dialog" title="Server-rendered dialog" description="Closed until you open it.">
       <p>Dialogs render in the HTML too, closed.</p>
-      <DialogFooter><Button id="close-dialog">Close</Button></DialogFooter>
+      <DialogFooter><Button id="close-dialog" onClick={() => dialog.current?.close()}>Close</Button></DialogFooter>
     </Dialog>
-    <Drawer id="drawer" title="Drawer" description="A sheet from the side.">
+    <Drawer ref={drawer} id="drawer" title="Drawer" description="A sheet from the side.">
       <p>Drawer content.</p>
     </Drawer>
   </Layout>

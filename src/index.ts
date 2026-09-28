@@ -109,3 +109,4 @@ export type { SliderConfig } from '@/components/ui/form/slider';
 export { NXDatePicker, parseISODate } from '@/components/ui/form/datepicker';
 export type { DatePickerConfig } from '@/components/ui/form/datepicker';
 export { place, type Placement } from '@/core/position';
+export { hydrate, type HydrateOptions } from '@/jsx/hydrate';

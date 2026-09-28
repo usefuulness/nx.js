@@ -145,6 +145,8 @@ export interface DocumentOptions extends RenderOptions {
   scripts?: string[];
   /** Inline the stylesheet (default) — or pass `false` and link your own nx.css */
   inlineStyles?: boolean;
+  /** Attributes for <body>, e.g. `{ 'data-page': 'home' }` so the client knows what to hydrate */
+  bodyAttributes?: Record<string, string>;
 }
 
 /**
@@ -167,7 +169,7 @@ export async function renderDocument(input: Renderable, options: DocumentOptions
     options.head ?? '',
     ...(options.scripts ?? []).map(src => `<script type="module" src="${attr(src)}"></script>`),
     '</head>',
-    `<body>${body}</body>`,
+    `<body${Object.entries(options.bodyAttributes ?? {}).map(([k, v]) => ` ${k}="${attr(v)}"`).join('')}>${body}</body>`,
     '</html>'
   ].filter(Boolean).join('\n');
 }

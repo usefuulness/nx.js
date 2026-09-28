@@ -125,3 +125,16 @@ describe('button tooltip', () => {
     expect(inner(text).hasAttribute('title')).toBe(false);
   });
 });
+
+describe('divider', () => {
+  it('treats the label as text and keeps server-rendered content', () => {
+    document.body.innerHTML = '<nx-divider label="<img src=x onerror=alert(1)>"></nx-divider>';
+    const divider = document.querySelector('nx-divider')!;
+    expect(divider.querySelector('img')).toBeNull();
+    expect(divider.children[1].textContent).toBe('<img src=x onerror=alert(1)>');
+    const nodes = Array.from(divider.children);
+    divider.remove();
+    document.body.append(divider); // reconnect (e.g. upgrade over server HTML)
+    expect(Array.from(divider.children)).toEqual(nodes);
+  });
+});

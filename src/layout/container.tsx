@@ -147,8 +147,17 @@ export class NXDivider extends HTMLElement {
       textTransform: 'uppercase',
       letterSpacing: '0.05em'
     });
-    const line = '<span style="flex:1;height:1px;background:var(--color-border)"></span>';
-    this.innerHTML = label ? `${line}<span>${label}</span>${line}` : line;
+    // Server-rendered (or already built): keep the existing nodes
+    const current = this.children;
+    if (label ? current.length === 3 && current[1].textContent === label : current.length === 1 && !current[0].textContent) return;
+    const line = () => {
+      const span = document.createElement('span');
+      span.setAttribute('style', 'flex:1;height:1px;background:var(--color-border)');
+      return span;
+    };
+    const text = document.createElement('span');
+    text.textContent = label; // never HTML: labels may come from user data
+    this.replaceChildren(...(label ? [line(), text, line()] : [line()]));
   }
 }
 

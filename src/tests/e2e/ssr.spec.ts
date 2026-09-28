@@ -271,6 +271,38 @@ test('every server-rendered component works after hydration', async ({ page }) =
   expect(errors).toEqual([]);
 });
 
+for (const name of ['index', 'components', 'contact']) {
+  test(`hydrate() keeps every server element: ${name}.html`, async ({ page }) => {
+    const warnings: string[] = [];
+    page.on('console', m => m.type() === 'warning' && warnings.push(m.text()));
+    await serve(page);
+    let release!: () => void;
+    const held = new Promise<void>(resolve => (release = resolve));
+    await page.route('**/ssg/client.js', async route => {
+      await held;
+      route.fulfill({ body: readFileSync(path.join(dist, 'client.js')), contentType: 'text/javascript' });
+    });
+    await page.goto(`/ssg/${name}.html`, { waitUntil: 'commit' });
+    await page.locator('main').waitFor({ state: 'attached' });
+    // Remember every element the server sent (stand-ins aside: they are meant to go)
+    const count = await page.evaluate(() => {
+      const els = Array.from(document.body.querySelectorAll('*')).filter(el => !el.closest('[data-nx-native], script'));
+      (window as any).serverElements = els;
+      (window as any).parents = new Map(els.map(el => [el, `${el.parentElement?.localName}: ${el.outerHTML.slice(0, 60)}`]));
+      return els.length;
+    });
+    release();
+    await page.waitForFunction(() => !!customElements.get('nx-card'));
+    await page.waitForTimeout(300);
+    const lost = await page.evaluate(() => ((window as any).serverElements as Element[])
+      .filter(el => !el.isConnected)
+      .map(el => el.localName + (el.id ? `#${el.id}` : '') + ' in ' + ((window as any).parents?.get(el) ?? '')));
+    expect(count).toBeGreaterThan(20);
+    expect(lost).toEqual([]);
+    expect(warnings.filter(w => w.includes('hydrate'))).toEqual([]);
+  });
+}
+
 /** Box and visible text of every Nexaro element, in document order (native stand-ins excluded). */
 async function layout(page: Page) {
   await page.waitForTimeout(600); // entrance animations
