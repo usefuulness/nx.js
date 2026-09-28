@@ -57,7 +57,8 @@
     "test:e2e": "playwright test",
     "check": "tsc --noEmit && vitest run",
     "example:ssg": "tsx examples/ssg/build.tsx",
-    "example:server": "tsx examples/server/app.ts"
+    "example:server": "tsx examples/server/app.ts",
+    "example:showcase": "tsx examples/showcase/build.tsx"
   },
   "peerDependencies": {
     "happy-dom": ">=17"
