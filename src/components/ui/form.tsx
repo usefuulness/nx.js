@@ -7,6 +7,7 @@ import { ComponentRegistry, define, type ItemConfig } from '@/core/registry';
 import { NXField } from '@/components/ui/form/field';
 import { NXCheckbox } from '@/components/ui/form/checkbox';
 import { submitForm } from '@/core/forms';
+import { NATIVE_ATTR } from '@/core/dom-utils';
 
 export interface FormConfig {
   items?: ItemConfig[];
@@ -90,6 +91,11 @@ export class NXForm extends BaseComponent {
     });
 
     this.addEventListener('nx-field-enter', () => this.submit());
+  }
+
+  /** The hidden native form that server-rendered stand-ins posted with. */
+  protected hydrateState(): void {
+    this.querySelectorAll(`:scope > form[${NATIVE_ATTR}]`).forEach(el => el.remove());
   }
 
   setButtons(buttons: ItemConfig[]): void {

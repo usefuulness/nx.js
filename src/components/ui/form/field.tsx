@@ -7,6 +7,7 @@
  * typing never re-renders (and never loses focus).
  */
 import { BaseComponent } from '@/components/abstracts/base';
+import { NATIVE_ATTR, type NativeStandIn } from '@/core/dom-utils';
 
 export type Validator = (value: any, field: NXField) => string | true | null | undefined | void;
 
@@ -35,19 +36,11 @@ export abstract class NXField extends BaseComponent {
   protected touched = false;
   protected readonly fieldId = `f${++fieldSeq}`;
 
-  /** What the user typed into server-rendered HTML before this element upgraded. */
-  protected serverState: { value?: string; checked?: boolean } | null = null;
+  /** What the user entered into server-rendered HTML before this element upgraded. */
+  protected serverState: { value?: string | string[]; checked?: boolean } | null = null;
 
   constructor() {
     super();
-    // A declarative shadow root (server rendering) is readable until attachShadow() clears it
-    const ssrControl = this.shadowRoot?.querySelector('input, select, textarea') as HTMLInputElement | null;
-    if (ssrControl?.type === 'radio') {
-      const checked = this.shadowRoot!.querySelector('input[type=radio]:checked') as HTMLInputElement | null;
-      this.serverState = { value: checked?.value ?? '' };
-    } else if (ssrControl) {
-      this.serverState = ssrControl.type === 'checkbox' ? { checked: ssrControl.checked } : { value: ssrControl.value };
-    }
     this.attachShadow({ mode: 'open', delegatesFocus: true });
     try {
       const internals = this.attachInternals();
@@ -70,6 +63,40 @@ export abstract class NXField extends BaseComponent {
   }
 
   protected initializeState(): void {}
+
+  /**
+   * Native stand-ins for server-rendered HTML: the shadow controls, written into
+   * the light DOM so forms work before JavaScript loads. Override to stand in
+   * with something else (a `<select>` for a combobox…).
+   * @internal
+   */
+  nativeStandIns(): NativeStandIn[] {
+    const label = this.getProp<string>('label') || this.getProp<string>('placeholder') || this.name || undefined;
+    const controls = Array.from(this.shadowRoot?.querySelectorAll('input, select, textarea') ?? [])
+      .filter(c => !['button', 'submit', 'reset', 'hidden'].includes((c as HTMLInputElement).type));
+    return controls.map(original => {
+      const type = (original as HTMLInputElement).type;
+      const own = type === 'checkbox' || type === 'radio' ? original.closest('label')?.textContent?.trim() : '';
+      return { original, attrs: { name: this.name || null, 'aria-label': own || label || null } };
+    });
+  }
+
+  /** Read (and remove) the native stand-ins the user may have filled in before the upgrade. */
+  protected hydrateState(): void {
+    const natives = Array.from(this.querySelectorAll(`:scope > [${NATIVE_ATTR}]`)) as HTMLInputElement[];
+    if (!natives.length) return;
+    const first = natives[0];
+    if (first.type === 'radio') {
+      this.serverState = { value: natives.find(n => n.checked)?.value ?? '' };
+    } else if (first.type === 'checkbox') {
+      this.serverState = { checked: first.checked };
+    } else if (first instanceof HTMLSelectElement && first.multiple) {
+      this.serverState = { value: Array.from(first.selectedOptions).map(o => o.value) };
+    } else {
+      this.serverState = { value: first.value };
+    }
+    natives.forEach(n => n.remove());
+  }
 
   protected initialize(): void {
     // Keep input typed before hydration (it wins over the server-rendered value)
@@ -330,6 +357,48 @@ export abstract class NXField extends BaseComponent {
       .nx-control :disabled {
         cursor: not-allowed;
       }
+
+      /* Native stand-ins in server-rendered HTML, until the component upgrades */
+      ::slotted([${NATIVE_ATTR}]) {
+        flex: 1 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 2.125rem !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        outline: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        color: inherit !important;
+        font: inherit !important;
+        appearance: none;
+      }
+
+      ::slotted(textarea[${NATIVE_ATTR}]) {
+        min-height: 4rem !important;
+        line-height: 1.5 !important;
+        resize: vertical;
+      }
+
+      ::slotted(input[type="checkbox"][${NATIVE_ATTR}]),
+      ::slotted(input[type="radio"][${NATIVE_ATTR}]) {
+        appearance: auto !important;
+        flex: none !important;
+        width: 1.125rem !important;
+        height: 1.125rem !important;
+        min-height: 0 !important;
+        margin: 0.0625rem 0 0 !important;
+        accent-color: var(--color-primary);
+      }
+
+      ::slotted(input[type="range"][${NATIVE_ATTR}]) {
+        appearance: auto !important;
+        min-height: 1.25rem !important;
+        accent-color: var(--color-primary);
+      }
+
+      :host(:not(:defined)) .indicator { display: none; }
 
       .nx-control-icon {
         display: inline-flex;

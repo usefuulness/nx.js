@@ -553,7 +553,7 @@ Templates just write the tags. Attributes take strings, and JSON goes into attri
 </form>
 ```
 
-Forms post natively, so validation errors come back from the server as `error-text`. Complete Twig, Blade and Jinja versions are in [`examples/server/templates`](examples/server/templates).
+Forms post natively, so validation errors come back from the server as `error-text`. They even work **before JavaScript loads**: server-rendered fields carry native stand-ins (a real `<input>`, `<select>` or date input in the light DOM, slotted exactly where the component's control is), so a visitor can fill in and submit the form right away, with the browser's own validation. When `nx.js` loads, each component takes over whatever was typed and removes its stand-in. Complete Twig, Blade and Jinja versions are in [`examples/server/templates`](examples/server/templates).
 
 This works with **no Node at all**: link `nx.css` and the client bundle, and the elements render once `nx.js` loads. To also get the fully rendered first paint, pre-render the HTML:
 

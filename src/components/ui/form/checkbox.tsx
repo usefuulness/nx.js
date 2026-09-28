@@ -86,7 +86,12 @@ export class NXCheckbox extends NXField {
     this.checked = false;
   }
 
-  formValue(): string | null {
+  nativeStandIns() {
+    // Posts the configured value (default "on") when checked, like the component
+    return super.nativeStandIns().map(s => ({ ...s, attrs: { ...s.attrs, value: this.getAttribute('value') } }));
+  }
+
+    formValue(): string | null {
     return this.isChecked ? (this.getAttribute('value') ?? 'on') : null;
   }
 

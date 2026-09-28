@@ -184,6 +184,7 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
     if (!this.initialized) {
       this.initialized = true;
       this.hydrateFromMarkup();
+      this.hydrateState();
       this.initialize();
     } else if (this.shadow) {
       // Moved in the DOM: disconnect removed the listeners afterRender() set up
@@ -586,6 +587,13 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
       this.configRecord[key] = value;
     }
   }
+
+  /**
+   * Pick up state from server-rendered HTML before the first render (e.g. what
+   * the user typed into a field's native stand-in before JavaScript loaded).
+   * @protected
+   */
+  protected hydrateState(): void {}
 
   /**
    * Components whose `setItems()` turns items into light-DOM children (those

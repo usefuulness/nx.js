@@ -91,7 +91,8 @@ export class NXCombobox extends NXField {
 
   protected initialize(): void {
     // Server-rendered input holds the option text: map it back to a value
-    const typed = this.serverState?.value;
+    const state = this.serverState?.value;
+    const typed = Array.isArray(state) ? state[0] : state;
     if (typed !== undefined) {
       this.serverState = null;
       this.readChildOptions();
@@ -100,6 +101,28 @@ export class NXCombobox extends NXField {
       else if (this.getProp('free-text', false)) this.currentValue = typed;
     }
     super.initialize();
+  }
+
+  /** Before JavaScript: a native `<select>` of the options (or the text input with `free-text`). */
+  nativeStandIns() {
+    const input = this.input();
+    if (!input || this.getProp('free-text', false)) return super.nativeStandIns();
+    this.readChildOptions();
+    const select = document.createElement('select');
+    if (this.getProp('required', false)) select.required = true;
+    if (this.getProp('disabled', false)) select.disabled = true;
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = this.getProp<string>('placeholder') || '—';
+    select.append(placeholder, ...this.options.map(o => {
+      const option = document.createElement('option');
+      option.value = String(o.value);
+      option.textContent = o.text;
+      option.disabled = !!o.disabled;
+      option.selected = String(o.value) === this.currentValue;
+      return option;
+    }));
+    return [{ original: input, fallback: select, attrs: { name: this.name || null, 'aria-label': this.getProp<string>('label') || null } }];
   }
 
   private input(): HTMLInputElement | null {

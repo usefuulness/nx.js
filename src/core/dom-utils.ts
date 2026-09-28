@@ -112,3 +112,26 @@ export function escapeHTML(value: unknown): string {
 
 /** Every tag registered with `define()` (the stylesheet hides them until they upgrade). */
 export const definedTags = new Set<string>();
+
+/**
+ * A native element that stands in for a component's shadow control in
+ * server-rendered HTML, so forms work (and post) before JavaScript loads.
+ * Components list them in `nativeStandIns()`; the SSR serializer writes them
+ * into the light DOM, and the component removes them when it upgrades.
+ */
+export interface NativeStandIn {
+  /** The element in the shadow root it stands in for */
+  original: Element;
+  /** Element to write instead (default: `original` itself, with its current state) */
+  fallback?: Element;
+  /** Attributes for the stand-in; `null` removes one */
+  attrs?: Record<string, string | true | null>;
+  /**
+   * `replace` (default): the stand-in takes the original's place.
+   * `overlay`: the original stays visible and the stand-in covers the host invisibly (buttons).
+   */
+  mode?: 'replace' | 'overlay';
+}
+
+/** Marks stand-ins in the light DOM (removed on upgrade). */
+export const NATIVE_ATTR = 'data-nx-native';

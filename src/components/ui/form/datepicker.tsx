@@ -150,6 +150,23 @@ export class NXDatePicker extends NXField {
     this.trigger()?.focus(options);
   }
 
+  /** Before JavaScript: the browser's own date input. */
+  nativeStandIns() {
+    const trigger = this.trigger();
+    if (!trigger) return [];
+    const input = document.createElement('input');
+    input.type = 'date';
+    if (this.currentValue) input.value = this.currentValue;
+    const attrs: Record<string, string | true | null> = { name: this.name || null, 'aria-label': this.getProp<string>('label') || null };
+    ['min', 'max'].forEach(name => {
+      const value = this.getProp<string>(name);
+      if (value) attrs[name] = String(value);
+    });
+    if (this.getProp('required', false)) attrs.required = true;
+    if (this.getProp('disabled', false)) attrs.disabled = true;
+    return [{ original: trigger, fallback: input, attrs }];
+  }
+
   private trigger(): HTMLButtonElement | null {
     return this.$('.trigger') as HTMLButtonElement | null;
   }
@@ -362,6 +379,7 @@ export class NXDatePicker extends NXField {
       ${this.fieldStyles()}
 
       .nx-control { padding: 0; }
+      ::slotted([data-nx-native]) { padding: 0 0.75rem !important; }
 
       .trigger {
         display: flex;

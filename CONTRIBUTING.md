@@ -104,6 +104,7 @@ Components also run on the server (`src/ssr`, happy-dom) and upgrade over their 
 - **State that matters lives in the DOM.** Examples are `<nx-tab active>`, `<nx-accordion-item expanded>`, a field's `value` attribute and `<option>` children. Derive from children, and follow later changes with a `MutationObserver`, since parsers can upgrade an element before its children arrive.
 - **Rich config must be JSON.** Values set through `configure()` are serialized for hydration automatically. Keep functions optional, and offer an event for the same behaviour (`row-click` next to `onRowClick`).
 - **Forms stay native.** Fields keep their `ElementInternals` value and validity in sync, so a plain `<form>` posts and validates them without JS handlers.
+- **Forms work before JS.** A field's shadow controls are written into the light DOM as native stand-ins when server-rendered (`nativeStandIns()` on `NXField`; override it when the control isn't a native input, as the combobox and date picker do). `hydrateState()` reads and removes them on upgrade. `src/tests/e2e/ssr.spec.ts` posts forms with JavaScript disabled.
 
 ## App code
 

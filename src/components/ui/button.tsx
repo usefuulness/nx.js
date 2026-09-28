@@ -10,6 +10,7 @@ import { variants } from '@/core/variants';
 import { submitForm } from '@/core/forms';
 import { TOOLTIP_CSS, TooltipController } from '@/components/ui/tooltip';
 import type { Placement } from '@/core/position';
+import { NATIVE_ATTR, type NativeStandIn } from '@/core/dom-utils';
 
 const button = variants({
   base: 'nx-button',
@@ -209,6 +210,21 @@ export class NXButton extends BaseComponent {
 
       ${TOOLTIP_CSS}
 
+      /* Server-rendered, before JavaScript: an invisible native button posts the form */
+      :host(:not(:defined)) { position: relative; }
+      ::slotted([${NATIVE_ATTR}]) {
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        opacity: 0 !important;
+        cursor: pointer;
+      }
+      :host(:not(:defined):focus-within) .nx-button {
+        box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px var(--color-ring);
+      }
+
       :host([full-width]) {
         display: flex;
         width: 100%;
@@ -341,6 +357,31 @@ export class NXButton extends BaseComponent {
         to { transform: rotate(360deg); }
       }
     `;
+  }
+
+  /**
+   * Before JavaScript: an invisible native submit/reset button over this one,
+   * so server-rendered forms post without JavaScript.
+   * @internal
+   */
+  nativeStandIns(): NativeStandIn[] {
+    const type = this.getProp<string>('type', 'button');
+    const original = this.$('button');
+    if ((type !== 'submit' && type !== 'reset') || !original || !this.closest('form, nx-form[action]')) return [];
+    const fallback = document.createElement('button');
+    fallback.type = type;
+    fallback.textContent = this.getProp<string>('aria-label') || this.getProp<string>('text') || this.textContent?.trim() || this.getProp<string>('tooltip') || type;
+    const attrs: Record<string, string | true | null> = {};
+    ['name', 'value', 'formaction', 'formmethod', 'formenctype', 'formtarget', 'formnovalidate'].forEach(name => {
+      const value = this.getAttribute(name);
+      if (value !== null) attrs[name] = value;
+    });
+    if (this.getProp('disabled', false)) attrs.disabled = true;
+    return [{ original, fallback, attrs, mode: 'overlay' }];
+  }
+
+  protected hydrateState(): void {
+    this.querySelectorAll(`:scope > [${NATIVE_ATTR}]`).forEach(el => el.remove());
   }
 
   /** The `<form>` this button belongs to (its ancestor, or `form="id"`). */

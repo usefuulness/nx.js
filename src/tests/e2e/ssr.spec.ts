@@ -53,6 +53,92 @@ test.describe('without JavaScript', () => {
   });
 });
 
+test.describe('forms without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('a native <form> posts every nx field and blocks invalid input', async ({ page }) => {
+    const posts = await serve(page);
+    await page.goto('/ssg/contact.html');
+    const contact = page.locator('#contact');
+
+    await contact.getByRole('button', { name: 'Send' }).click();
+    // The browser's own constraint validation (required) stops the post
+    await page.waitForTimeout(300);
+    expect(posts).toHaveLength(0);
+
+    await contact.getByLabel('Email').fill('ada@example.com');
+    await contact.getByLabel('Topic').selectOption('support');
+    await contact.getByLabel('Message').fill('Hello without JavaScript');
+    await contact.getByLabel('Send me the newsletter').check();
+    await contact.getByRole('button', { name: 'Send' }).click();
+    await expect(page.locator('#thanks')).toBeVisible();
+    expect(Object.fromEntries(posts[0].body)).toEqual({
+      email: 'ada@example.com',
+      topic: 'support',
+      message: 'Hello without JavaScript',
+      newsletter: 'on',
+      intent: 'send'
+    });
+  });
+
+  test('<nx-form action> posts through its hidden native form', async ({ page }) => {
+    const posts = await serve(page);
+    await page.goto('/ssg/contact.html');
+    const form = page.locator('#subscribe');
+    await form.getByLabel('Name').fill('Grace');
+    await form.getByLabel('Email').fill('grace@example.com');
+    await form.getByRole('button', { name: 'Subscribe' }).click();
+    await expect(page.locator('#thanks')).toBeVisible();
+    expect(posts.map(p => [p.url, Object.fromEntries(p.body)])).toEqual([
+      ['/subscribe', { name: 'Grace', email: 'grace@example.com' }]
+    ]);
+  });
+
+  test('every control type works: combobox, slider, date, radio, switch', async ({ page }) => {
+    await serve(page);
+    await page.goto('/ssg/components.html');
+    const country = page.locator('select[name=country]');
+    await expect(country).toHaveValue('de');
+    await country.selectOption('fr');
+    await expect(page.getByLabel('Volume')).toHaveValue('30');
+    await expect(page.getByLabel('Due date')).toHaveValue('2025-06-15');
+    await page.getByLabel('Large').check();
+    await page.getByLabel('Email alerts').check();
+    await expect(page.getByLabel('Accept terms')).toBeChecked();
+  });
+});
+
+test('input typed before the upgrade survives it', async ({ page }) => {
+  await serve(page);
+  // Hold the client bundle back until the user has typed
+  let release!: () => void;
+  const held = new Promise<void>(resolve => (release = resolve));
+  await page.route('**/ssg/client.js', async route => {
+    await held;
+    route.fulfill({ body: readFileSync(path.join(dist, 'client.js')), contentType: 'text/javascript' });
+  });
+  // Module scripts hold DOMContentLoaded back, so don't wait for it
+  await page.goto('/ssg/components.html', { waitUntil: 'commit' });
+  await page.locator('input[name=q]').fill('typed early');
+  await page.locator('select[name=country]').selectOption('it');
+  await page.locator('input[name=size][value=l]').check();
+  await page.locator('input[name=terms]').uncheck();
+  await page.locator('input[name=due]').fill('2025-12-24');
+  release();
+
+  await page.waitForFunction(() => !!customElements.get('nx-card'));
+  const values = await page.evaluate(() => Object.fromEntries(
+    ['q', 'country', 'size', 'terms', 'due'].map(name => {
+      const el = document.querySelector(`[name="${name}"]`) as any;
+      return [name, name === 'terms' ? el.checked : el.value];
+    })
+  ));
+  expect(values).toEqual({ q: 'typed early', country: 'it', size: 'l', terms: false, due: '2025-12-24' });
+  // Stand-ins are gone; the components own the values now
+  expect(await page.locator('[data-nx-native]').count()).toBe(0);
+  await expect(page.getByRole('combobox', { name: 'Country' })).toHaveValue('Italy');
+});
+
 test.describe('with JavaScript', () => {
   test('hydrates in place without errors and becomes interactive', async ({ page }) => {
     const errors = collectErrors(page);
@@ -185,15 +271,20 @@ test('every server-rendered component works after hydration', async ({ page }) =
   expect(errors).toEqual([]);
 });
 
-/** Box and visible text of every Nexaro element, in document order. */
+/** Box and visible text of every Nexaro element, in document order (native stand-ins excluded). */
 async function layout(page: Page) {
   await page.waitForTimeout(600); // entrance animations
-  return page.evaluate(() => Array.from(document.querySelectorAll('body *'))
-    .filter(el => el.localName.startsWith('nx-'))
-    .map(el => {
-      const r = el.getBoundingClientRect();
-      return `${el.localName} ${[r.x, r.y, r.width, r.height].map(Math.round).join(',')} ${el.checkVisibility() ? (el as HTMLElement).innerText.replace(/\s+/g, ' ').trim().slice(0, 60) : '(not rendered)'}`;
-    }));
+  return page.evaluate(() => {
+    const els = Array.from(document.querySelectorAll('body *')).filter(el => el.localName.startsWith('nx-'));
+    const boxes = els.map(el => el.getBoundingClientRect());
+    // Text after the boxes: stand-ins (pre-upgrade form controls) would add their option labels
+    document.querySelectorAll('[data-nx-native]').forEach(el => el.remove());
+    return els.map((el, i) => {
+      const r = boxes[i];
+      const text = el.checkVisibility() ? (el as HTMLElement).innerText.replace(/\s+/g, ' ').trim().slice(0, 60) : '(not rendered)';
+      return `${el.localName} ${[r.x, r.y, r.width, r.height].map(Math.round).join(',')} ${text}`;
+    });
+  });
 }
 
 for (const name of ['index', 'components', 'contact']) {

@@ -8,7 +8,11 @@
  * they hold rich config (data, columns, items…), a
  * `<script type="application/json" data-nx-config>` child that restores it
  * when the element upgrades in the browser.
+ *
+ * Form controls also get native stand-ins in the light DOM (see NativeStandIn),
+ * so forms can be filled in and posted before JavaScript loads.
  */
+import { NATIVE_ATTR, type NativeStandIn } from '@/core/dom-utils';
 
 const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
 const RAW_TEXT = new Set(['script', 'style']);
@@ -16,12 +20,21 @@ const RAW_TEXT = new Set(['script', 'style']);
 export interface SerializeContext {
   /** Config paths that were functions and could not be serialized (per tag) */
   dropped: string[];
+  /** Shadow elements written as a `<slot>` for their stand-in (replace), or followed by one (overlay) */
+  standIns?: Map<Element, { slot: string; mode: 'replace' | 'overlay' }>;
+  /** `<nx-form action>` → id of the hidden native form its stand-ins post with */
+  forms?: Map<Element, string>;
+  formSeq?: number;
 }
+
+/** Shadow-only attributes a stand-in must not carry. */
+const STAND_IN_DROP = ['id', 'class', 'part', 'style', 'tabindex', 'role', 'aria-describedby', 'aria-controls',
+  'aria-activedescendant', 'aria-expanded', 'aria-autocomplete', 'aria-haspopup', 'aria-invalid'];
 
 const escapeText = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const escapeAttr = (text: string) => text.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
-function attributes(el: Element, extra: Record<string, string | true> = {}): string {
+function attributes(el: Element, extra: Record<string, string | true | null> = {}): string {
   const attrs = new Map<string, string | true>();
   Array.from(el.attributes).forEach(a => attrs.set(a.name, a.value));
 
@@ -40,7 +53,7 @@ function attributes(el: Element, extra: Record<string, string | true> = {}): str
     else attrs.delete('selected');
   }
 
-  Object.entries(extra).forEach(([k, v]) => attrs.set(k, v));
+  Object.entries(extra).forEach(([k, v]) => (v === null ? attrs.delete(k) : attrs.set(k, v)));
   return Array.from(attrs).map(([name, value]) => (value === true || value === '' ? ` ${name}` : ` ${name}="${escapeAttr(value)}"`)).join('');
 }
 
@@ -54,7 +67,7 @@ export function openTag(el: Element): string {
   return `<${el.localName}${attributes(el)}>`;
 }
 
-export function serializeNode(node: Node, ctx: SerializeContext): string {
+export function serializeNode(node: Node, ctx: SerializeContext, overrides: Record<string, string | true | null> = {}): string {
   switch (node.nodeType) {
     case Node.TEXT_NODE: {
       const parent = node.parentNode as Element | null;
@@ -72,9 +85,30 @@ export function serializeNode(node: Node, ctx: SerializeContext): string {
 
   const el = node as Element;
   const tag = el.localName;
+
+  // A shadow control with a native stand-in in the light DOM
+  const standIn = ctx.standIns?.get(el);
+  if (standIn) {
+    const slot = `<slot name="${standIn.slot}"></slot>`;
+    if (standIn.mode === 'replace') return slot;
+    ctx.standIns!.delete(el);
+    // Overlay: keep the original visible, but out of the tab order and the a11y tree until upgrade
+    return serializeNode(el, ctx, { tabindex: '-1', 'aria-hidden': 'true' }) + slot;
+  }
+
   const root = (el as HTMLElement).shadowRoot;
-  const extra: Record<string, string | true> = {};
+  const extra: Record<string, string | true | null> = { ...overrides };
   let prefix = '';
+
+  // <nx-form action>: a hidden native form its stand-ins post with (via form="…")
+  if (tag === 'nx-form' && el.hasAttribute('action')) {
+    const id = `nx-form-${(ctx.formSeq = (ctx.formSeq ?? 0) + 1)}`;
+    (ctx.forms ??= new Map()).set(el, id);
+    const formAttrs = ['action', 'method', 'enctype', 'target']
+      .filter(name => el.hasAttribute(name))
+      .map(name => ` ${name}="${escapeAttr(el.getAttribute(name)!)}"`).join('');
+    prefix += `<form id="${id}"${formAttrs} hidden ${NATIVE_ATTR}></form>`;
+  }
 
   // Server-rendered custom elements (with or without a shadow root) stay visible before they upgrade
   if (root || (tag.includes('-') && customElements.get(tag))) extra['nx-ssr'] = true;
@@ -89,7 +123,19 @@ export function serializeNode(node: Node, ctx: SerializeContext): string {
     // Components remember their attachShadow() options (server DOMs may not expose them)
     const init = (el as { shadowInit?: ShadowRootInit | null }).shadowInit;
     const delegates = (init?.delegatesFocus ?? (root as ShadowRoot).delegatesFocus) ? ' shadowrootdelegatesfocus' : '';
-    prefix = `<template shadowrootmode="${root.mode}"${delegates}>${children(root as unknown as Node, ctx)}</template>` + prefix;
+    // Native stand-ins: slots in the shadow, the real controls in the light DOM
+    const standIns: NativeStandIn[] = typeof (el as any).nativeStandIns === 'function' ? (el as any).nativeStandIns() : [];
+    standIns.forEach((s, i) => (ctx.standIns ??= new Map()).set(s.original, { slot: `nx-native-${i}`, mode: s.mode ?? 'replace' }));
+    const shadow = children(root as unknown as Node, ctx);
+    const formOwner = el.closest('nx-form[action]');
+    const formId = formOwner ? ctx.forms?.get(formOwner) : undefined;
+    const natives = standIns.map((s, i) => {
+      ctx.standIns?.delete(s.original);
+      const target = s.fallback ?? s.original;
+      const drop = Object.fromEntries(STAND_IN_DROP.filter(name => !(name in (s.attrs ?? {}))).map(name => [name, null]));
+      return serializeNode(target, ctx, { ...drop, slot: `nx-native-${i}`, [NATIVE_ATTR]: true, ...(formId ? { form: formId } : {}), ...s.attrs });
+    }).join('');
+    prefix = `<template shadowrootmode="${root.mode}"${delegates}>${shadow}</template>` + natives + prefix;
   }
 
   const open = `<${tag}${attributes(el, extra)}>`;
