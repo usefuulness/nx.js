@@ -7,10 +7,13 @@ import { define } from '@/core/registry';
 import { variants } from '@/core/variants';
 
 export interface SkeletonConfig {
+  /** Shape of the placeholder */
   variant?: 'text' | 'circular' | 'circle' | 'rectangular';
   /** CSS length or px number */
   width?: string | number;
+  /** Height (px number or CSS length) */
   height?: string | number;
+  /** Loading animation */
   animation?: 'pulse' | 'wave' | 'none';
   /** Repeat the placeholder (e.g. lines of text) */
   count?: number;

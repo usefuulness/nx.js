@@ -1,5 +1,7 @@
 # Contributing
 
+User documentation lives in [docs/](docs/README.md); coding agents also read [AGENTS.md](AGENTS.md). This file is for changing Nexaro itself.
+
 ## House style
 
 Nexaro follows the shadcn approach: every component is a small, readable file you own and can copy. New UI code is written in **JSX that reads like HTML**.
@@ -78,9 +80,9 @@ Nexaro follows the shadcn approach: every component is a small, readable file yo
 
 4. **Test it** in `src/tests/unit/<name>.test.tsx` (Vitest + jsdom). Cover rendering, props, events and keyboard handling.
    `pnpm test:e2e` also runs an axe accessibility audit (WCAG 2.1 AA) of every demo page in every theme, including open dialogs and menus, so showing the component in the demo gets it audited too.
-5. **Show it** on the demo's Components page (`src/main.tsx`), and add a row to the README's component table.
+5. **Show it** on the demo's Components page (`src/main.tsx`), and add it to the README's Components list and to the guide it belongs in (`docs/`).
 6. **Server-render it:** add it to `examples/ssg/pages.tsx` (`Components`). The e2e suite then checks that it renders without JavaScript, hydrates without moving a pixel, and still works.
-7. **Document it for HTML authors:** the class's JSDoc (first paragraph, plus ``Events: `a`, `b` ``) and the `<Name>Config` interface's prop docs become editor autocompletion (`scripts/custom-elements.ts`). Elements without `observedAttributes` list theirs as `@attr name - description`.
+7. **Document it for HTML authors:** the class's JSDoc (first paragraph, plus ``Events: `a`, `b` ``) and the `<Name>Config` interface's prop docs become editor autocompletion (`scripts/custom-elements.ts`). Elements without `observedAttributes` list theirs as `@attr name - description`. Then run `pnpm docs:reference` to regenerate [docs/components.md](docs/components.md); a unit test fails while it is out of date.
 
 ## Component rules of thumb
 
@@ -118,4 +120,5 @@ pnpm dev          # demo with HMR
 pnpm check        # typecheck + unit tests (run before every commit)
 pnpm test:e2e     # Playwright: demo, a11y, SSR/hydration, native forms
 pnpm build        # library → dist/
+pnpm docs:reference   # regenerate docs/components.md
 ```

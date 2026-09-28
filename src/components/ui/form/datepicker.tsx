@@ -14,12 +14,15 @@ export interface DatePickerConfig extends FieldConfig {
   min?: string;
   /** Latest selectable date, `YYYY-MM-DD` */
   max?: string;
+  /** Text shown while empty */
   placeholder?: string;
   /** BCP 47 locale for names and formatting (default: `<html lang>`, then the browser's) */
   locale?: string;
   /** First day of the week, 0 = Sunday … 6 = Saturday (default: from the locale) */
   firstDay?: number;
+  /** Control height */
   size?: 'sm' | 'md' | 'lg';
+  /** Error shown under the field (for example from the server); marks it invalid */
   errorText?: string;
 }
 

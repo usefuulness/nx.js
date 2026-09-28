@@ -7,8 +7,11 @@ import { Icons } from '@/core/icons';
 import { NXField, type FieldConfig } from '@/components/ui/form/field';
 
 export interface TextFieldConfig extends FieldConfig {
+  /** Current value */
   value?: string | number;
+  /** Input type: `text`, `email`, `password`, `number`, `date`, `search`… */
   type?: 'text' | 'email' | 'password' | 'tel' | 'url' | 'number' | 'search' | 'date' | 'time' | 'datetime-local';
+  /** Text shown while empty */
   placeholder?: string;
   /** Leading icon (name or SVG) */
   icon?: string;
@@ -16,16 +19,27 @@ export interface TextFieldConfig extends FieldConfig {
   clearable?: boolean;
   /** Render a `<textarea>` */
   multiline?: boolean;
+  /** Visible lines (multi-line fields) */
   rows?: number;
+  /** Can be focused and copied, but not edited */
   readonly?: boolean;
+  /** Minimum number of characters */
   minLength?: number;
+  /** Maximum number of characters */
   maxLength?: number;
+  /** Smallest allowed value */
   min?: number | string;
+  /** Largest allowed value */
   max?: number | string;
+  /** Increment between allowed values */
   step?: number | string;
+  /** Regular expression the whole value must match */
   pattern?: string;
+  /** Browser autofill hint (`email`, `name`, `new-password`…) */
   autocomplete?: string;
+  /** Control height */
   size?: 'sm' | 'md' | 'lg';
+  /** Error shown under the field (for example from the server); marks it invalid */
   errorText?: string;
 }
 

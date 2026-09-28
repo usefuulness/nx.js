@@ -7,6 +7,7 @@ import { define } from '@/core/registry';
 import { place, type Placement } from '@/core/position';
 
 export interface PopoverConfig {
+  /** Preferred side; flips when there is no room */
   placement?: Placement;
   /** Accessible name of the panel (defaults to the trigger's text) */
   label?: string;

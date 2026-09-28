@@ -24,22 +24,35 @@ const panel = variants({
 });
 
 export interface PanelConfig {
+  /** Header text */
   title?: string;
+  /** Header icon */
   icon?: string;
+  /** Can be collapsed from its header */
   collapsible?: boolean;
+  /** Starts collapsed */
   collapsed?: boolean;
+  /** Show a close button in the header */
   closable?: boolean;
+  /** Drag the inner edge to resize (docked panels) */
   resizable?: boolean;
+  /** Minimum width (px number or CSS length) */
   minWidth?: string | number;
+  /** Maximum width (px number or CSS length) */
   maxWidth?: string | number;
+  /** Minimum height (px number or CSS length) */
   minHeight?: string | number;
+  /** Maximum height (px number or CSS length) */
   maxHeight?: string | number;
+  /** Width (px number or CSS length) */
   width?: string | number;
+  /** Height (px number or CSS length) */
   height?: string | number;
   /** Padding inside the body. `true` (default) = 1rem, `false` = none, or any CSS length / number (px). */
   bodyPadding?: boolean | string | number;
   /** Draw the outer border. Defaults to true, or the region edge only inside a border layout. */
   border?: boolean;
+  /** Viewport region to dock into */
   region?: 'north' | 'south' | 'east' | 'west' | 'center';
 }
 

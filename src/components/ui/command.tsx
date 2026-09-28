@@ -25,6 +25,7 @@ export interface CommandItem {
 
 export interface CommandConfig {
   items?: CommandItem[];
+  /** Search box placeholder */
   placeholder?: string;
   /** Shown when nothing matches (default "No results found.") */
   emptyText?: string;

@@ -58,7 +58,8 @@
     "check": "tsc --noEmit && vitest run",
     "example:ssg": "tsx examples/ssg/build.tsx",
     "example:server": "tsx examples/server/app.ts",
-    "example:showcase": "tsx examples/showcase/build.tsx"
+    "example:showcase": "tsx examples/showcase/build.tsx",
+    "docs:reference": "tsx scripts/custom-elements.ts dist --reference docs/components.md"
   },
   "peerDependencies": {
     "happy-dom": ">=17"

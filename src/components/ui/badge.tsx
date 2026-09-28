@@ -15,7 +15,9 @@ import { Icons } from '@/core/icons';
 import { variants } from '@/core/variants';
 
 export interface BadgeConfig {
+  /** Color by meaning */
   variant?: 'default' | 'secondary' | 'outline' | 'destructive' | 'success' | 'warning' | 'info';
+  /** Icon before the text */
   icon?: string;
   /** Show an × that emits `remove` */
   removable?: boolean;

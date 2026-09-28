@@ -28,6 +28,12 @@ describe('custom elements manifest', () => {
     expect(tag('nx-radio-group').description).toMatch(/Radio group/);
     expect(tag('nx-accordion-item').attributes.map((a: { name: string }) => a.name)).toEqual(['disabled', 'expanded', 'title']);
 
+    // docs/components.md is generated from the same sources and must be current
+    execFileSync('npx', ['tsx', 'scripts/custom-elements.ts', out, '--reference', path.join(out, 'components.md')], { stdio: 'pipe' });
+    const fresh = readFileSync(path.join(out, 'components.md'), 'utf8');
+    const committed = readFileSync('docs/components.md', 'utf8');
+    expect(committed === fresh, 'docs/components.md is out of date: run `pnpm docs:reference`').toBe(true);
+
     const tree = manifest.modules.find((m: any) => m.declarations[0].tagName === 'nx-tree').declarations[0];
     expect(tree.events.map((e: { name: string }) => e.name)).toEqual(['select', 'toggle', 'check']);
   }, 60_000);

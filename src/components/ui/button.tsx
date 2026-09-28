@@ -34,24 +34,33 @@ const button = variants({
 const SPINNER = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>';
 
 export interface ButtonConfig {
+  /** Label text (or put it between the tags) */
   text?: string;
   /** `submit`/`reset` work inside `<nx-form>` and native `<form>` alike */
   type?: 'button' | 'submit' | 'reset';
   /** Submitted with the form when this button submits it, like `<button name value>` */
   name?: string;
+  /** Submitted with `name` when this button submits a form */
   value?: string;
+  /** Visual style; `danger` for destructive actions */
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'link';
+  /** `icon` makes a square icon-only button */
   size?: 'sm' | 'md' | 'lg' | 'icon';
   /** Icon name from the built-in set (see `Icons.names()`) or raw SVG */
   icon?: string;
+  /** Icon before or after the text */
   iconPosition?: 'left' | 'right';
+  /** Not interactive */
   disabled?: boolean;
+  /** Shows a spinner and ignores clicks */
   loading?: boolean;
+  /** Stretch to the full width of the container */
   fullWidth?: boolean;
   /** Link target — renders the button as an `<a>` */
   href?: string;
   /** Hint shown on hover and keyboard focus (also the accessible name of icon-only buttons) */
   tooltip?: string;
+  /** Where the tooltip appears */
   tooltipPlacement?: Placement;
   handler?: (e: MouseEvent) => void;
   /** Dropdown menu opened by this button */

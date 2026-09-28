@@ -7,6 +7,7 @@ import { define } from '@/core/registry';
 import { variants } from '@/core/variants';
 
 export interface SpinnerConfig {
+  /** Spinner size */
   size?: 'sm' | 'md' | 'lg' | 'xl';
   /** Any CSS color; defaults to the primary color */
   color?: string;

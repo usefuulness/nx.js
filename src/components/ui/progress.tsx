@@ -7,7 +7,9 @@ import { define } from '@/core/registry';
 import { variants } from '@/core/variants';
 
 export interface ProgressConfig {
+  /** Current value */
   value?: number;
+  /** Value at 100% (default 100) */
   max?: number;
   /** Text above the bar (also the accessible name) */
   label?: string;
@@ -15,8 +17,11 @@ export interface ProgressConfig {
   showValue?: boolean;
   /** @deprecated use `label` — kept for compatibility */
   showLabel?: boolean;
+  /** Color by meaning */
   variant?: 'default' | 'success' | 'warning' | 'error' | 'info';
+  /** Bar thickness */
   size?: 'sm' | 'md' | 'lg';
+  /** Striped bar */
   striped?: boolean;
   /** Animate the stripes */
   animated?: boolean;

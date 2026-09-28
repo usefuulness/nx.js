@@ -13,7 +13,9 @@ export interface AvatarConfig {
   alt?: string;
   /** Text shown when there is no image (default: initials of `alt`) */
   fallback?: string;
+  /** Avatar size */
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  /** Circle or rounded square */
   shape?: 'circle' | 'square';
   /** Presence dot */
   status?: 'online' | 'away' | 'busy' | 'offline';

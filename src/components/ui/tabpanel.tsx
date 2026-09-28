@@ -8,9 +8,13 @@ import { Icons } from '@/core/icons';
 
 export interface TabConfig {
   id?: string;
+  /** Tab label */
   title: string;
+  /** Icon name from the built-in set (`NX.icons.names()`) or raw SVG */
   icon?: string;
+  /** Show a close button (emits `tab-close`) */
   closable?: boolean;
+  /** Cannot be selected */
   disabled?: boolean;
   /** Static HTML content for the tab */
   content?: string;
@@ -18,8 +22,11 @@ export interface TabConfig {
 
 export interface TabPanelConfig {
   items?: Array<ComponentConfig & { title: string }>;
+  /** Index of the selected tab */
   activeTab?: number;
+  /** Side the tab strip sits on */
   position?: 'top' | 'bottom' | 'left' | 'right';
+  /** Tab strip style */
   variant?: 'default' | 'pills' | 'underlined';
 }
 

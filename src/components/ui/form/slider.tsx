@@ -6,9 +6,13 @@ import { define } from '@/core/registry';
 import { NXField, type FieldConfig } from '@/components/ui/form/field';
 
 export interface SliderConfig extends FieldConfig {
+  /** Current value (default: the middle of the range) */
   value?: number;
+  /** Smallest allowed value */
   min?: number;
+  /** Largest allowed value */
   max?: number;
+  /** Increment between allowed values */
   step?: number;
   /** Show the current value next to the label */
   showValue?: boolean;

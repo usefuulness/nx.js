@@ -9,14 +9,19 @@ import { Overlays } from '@/core/overlays';
 import { variants } from '@/core/variants';
 
 export interface DrawerConfig {
+  /** Edge the drawer slides in from */
   position?: 'left' | 'right' | 'top' | 'bottom';
   /** Width (left/right) or height (top/bottom): CSS length or px number. Default 24rem */
   size?: string | number;
+  /** Drawer heading */
   title?: string;
+  /** Text under the heading */
   description?: string;
   /** Dim and block the page behind (default true). `false` = non-modal side panel */
   backdrop?: boolean;
+  /** Close when the backdrop is clicked */
   closeOnBackdrop?: boolean;
+  /** Close when Escape is pressed */
   closeOnEscape?: boolean;
   /** Can't be dismissed by the user (no ×, Escape or backdrop) */
   persistent?: boolean;

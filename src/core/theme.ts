@@ -55,6 +55,7 @@ export interface ThemeShadow {
 }
 
 export interface ThemeConfig {
+  /** Theme name: used with `NX.theme.set(name)` and as `<html data-theme="…">` */
   name: string;
   colors: ThemeColors;
   spacing?: ThemeSpacing;

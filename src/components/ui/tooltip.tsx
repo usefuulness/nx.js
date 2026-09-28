@@ -9,9 +9,11 @@ import { hideTopLayer, place, showTopLayer, type Placement } from '@/core/positi
 export interface TooltipConfig {
   /** Tooltip text (or put rich content in a `slot="tooltip"` child) */
   content?: string;
+  /** Preferred side; flips when there is no room */
   placement?: Placement;
   /** Hover delay in ms (default 400). Moving between tooltips skips it. */
   delay?: number;
+  /** Don't show the tooltip */
   disabled?: boolean;
 }
 

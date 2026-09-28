@@ -60,32 +60,50 @@ export type Props<C = {}, T extends HTMLElement = HTMLElement> = Omit<KnownProps
 } & LooseProps;
 
 export interface ContainerConfig {
+  /** `hbox` (row), `vbox` (column), `grid`, or `fit` (one child fills it) */
   layout?: 'vbox' | 'hbox' | 'grid' | 'fit';
+  /** Space between children (px number or CSS length) */
   gap?: number | string;
+  /** Inner padding (px number or CSS length) */
   padding?: number | string;
+  /** Cross-axis alignment of the children */
   align?: 'start' | 'center' | 'end' | 'stretch' | 'baseline';
+  /** Main-axis distribution of the children */
   pack?: 'start' | 'center' | 'end' | 'between' | 'around' | 'evenly';
+  /** Let children wrap onto new lines */
   wrap?: boolean;
   /** grid layout: fixed column count */
   columns?: number;
   /** grid layout: responsive columns of at least this width */
   minColumnWidth?: number | string;
+  /** Scroll when the content overflows */
   scrollable?: boolean;
 }
 
 export interface MenuConfig {
+  /** Trigger button text */
   text?: string;
+  /** Trigger button icon */
   icon?: string;
+  /** Trigger button style */
   variant?: ButtonConfig['variant'];
+  /** Trigger button size */
   size?: ButtonConfig['size'];
+  /** Where the menu opens */
   placement?: 'bottom-start' | 'bottom-end';
+  /** Trigger is not interactive */
+  disabled?: boolean;
   items?: MenuItemLike[];
 }
 
 export interface TabProps {
+  /** Tab label */
   title: string;
+  /** Icon before the label */
   icon?: string;
+  /** Show a close button (emits `tab-close`) */
   closable?: boolean;
+  /** Cannot be selected */
   disabled?: boolean;
   /** Initially selected */
   active?: boolean;

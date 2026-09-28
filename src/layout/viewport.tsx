@@ -5,6 +5,8 @@ import { Icons } from '@/core/icons';
 export interface ViewportConfig {
   /** `border` (default, also accepts `viewport`) | `card` | `fit` */
   layout?: 'border' | 'viewport' | 'card' | 'fit';
+  /** Width in px below which side regions turn into drawers (default 768) */
+  breakpoint?: number;
 }
 
 /**

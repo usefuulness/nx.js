@@ -7,7 +7,9 @@ import { ComponentRegistry, define } from '@/core/registry';
 import { variants } from '@/core/variants';
 
 export interface LoaderConfig {
+  /** Animation style */
   type?: 'spinner' | 'dots' | 'bars' | 'pulse';
+  /** Indicator size */
   size?: 'sm' | 'md' | 'lg';
   /** Any CSS color; defaults to the primary color */
   color?: string;
@@ -15,6 +17,7 @@ export interface LoaderConfig {
   overlay?: boolean;
   /** Cover the whole viewport */
   fullscreen?: boolean;
+  /** Message under the indicator */
   text?: string;
   /** `false` hides the loader */
   active?: boolean;

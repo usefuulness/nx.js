@@ -12,10 +12,17 @@ import { NATIVE_ATTR, type NativeStandIn } from '@/core/dom-utils';
 export type Validator = (value: any, field: NXField) => string | true | null | undefined | void;
 
 export interface FieldConfig {
+  /** Field name: the key in form values, and the name it posts under */
   name?: string;
+  /** Label shown with the field */
   label?: string;
+  /** Hint shown under the field */
   helperText?: string;
+  /** Error shown under the field (for example from the server); marks it invalid */
+  errorText?: string;
+  /** A value is required before the form can submit */
   required?: boolean;
+  /** Not interactive (fields are also left out when a form posts) */
   disabled?: boolean;
   /** Return an error message, or nothing when valid */
   validator?: Validator;

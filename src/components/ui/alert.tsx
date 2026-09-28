@@ -8,7 +8,9 @@ import { Icons } from '@/core/icons';
 import { variants } from '@/core/variants';
 
 export interface AlertConfig {
+  /** Color and icon by meaning */
   variant?: 'default' | 'info' | 'success' | 'warning' | 'destructive';
+  /** Bold first line */
   title?: string;
   /** Icon name; each variant has a default (`false`/`"none"` hides it) */
   icon?: string;

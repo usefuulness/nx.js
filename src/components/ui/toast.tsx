@@ -25,13 +25,16 @@ export interface ToastHandle {
 let toastSeq = 0;
 
 /**
- * Toast notifications. You normally don't create this yourself:
+ * Toast notifications: short messages that stack in a corner and dismiss
+ * themselves. Created on demand by the helpers, so you rarely write the tag:
  *
  * ```typescript
  * NX.toast('Saved');
  * NX.toast.success('Profile updated', { description: 'Changes are live.' });
  * NX.toast.error('Upload failed', { action: { text: 'Retry', handler: retry } });
  * ```
+ *
+ * @attr position - Where toasts stack: `top-left`, `top-center`, `top-right`, `bottom-left`, `bottom-center` or `bottom-right` (default)
  */
 export class NXToast extends BaseComponent {
   static get observedAttributes(): string[] {

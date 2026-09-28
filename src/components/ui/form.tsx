@@ -15,6 +15,7 @@ export interface FormConfig {
   values?: Record<string, any>;
   /** Lay fields out in N columns */
   columns?: number;
+  /** Space between fields (px number or CSS length) */
   gap?: number | string;
   /** Footer buttons; `{ type: 'submit' }` submits, `{ type: 'reset' }` resets */
   buttons?: ItemConfig[];
@@ -22,8 +23,11 @@ export interface FormConfig {
   onSubmit?: (e: CustomEvent<{ values: Record<string, any> }>) => void;
   /** Post to the server like a native form (after validation, unless `submit` is prevented) */
   action?: string;
+  /** HTTP method used with `action` */
   method?: 'get' | 'post' | 'dialog';
+  /** Encoding used with `action` (`multipart/form-data` for file uploads) */
   enctype?: 'application/x-www-form-urlencoded' | 'multipart/form-data' | 'text/plain';
+  /** Where the response of `action` opens */
   target?: string;
 }
 
@@ -65,7 +69,7 @@ type AnyField = HTMLElement & { name?: string; value?: any; validate?: () => boo
  */
 export class NXForm extends BaseComponent {
   static get observedAttributes(): string[] {
-    return ['columns', 'gap', 'disabled', 'action', 'method', 'enctype', 'target'];
+    return ['columns', 'gap', 'action', 'method', 'enctype', 'target'];
   }
 
   private pendingValues: Record<string, any> | null = null;

@@ -6,12 +6,15 @@ import { ComponentRegistry, define } from '@/core/registry';
 import { NXField, type FieldConfig } from '@/components/ui/form/field';
 
 export interface CheckboxConfig extends FieldConfig {
+  /** Checked */
   checked?: boolean;
   /** Value submitted when checked (default `'on'`); `form.getValues()` reports a boolean unless set */
   value?: string;
+  /** Shows a dash for "partly checked"; cleared when the user toggles it */
   indeterminate?: boolean;
   /** Render as a toggle switch (also: `xtype: 'switch'`) */
   switch?: boolean;
+  /** Secondary text under the title or label */
   description?: string;
 }
 

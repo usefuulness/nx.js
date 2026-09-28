@@ -19,19 +19,25 @@ export interface ModalButton {
 }
 
 export interface ModalConfig {
+  /** Dialog heading */
   title?: string;
   /** Accessible name when there is no visible title */
   label?: string;
   /** No padding around the body (for full-bleed content such as a command palette) */
   flush?: boolean;
+  /** Text under the heading */
   description?: string;
   /** Body HTML */
   html?: string;
   /** Body components */
   items?: ItemConfig[];
+  /** Dialog width */
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  /** Show a close (×) button */
   closable?: boolean;
+  /** Close when the backdrop is clicked */
   closeOnBackdrop?: boolean;
+  /** Close when Escape is pressed */
   closeOnEscape?: boolean;
   buttons?: ModalButton[];
   /** Remove the element from the DOM after it closes */

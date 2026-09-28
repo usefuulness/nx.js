@@ -8,6 +8,7 @@ import { ComponentRegistry, define, type ItemConfig, type ItemsAware } from '@/c
 
 export interface ToolbarConfig {
   items?: ItemConfig[];
+  /** Density and background */
   variant?: 'default' | 'compact' | 'plain';
   /** Optional title rendered at the start */
   title?: string;

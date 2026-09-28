@@ -8,7 +8,9 @@ import { Icons } from '@/core/icons';
 import { variants } from '@/core/variants';
 
 export interface CardConfig {
+  /** Card heading */
   title?: string;
+  /** Secondary line under the title */
   subtitle?: string;
   /** Icon shown in a tile next to the title */
   icon?: string;

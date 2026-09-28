@@ -9,16 +9,21 @@ import { NXField, type FieldConfig } from '@/components/ui/form/field';
 import { normalizeOptions, type SelectOption } from '@/components/ui/form/select';
 
 export interface ComboboxConfig extends FieldConfig {
+  /** Selected option value */
   value?: string | number;
   /** Options as objects, plain strings, or a `{ value: text }` map */
   options?: Array<SelectOption | string> | Record<string, string>;
+  /** Text shown while empty */
   placeholder?: string;
   /** Shown when nothing matches (default "No results.") */
   emptyText?: string;
   /** Accept typed text that isn't an option */
   freeText?: boolean;
+  /** Icon name from the built-in set (`NX.icons.names()`) or raw SVG */
   icon?: string;
+  /** Control height */
   size?: 'sm' | 'md' | 'lg';
+  /** Error shown under the field (for example from the server); marks it invalid */
   errorText?: string;
 }
 

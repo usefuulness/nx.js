@@ -12,12 +12,15 @@ export interface RadioOption extends SelectOption {
 }
 
 export interface RadioGroupConfig extends FieldConfig {
+  /** Value of the selected option */
   value?: string | number;
   /** Options as objects, plain strings, or a `{ value: text }` map */
   options?: Array<RadioOption | string> | Record<string, string>;
+  /** Lay the options out in a column or a row */
   orientation?: 'vertical' | 'horizontal';
   /** `cards` draws each option as a bordered, selectable card */
   variant?: 'default' | 'cards';
+  /** Error shown under the field (for example from the server); marks it invalid */
   errorText?: string;
 }
 

@@ -14,13 +14,19 @@ export interface SelectOption {
 }
 
 export interface SelectConfig extends FieldConfig {
+  /** Current value */
   value?: string | number | (string | number)[];
   /** Options as objects, plain strings, or a `{ value: text }` map */
   options?: Array<SelectOption | string> | Record<string, string>;
+  /** Text shown while empty */
   placeholder?: string;
+  /** Allow several selections (the value becomes an array) */
   multiple?: boolean;
+  /** Icon name from the built-in set (`NX.icons.names()`) or raw SVG */
   icon?: string;
+  /** Control height */
   size?: 'sm' | 'md' | 'lg';
+  /** Error shown under the field (for example from the server); marks it invalid */
   errorText?: string;
 }
 

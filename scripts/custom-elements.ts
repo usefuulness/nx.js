@@ -7,13 +7,20 @@
  * For every `define('nx-…', Class)`: the class docs, its attributes (observedAttributes
  * plus the primitive props of its `…Config` interface, with their docs and allowed
  * values) and the events named in the docs.
+ *
+ * `--reference <file>` also writes the Markdown component reference
+ * (`pnpm docs:reference` → docs/components.md).
  */
 import ts from 'typescript';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
-const outDir = path.resolve(root, process.argv[2] ?? 'dist');
+const args = process.argv.slice(2);
+const referenceIndex = args.indexOf('--reference');
+const referenceFile = referenceIndex >= 0 ? path.resolve(root, args[referenceIndex + 1]) : null;
+const outArg = args.find((arg, i) => !arg.startsWith('--') && !(referenceIndex >= 0 && i === referenceIndex + 1));
+const outDir = path.resolve(root, outArg ?? 'dist');
 
 const config = ts.getParsedCommandLineOfConfigFile(path.join(root, 'tsconfig.json'), {}, {
   ...ts.sys,
@@ -27,6 +34,10 @@ interface Attribute { name: string; description?: string; values?: string[]; typ
 interface Element { tag: string; className: string; file: string; description: string; attributes: Attribute[]; events: string[] }
 
 const toKebab = (name: string) => name.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`);
+const deprecated = (symbol: ts.Symbol): string | undefined => {
+  const tag = symbol.getJsDocTags(checker).find(t => t.name === 'deprecated');
+  return tag ? `Deprecated: ${ts.displayPartsToString(tag.text).trim()}` : undefined;
+};
 const doc = (symbol: ts.Symbol | undefined) => (symbol ? ts.displayPartsToString(symbol.getDocumentationComment(checker)).trim() : '');
 
 function classOf(node: ts.Expression): ts.ClassDeclaration | undefined {
@@ -60,10 +71,13 @@ function observed(cls: ts.ClassDeclaration | undefined): string[] {
 function configInterface(cls: ts.ClassDeclaration | undefined): ts.InterfaceDeclaration | undefined {
   if (!cls?.name) return undefined;
   const name = cls.name.text.replace(/^NX/, '');
-  const found = cls.getSourceFile().statements.find(
+  const find = (file: ts.SourceFile) => file.statements.find(
     (s): s is ts.InterfaceDeclaration => ts.isInterfaceDeclaration(s) && s.name.text === `${name}Config`
   );
-  return found ?? configInterface(baseClass(cls));
+  // Next to the class, else anywhere (ContainerConfig and MenuConfig live with the JSX wrappers)
+  return find(cls.getSourceFile())
+    ?? program.getSourceFiles().filter(f => files.includes(f.fileName)).map(find).find(Boolean)
+    ?? configInterface(baseClass(cls));
 }
 
 function describeType(type: ts.Type): { values?: string[]; type?: string; primitive: boolean } {
@@ -76,6 +90,12 @@ function describeType(type: ts.Type): { values?: string[]; type?: string; primit
   if (meaningful.every(t => t.flags & (ts.TypeFlags.String | ts.TypeFlags.Number | ts.TypeFlags.StringLiteral | ts.TypeFlags.NumberLiteral))) {
     return { type: checker.typeToString(type).replace(/ \| undefined/g, ''), primitive: true };
   }
+  // Mixed primitives, e.g. `boolean | 'single' | 'multiple'`
+  const primitiveFlags = ts.TypeFlags.String | ts.TypeFlags.Number | ts.TypeFlags.StringLiteral | ts.TypeFlags.NumberLiteral
+    | ts.TypeFlags.Boolean | ts.TypeFlags.BooleanLiteral;
+  if (meaningful.length && meaningful.every(t => t.flags & primitiveFlags)) {
+    return { type: checker.typeToString(type).replace(/ \| undefined/g, '').replace(/"/g, "'"), primitive: true };
+  }
   return { primitive: false };
 }
 
@@ -85,7 +105,9 @@ function describe(tag: string, cls: ts.ClassDeclaration): Element {
   const base = baseClass(cls);
   const fullDoc = doc(symbol) || (base?.name && base.name.text !== 'BaseComponent' ? doc(checker.getSymbolAtLocation(base.name)) : '');
   const description = fullDoc.split(/\n\s*\n/)[0].replace(/\s+/g, ' ');
-  const events = Array.from(fullDoc.matchAll(/Events?:([^\n]*)/g))
+  // "Events: `a`, `b`" may sit after an @example, which JSDoc folds into that tag's text
+  const tagText = (symbol?.getJsDocTags(checker) ?? []).map(t => ts.displayPartsToString(t.text)).join('\n');
+  const events = Array.from(`${fullDoc}\n${tagText}`.matchAll(/Events?:([^\n]*)/g))
     .flatMap(m => Array.from(m[1].matchAll(/`([a-z-]+)`/g), e => e[1]));
 
   const attributes = new Map<string, Attribute>();
@@ -107,12 +129,27 @@ function describe(tag: string, cls: ts.ClassDeclaration): Element {
       if (!info.primitive && !attributes.has(name)) continue;
       attributes.set(name, {
         name,
-        description: doc(prop) || undefined,
+        description: doc(prop) || deprecated(prop),
         values: info.values,
         type: info.values ? info.values.map(v => `'${v}'`).join(' | ') : info.type
       });
     }
   }
+
+  // Attributes without docs: borrow from a spelling twin (`maxlength` ↔ `max-length`), else standard HTML meaning
+  const standard: Record<string, string> = {
+    'aria-label': 'Accessible name, for when there is no visible text',
+    tabindex: 'Position in the tab order, as for any HTML element',
+    id: 'Element id (also `NX.get(id)`)'
+  };
+  const flat = (name: string) => name.replace(/-/g, '');
+  attributes.forEach(attr => {
+    if (attr.description) return;
+    const twin = Array.from(attributes.values()).find(a => a !== attr && a.description && flat(a.name) === flat(attr.name));
+    attr.description = twin?.description ?? standard[attr.name];
+    attr.type ??= twin?.type;
+    attr.values ??= twin?.values;
+  });
 
   return {
     tag,
@@ -172,3 +209,56 @@ await mkdir(outDir, { recursive: true });
 await writeFile(path.join(outDir, 'custom-elements.json'), JSON.stringify(manifest, null, 2) + '\n');
 await writeFile(path.join(outDir, 'html-custom-data.json'), JSON.stringify(vscode, null, 2) + '\n');
 console.log(`custom elements: ${elements.length} tags → ${path.relative(root, outDir)}/custom-elements.json, html-custom-data.json`);
+
+// ────────── Markdown reference ──────────
+
+if (referenceFile) {
+  // JSX component per tag: `export const Button = (…) => <nx-button …`
+  const jsxSource = await readFile(path.join(root, 'src/jsx/components.tsx'), 'utf8');
+  const jsxNames = new Map<string, string[]>();
+  for (const [, name, tag] of jsxSource.matchAll(/export const (\w+)\s*=[^\n]*?<(nx-[a-z-]+)/g)) {
+    jsxNames.set(tag, [...(jsxNames.get(tag) ?? []), name]);
+  }
+  // Internal elements you never write yourself
+  const internal = new Set(['nx-menu-popup', 'nx-region']);
+  const cell = (text: string | undefined) => (text ?? '').replace(/\s+/g, ' ').replace(/\|/g, '\\|').trim();
+  const camel = (kebab: string) => kebab.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+  const anchor = (tag: string) => tag;
+  const listed = elements.filter(el => !internal.has(el.tag));
+
+  const lines: string[] = [
+    '# Component reference',
+    '',
+    '<!-- Generated from the component sources by `pnpm docs:reference`. Do not edit by hand. -->',
+    '',
+    'Every component is an HTML tag and, in JSX, a PascalCase component. Attributes are the kebab-case form of the',
+    'JSX props (`icon-position` ↔ `iconPosition`), and `{ xtype }` configs use the same names as JSX. Boolean',
+    'attributes are on when present (`<nx-button loading>`). Rich values (arrays, objects) are JSON in an attribute or a',
+    '`<script type="application/json" data-nx-config>` child; see [Using it from HTML](jsx-and-html.md#plain-html).',
+    '',
+    '| Tag | JSX | What it is |',
+    '| --- | --- | --- |',
+    ...listed.map(el => `| [\`<${el.tag}>\`](#${anchor(el.tag)}) | ${(jsxNames.get(el.tag) ?? []).map(n => `\`${n}\``).join(', ') || '—'} | ${cell(el.description)} |`),
+    ''
+  ];
+
+  for (const el of listed) {
+    const names = jsxNames.get(el.tag);
+    lines.push(`## ${el.tag}`, '');
+    lines.push(`\`<${el.tag}>\`${names ? ` · JSX: ${names.map(n => `\`<${n}>\``).join(', ')}` : ''} · [source](../${el.file})`, '');
+    if (el.description) lines.push(el.description, '');
+    if (el.attributes.length) {
+      lines.push('| Attribute | JSX prop | Values | Description |', '| --- | --- | --- | --- |');
+      el.attributes.forEach(a => {
+        const values = a.values ? a.values.map(v => `\`${v}\``).join(' ') : a.type ? `\`${cell(a.type)}\`` : '';
+        lines.push(`| \`${a.name}\` | \`${camel(a.name)}\` | ${values} | ${cell(a.description)} |`);
+      });
+      lines.push('');
+    }
+    if (el.events.length) lines.push(`**Events:** ${el.events.map(e => `\`${e}\``).join(', ')}`, '');
+  }
+
+  await mkdir(path.dirname(referenceFile), { recursive: true });
+  await writeFile(referenceFile, lines.join('\n'));
+  console.log(`component reference: ${listed.length} tags → ${path.relative(root, referenceFile)}`);
+}
