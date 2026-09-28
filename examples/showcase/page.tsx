@@ -39,16 +39,16 @@ const deployments = [
 ];
 
 const checks = [
-  { check: 'Unit tests', scope: 'Vitest in jsdom, plus server rendering in plain Node', result: '123 passing' },
-  { check: 'End-to-end tests', scope: 'Playwright in Chromium: the demo app, server-rendered pages, a template-engine server', result: '65 passing' },
-  { check: 'Accessibility', scope: 'axe-core, WCAG 2.1 AA — 4 pages × 3 themes, with dialogs, menus, popovers, date picker and command palette open', result: '0 violations' },
-  { check: 'Hydration', scope: 'Every server-rendered element kept; each component’s box compared before and after JavaScript', result: '0 px moved' },
-  { check: 'Forms without JavaScript', scope: 'Native <form> and <nx-form action> filled in and posted with JavaScript disabled', result: 'All fields posted' },
-  { check: 'Editor support', scope: 'Custom Elements Manifest and VS Code data generated from the component sources', result: '47 tags' }
+  { check: 'Unit tests', scope: 'Vitest, plus server rendering in Node', result: '123 passing' },
+  { check: 'End-to-end tests', scope: 'Playwright: demo app, SSR pages, template server', result: '65 passing' },
+  { check: 'Accessibility', scope: 'WCAG 2.1 AA, every page × 3 themes, overlays open', result: '0 violations' },
+  { check: 'Hydration', scope: 'Layout compared before and after JavaScript', result: '0 px moved' },
+  { check: 'Forms without JavaScript', scope: 'Forms posted with JavaScript disabled', result: 'All fields posted' },
+  { check: 'Editor support', scope: 'Autocomplete data generated from the sources', result: '47 tags' }
 ];
 
 const accents = [
-  { value: 'zinc', text: 'Zinc', description: 'The default, neutral', primary: '', dark: '' },
+  { value: 'zinc', text: 'Zinc', description: 'Default', primary: '', dark: '' },
   { value: 'cobalt', text: 'Cobalt', description: '#2446d8', primary: '#2446d8', dark: '#1a36b0' },
   { value: 'emerald', text: 'Emerald', description: '#047857', primary: '#047857', dark: '#065f46' },
   { value: 'crimson', text: 'Crimson', description: '#be123c', primary: '#be123c', dark: '#9f1239' }
@@ -458,7 +458,7 @@ export const Showcase = () => (
           </div>
           <div class="sc-playground">
             <div class="sc-controls">
-              <RadioGroup name="accent" label="Brand color" value="zinc" variant="cards" options={accents}
+              <RadioGroup name="accent" label="Brand color" value="zinc" variant="cards" orientation="horizontal" options={accents}
                           onChange={(e: CustomEvent) => { brand.accent = e.detail.value; applyBrand(); }} />
               <Slider name="radius" label="Corner radius" min={0} max={16} value={8} showValue unit="px"
                       onInput={(e: Event) => { brand.radius = (e.currentTarget as Valued).value; applyBrand(); }} />
