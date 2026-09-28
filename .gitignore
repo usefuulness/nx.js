@@ -26,3 +26,5 @@ dist-ssr
 dist-demo
 test-results
 playwright-report
+
+site-dist

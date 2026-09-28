@@ -3,6 +3,11 @@
   "private": true,
   "version": "0.1.0",
   "description": "Declarative, zero-dependency web components with an ExtJS-style config API and a shadcn-style look.",
+  "homepage": "https://usefuulness.github.io/nx.js/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/usefuulness/nx.js.git"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -59,7 +64,8 @@
     "example:ssg": "tsx examples/ssg/build.tsx",
     "example:server": "tsx examples/server/app.ts",
     "example:showcase": "tsx examples/showcase/build.tsx",
-    "docs:reference": "tsx scripts/custom-elements.ts dist --reference docs/components.md"
+    "docs:reference": "tsx scripts/custom-elements.ts dist --reference docs/components.md",
+    "site": "tsx scripts/site.tsx"
   },
   "peerDependencies": {
     "happy-dom": ">=17"
@@ -77,6 +83,7 @@
     "@types/node": "^24.0.7",
     "happy-dom": "^20.14.5",
     "jsdom": "^25.0.1",
+    "marked": "^18.0.14",
     "tailwindcss": "^4.1.11",
     "tsx": "^4.23.15",
     "typescript": "~5.8.3",

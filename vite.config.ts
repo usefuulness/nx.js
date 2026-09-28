@@ -12,6 +12,8 @@ export default defineConfig(({ command, mode }) => {
   const umd = mode === 'umd';
 
   return {
+    // The demo build uses relative URLs, so it works from any sub-path (GitHub Pages: /nx.js/demo/)
+    base: command === 'build' && mode === 'demo' ? './' : '/',
     publicDir: lib ? false : 'public',
     plugins: lib
       ? umd ? [] : [dts({ include: ['src'], exclude: ['src/tests', 'src/main.tsx'], entryRoot: 'src' })]

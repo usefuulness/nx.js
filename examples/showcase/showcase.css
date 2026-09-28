@@ -93,6 +93,18 @@ body {
 .sc-nav a:hover { color: var(--color-text); }
 .sc-header-end { margin-left: auto; display: flex; gap: 0.5rem; align-items: center; }
 
+.sc-header-link {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.sc-header-link:hover { color: var(--color-text); }
+
+@media (max-width: 520px) {
+  .sc-header-link { display: none; }
+}
+
 .sc-kbd {
   font-family: var(--sc-mono);
   font-size: 0.6875rem;

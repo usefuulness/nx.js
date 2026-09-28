@@ -11,6 +11,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export async function bundleClient(entry: string, outDir: string, fileName = 'client.js'): Promise<void> {
   await build({
     configFile: false,
+    publicDir: false,
     logLevel: 'warn',
     resolve: { alias: { 'nx.js': path.join(root, 'src/index.ts'), '@': path.join(root, 'src') } },
     build: { outDir, emptyOutDir: false, rollupOptions: { input: entry, output: { entryFileNames: fileName } } }

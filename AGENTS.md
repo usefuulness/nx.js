@@ -19,6 +19,7 @@ The default branch is `LIVE`.
 | `pnpm build` | library into `dist/`: ESM, CJS, UMD, `.d.ts`, `nx.css`, editor data |
 | `pnpm dev` | the demo app (`src/main.tsx`) at http://localhost:5173 |
 | `pnpm example:ssg`, `example:server`, `example:showcase` | the examples in `examples/` |
+| `pnpm site` | the GitHub Pages site into `site-dist/` (showcase, docs as HTML, demo). CI deploys it on every push to `LIVE` |
 
 ## Map
 

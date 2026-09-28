@@ -5,7 +5,9 @@
 import { NX, ThemeManager, hydrate } from 'nx.js';
 import { Showcase, applyBrand, commandItems } from './page';
 
-hydrate(() => <Showcase />, document.getElementById('app')!);
+// The GitHub Pages build marks <body data-site> and renders the site links
+const site = document.body.hasAttribute('data-site');
+hydrate(() => <Showcase site={site} />, document.getElementById('app')!);
 NX.command.bind('mod+k', commandItems);
 
 // Follow the viewer's theme when the host page sets <html data-theme> (and when it changes later)

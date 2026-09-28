@@ -39,7 +39,7 @@ const deployments = [
 ];
 
 const checks = [
-  { check: 'Unit tests', scope: 'Vitest, plus server rendering in Node', result: '123 passing' },
+  { check: 'Unit tests', scope: 'Vitest, plus server rendering in Node', result: '125 passing' },
   { check: 'End-to-end tests', scope: 'Playwright: demo app, SSR pages, template server', result: '65 passing' },
   { check: 'Accessibility', scope: 'WCAG 2.1 AA, every page × 3 themes, overlays open', result: '0 violations' },
   { check: 'Hydration', scope: 'Layout compared before and after JavaScript', result: '0 px moved' },
@@ -171,7 +171,11 @@ const samples: Array<[string, string]> = [
 
 // ────────── Page ──────────
 
-export const Showcase = () => (
+/**
+ * The page. `site` adds links to the docs, the demo app and GitHub (the GitHub
+ * Pages build); the server and the client must pass the same value.
+ */
+export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
   <div class="sc-page">
     <header class="sc-header">
       <div class="sc-wrap">
@@ -184,10 +188,13 @@ export const Showcase = () => (
           <a href="#quality">Quality</a>
         </nav>
         <div class="sc-header-end">
+          {site && <a class="sc-header-link" href="docs/">Docs</a>}
+          {site && <a class="sc-header-link" href="demo/">Demo</a>}
           <Button variant="outline" size="sm" icon="search" onClick={() => NX.command(commandItems())}>
             Search <span class="sc-kbd">⌘K</span>
           </Button>
           <Button variant="ghost" size="sm" icon="theme" tooltip="Toggle dark mode" tooltipPlacement="bottom" onClick={() => NX.theme.toggle()} />
+          {site && <Button variant="ghost" size="sm" icon="github" tooltip="Source on GitHub" tooltipPlacement="bottom" href="https://github.com/usefuulness/nx.js" />}
         </div>
       </div>
     </header>
@@ -205,7 +212,9 @@ export const Showcase = () => (
             </p>
             <div class="sc-actions">
               <Button icon="arrow-right" iconPosition="right" onClick={() => scrollTo('components')}>See every component</Button>
-              <Button variant="outline" icon="theme" onClick={() => scrollTo('theming')}>Try your brand colors</Button>
+              {site
+                ? <Button variant="outline" icon="file" href="docs/getting-started.html">Get started</Button>
+                : <Button variant="outline" icon="theme" onClick={() => scrollTo('theming')}>Try your brand colors</Button>}
             </div>
           </div>
 
@@ -229,7 +238,7 @@ export const Showcase = () => (
         <div class="sc-facts" role="list" aria-label="Facts">
           <div class="sc-fact" role="listitem"><b>47</b><span>HTML tags, each a component</span></div>
           <div class="sc-fact" role="listitem"><b>0</b><span>axe violations (WCAG 2.1 AA)</span></div>
-          <div class="sc-fact" role="listitem"><b>188</b><span>automated tests on every change</span></div>
+          <div class="sc-fact" role="listitem"><b>190</b><span>automated tests on every change</span></div>
           <div class="sc-fact" role="listitem"><b>≈50 kB</b><span>gzipped, every component</span></div>
           <div class="sc-fact" role="listitem"><b>0</b><span>runtime dependencies</span></div>
         </div>

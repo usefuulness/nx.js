@@ -1,5 +1,7 @@
 # Nexaro
 
+**[Website, live showcase and docs](https://usefuulness.github.io/nx.js/)** · [Demo app](https://usefuulness.github.io/nx.js/demo/) · [Component reference](https://usefuulness.github.io/nx.js/docs/components.html)
+
 Accessible, themeable UI components you write like HTML: shadcn-style, as standard web components. Use them as JSX in a web app, as plain tags in Twig, Blade or Jinja templates, or render them on a server. They look and behave the same in each.
 
 ```tsx
@@ -99,6 +101,7 @@ pnpm check            # typecheck + unit tests (run before every commit)
 pnpm test:e2e         # Playwright: demo, a11y audit, server rendering, forms without JavaScript
 pnpm build            # library → dist/ (ESM, CJS, UMD, types, nx.css, editor data)
 pnpm docs:reference   # regenerate docs/components.md from the component sources
+pnpm site             # the GitHub Pages site → site-dist/ (deployed from LIVE by .github/workflows/pages.yml)
 ```
 
 Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Coding agents: [AGENTS.md](AGENTS.md).
