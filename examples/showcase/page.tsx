@@ -196,7 +196,6 @@ export const Showcase = () => (
       <div class="sc-wrap">
         <section class="sc-hero" aria-labelledby="hero-title">
           <div>
-            <p class="sc-eyebrow">Web components · JSX · server rendering</p>
             <h1 id="hero-title">
               Write the interface as HTML. Ship it from any stack. <span class="sc-tag">{'<nx-*>'}</span>
             </h1>
@@ -211,7 +210,7 @@ export const Showcase = () => (
           </div>
 
           <div>
-            <span class="sc-specimen-label">{'<nx-card>'} — live, try it</span>
+            <span class="sc-specimen-label">{'<nx-card>'}</span>
             <Card title="Create project" subtitle="Deploy a new project in one click.">
               <div style="display: grid; gap: 0.875rem">
                 <Input name="project" label="Name" value="acme-web" />

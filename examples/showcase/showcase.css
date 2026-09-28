@@ -117,14 +117,6 @@ body {
   .sc-hero { grid-template-columns: minmax(0, 1fr); }
 }
 
-.sc-eyebrow {
-  font-family: var(--sc-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.02em;
-  color: var(--sc-accent);
-  margin: 0 0 1rem;
-}
-
 .sc-hero h1 {
   margin: 0;
   font-size: clamp(2.25rem, 5.2vw, 3.75rem);
