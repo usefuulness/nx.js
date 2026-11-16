@@ -6,7 +6,7 @@ import {
   NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Form, Grid,
   HStack, Input, Menu, Outlet, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Switch, Tab, Tabs,
   Textarea, Toolbar, Tooltip, Tree,
-  VStack, type Child, type GridColumn, type NXGrid, type NXForm
+  VStack, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
 
 // ────────── Sample data ──────────
@@ -478,6 +478,33 @@ const app = NX.app({
     { path: '/users', title: 'Users', view: UsersPage },
     { path: '/forms', title: 'Settings', view: SettingsPage },
     { path: '/components', title: 'Components', view: ComponentsPage },
+    {
+      // A loader fetches before the page shows (the outlet is aria-busy meanwhile); the view reads route.data
+      path: '/users/:id',
+      title: 'User',
+      loader: async ({ params, signal }) => {
+        await new Promise(resolve => setTimeout(resolve, 150)); // stands in for a request
+        if (signal.aborted) return null;
+        const user = users.find(u => u.id === Number(params.id));
+        if (!user) throw new Error(`No user with id ${params.id}`);
+        return user;
+      },
+      view: (route: Route) => (
+        <Page title={route.data.name} description={`${route.data.role} · ${route.data.status}`}
+              actions={<Button variant="outline" icon="users" onClick={() => app.navigate('/users')}>All users</Button>}>
+          <Card title="Contact" subtitle="Loaded by the route's loader">
+            <VStack gap={8}>
+              <span id="user-email">{route.data.email}</span>
+              <span class="muted">Joined {new Date(route.data.joined).toLocaleDateString()}</span>
+            </VStack>
+          </Card>
+        </Page>
+      ),
+      errorView: (error: Error) => (
+        <Page title="User not found" description={error.message}
+              actions={<Button variant="outline" onClick={() => app.navigate('/users')}>All users</Button>} />
+      )
+    },
     { path: '*', view: () => <p style="padding: 2rem">Not found.</p> }
   ]
 });

@@ -105,6 +105,10 @@ export class NXApplication extends EventTarget {
       const routerConfig = Array.isArray(config.router) ? { routes: config.router } : config.router;
       this.router = new Router(routerConfig);
       this.router.on('navigate', route => this.handleRouteChange(route));
+      // Loaders keep the old page up; tell assistive tech and CSS the outlet is busy
+      const outlet = () => this.container?.querySelector('nx-outlet, [data-outlet]');
+      this.router.on('loading', () => outlet()?.setAttribute('aria-busy', 'true'));
+      this.router.on('loaded', () => outlet()?.removeAttribute('aria-busy'));
     }
   }
 
@@ -195,7 +199,10 @@ export class NXApplication extends EventTarget {
     if (!outlet || config.view === undefined) return;
 
     try {
-      const view = typeof config.view === 'function' ? await config.view(route) : config.view;
+      // A loader that threw shows the route's errorView (or a plain message) instead of the view
+      const failed = route.error !== undefined;
+      const source = failed ? config.errorView ?? defaultErrorView : config.view;
+      const view = typeof source === 'function' ? await source(failed ? route.error : route, route) : source;
       // A newer navigation may have happened meanwhile
       if (this.router?.getCurrentRoute() !== route) return;
       const element = ComponentRegistry.build(view);
@@ -247,6 +254,14 @@ export class NXApplication extends EventTarget {
     this.dispatchEvent(new CustomEvent('themechange', { detail: theme }));
   }
 }
+
+const defaultErrorView = (error: unknown): HTMLElement => {
+  const el = document.createElement('div');
+  el.setAttribute('role', 'alert');
+  el.style.padding = '1rem';
+  el.textContent = `Something went wrong: ${error instanceof Error ? error.message : String(error)}`;
+  return el;
+};
 
 /**
  * Router outlet: routes render their `view` here.

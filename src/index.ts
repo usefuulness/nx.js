@@ -36,8 +36,8 @@ export type { ComponentConfig, ItemConfig, ItemsAware } from '@/core/registry';
 export { ThemeManager } from '@/core/theme';
 export type { ThemeConfig, ThemeColors } from '@/core/theme';
 export { Icons, icon } from '@/core/icons';
-export { Router } from '@/core/router';
-export type { Route, RouteConfig, RouterConfig } from '@/core/router';
+export { Router, routeDataScript } from '@/core/router';
+export type { LoaderContext, Route, RouteConfig, RouterConfig } from '@/core/router';
 
 // Data
 export { Store, createStore } from '@/data/store';

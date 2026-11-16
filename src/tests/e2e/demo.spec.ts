@@ -312,3 +312,23 @@ test('a virtual grid edits and navigates to the last row without losing the cell
   await page.keyboard.press('Enter');
   await expect(page.locator('#events-grid td[data-pos="19999"][data-col="1"]')).toHaveText('tail');
 });
+
+test('route loaders: the old page stays up and the outlet is busy until data arrives', async ({ page }) => {
+  await page.goto('/#/users');
+  await expect(page.locator('#users-grid')).toBeVisible();
+  await page.evaluate(() => (location.hash = '#/users/3'));
+  await expect(page.locator('nx-outlet')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.locator('#users-grid')).toBeVisible(); // still the previous page
+  await expect(page.locator('#user-email')).toHaveText(/@example\.com$/);
+  await expect(page.locator('nx-outlet')).not.toHaveAttribute('aria-busy', 'true');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/\S/);
+  await expect(page).toHaveTitle(/User/);
+});
+
+test('a loader that throws shows the route errorView, and the app stays usable', async ({ page }) => {
+  await page.goto('/#/users/999');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('User not found');
+  await expect(page.getByText('No user with id 999')).toBeVisible();
+  await page.getByRole('button', { name: 'All users' }).click();
+  await expect(page.locator('#users-grid')).toBeVisible();
+});

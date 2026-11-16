@@ -39,6 +39,31 @@ app.toggleRegion('west');   // open the side nav on phones, collapse a collapsib
 ```
 
 - Routes render their `view` into the `<Outlet />`.
+### Loading data for a route
+
+A `loader` fetches what a page needs *before* it shows, so views never render half-empty:
+
+```tsx
+router: [{
+  path: '/users/:id',
+  title: 'User',
+  staleTime: 30_000,                                   // reuse the result for 30s (default 0)
+  loader: async ({ params, query, signal }) => {
+    const res = await fetch(`/api/users/${params.id}`, { signal });
+    if (!res.ok) throw new Error('No such user');
+    return res.json();
+  },
+  view: route => <UserPage user={route.data} />,       // route.data is what the loader returned
+  errorView: (error, route) => <p role="alert">{error.message}</p>
+}]
+```
+
+- The previous page stays up while the loader runs, and the outlet gets `aria-busy="true"`. The router emits `loading` and `loaded`, and `router.isLoading()` tells you in between.
+- A newer navigation aborts the older loader through `signal` and wins, even if the older request finishes later.
+- If the loader throws, the route still opens: `route.error` is set and `errorView` renders (a plain alert if you don't give one).
+- `router.prefetch('/users/7')` loads ahead, for example on link hover; the next visit reuses it for 30s. `router.invalidate(path?)` drops cached results, and `router.reload()` runs the current route's loader again, e.g. after a save.
+- Loaders run in the browser. They can also run on the server; see [server rendering](server-rendering.md#route-data-without-fetching-twice).
+
 - Tree nodes with a `route` navigate when selected, and the tree highlights the node for the current route.
 - Below 768px (`breakpoint`), `west`/`east` regions become off-canvas drawers. `class="nx-mobile-only"` and `"nx-desktop-only"` show things per screen size.
 

@@ -24,6 +24,7 @@ import { openTag, serializeNode, type SerializeContext } from '@/ssr/serialize';
 import { ComponentRegistry, ThemeManager, type ComponentConfig } from '@/index';
 
 export { settle };
+export { Router, routeDataScript } from '@/core/router';
 export { createProxy, proxyHandler, themeFromCookie, type ProxyOptions } from '@/ssr/proxy';
 
 export interface RenderOptions {

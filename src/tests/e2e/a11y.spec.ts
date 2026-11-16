@@ -6,7 +6,7 @@ import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 const themes = ['light', 'dark', 'midnight'];
-const pages = ['/', '/users', '/forms', '/components'];
+const pages = ['/', '/users', '/users/3', '/forms', '/components'];
 
 async function open(page: Page, path: string, theme: string) {
   await page.goto('/');

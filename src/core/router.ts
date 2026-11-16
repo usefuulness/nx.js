@@ -13,8 +13,26 @@ export interface RouteConfig {
   component?: string | (() => Promise<any>);
   layout?: any;
   beforeEnter?: (route: Route) => boolean | Promise<boolean>;
+  /**
+   * Fetch this route's data. It runs before the route is shown (the previous page stays up,
+   * the outlet is `aria-busy`), the result arrives as `route.data`, and a newer navigation
+   * aborts it through `signal`. It may also run on the server: see `Router.resolve()`.
+   */
+  loader?: (context: LoaderContext) => unknown | Promise<unknown>;
+  /** Milliseconds a loader result is reused for the same URL (default 0: load on every visit) */
+  staleTime?: number;
+  /** What to render when `loader` throws: a view like `view`, called with the error */
+  errorView?: any;
   children?: RouteConfig[];
   meta?: Record<string, any>;
+}
+
+export interface LoaderContext {
+  route: Route;
+  params: Record<string, string>;
+  query: Record<string, string>;
+  /** Aborted when a newer navigation replaces this one */
+  signal: AbortSignal;
 }
 
 export interface Route {
@@ -25,6 +43,10 @@ export interface Route {
   fullPath: string;
   matched: RouteConfig[];
   meta: Record<string, any>;
+  /** What the route's `loader` returned */
+  data?: any;
+  /** What the route's `loader` threw, if it did */
+  error?: unknown;
 }
 
 export interface RouterConfig {
@@ -40,6 +62,23 @@ interface RouteMatch {
   keys: string[];
 }
 
+/** How long a prefetched or server-seeded result stays usable */
+const PREFETCH_TTL = 30_000;
+const SEED_TTL = 60_000;
+
+/**
+ * The `<script>` that hands a server-loaded route to the browser, so the first visit reuses the
+ * data instead of fetching it again. Put it in the page `<head>` or `<body>`.
+ */
+export function routeDataScript(route: Pick<Route, 'fullPath' | 'data'>): string {
+  const json = JSON.stringify({ path: route.fullPath, data: route.data ?? null })
+    // Nothing in the data may end the script element or be read as markup
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+  return `<script type="application/json" id="nx-route-data">${json}</script>`;
+}
+
 /**
  * Client-side router for single-page applications
  */
@@ -51,6 +90,10 @@ export class Router extends EventBus {
   private fallback: RouteConfig | null = null;
   private beforeHooks: Array<(to: Route, from: Route | null) => boolean | Promise<boolean>> = [];
   private afterHooks: Array<(to: Route, from: Route | null) => void> = [];
+  private navId = 0;
+  private controller: AbortController | null = null;
+  private loading = false;
+  private cache = new Map<string, { data: any; expires: number }>();
 
   constructor(config: RouterConfig = {}) {
     super();
@@ -124,6 +167,8 @@ export class Router extends EventBus {
     } else {
       window.addEventListener('popstate', () => this.handleRoute());
     }
+
+    if (typeof document !== 'undefined') this.readSeed();
 
     // Handle initial route
     this.handleRoute();
@@ -207,13 +252,12 @@ export class Router extends EventBus {
   }
 
   /**
-   * Handle route change
+   * Match a path (`/users/42?tab=1`) against the routes. Pure: no location, no hooks, no loaders.
    */
-  private async handleRoute(): Promise<void> {
-    const path = this.getCurrentPath();
+  match(path: string): Route {
     const [pathname, search] = path.split('?');
     const [pathWithoutHash, hash] = pathname.split('#');
-    
+
     const route: Route = {
       path: pathWithoutHash,
       params: {},
@@ -224,29 +268,110 @@ export class Router extends EventBus {
       meta: {}
     };
 
-    // Find matching route
     let matched = false;
     for (const routeMatch of this.routes) {
       const match = routeMatch.regex.exec(pathWithoutHash);
       if (match) {
         matched = true;
         route.matched.push(routeMatch.route);
-        
-        // Extract params
         routeMatch.keys.forEach((key, index) => {
-          route.params[key] = match[index + 1];
+          const raw = match[index + 1];
+          try {
+            route.params[key] = decodeURIComponent(raw);
+          } catch {
+            route.params[key] = raw; // malformed %-escape: keep it as written
+          }
         });
-
-        // Merge meta
         Object.assign(route.meta, routeMatch.route.meta);
         break;
       }
     }
 
     // Use fallback if no match
-    if (!matched && this.fallback) {
-      route.matched.push(this.fallback);
+    if (!matched && this.fallback) route.matched.push(this.fallback);
+    return route;
+  }
+
+  /**
+   * Match a path and run its loader, with no browser involved: the server-side half of loaders.
+   * Render the page from `route.data`, then embed it with `routeDataScript(route)` so the browser
+   * doesn't fetch it again. A loader that throws sets `route.error` instead of rejecting.
+   */
+  async resolve(path: string, signal?: AbortSignal): Promise<Route> {
+    const route = this.match(path);
+    await this.runLoader(route, signal ?? new AbortController().signal);
+    return route;
+  }
+
+  private async runLoader(route: Route, signal: AbortSignal, forPrefetch = false): Promise<void> {
+    const config = route.matched[0];
+    if (!config?.loader) return;
+
+    const hit = this.cache.get(route.fullPath);
+    if (hit && hit.expires > Date.now()) {
+      route.data = hit.data;
+      return;
     }
+    try {
+      route.data = await config.loader({ route, params: route.params, query: route.query, signal });
+      const ttl = forPrefetch ? config.staleTime || PREFETCH_TTL : config.staleTime || 0;
+      if (ttl > 0) this.cache.set(route.fullPath, { data: route.data, expires: Date.now() + ttl });
+    } catch (error) {
+      if (signal.aborted) throw error;
+      route.error = error;
+    }
+  }
+
+  /** Run a route's loader ahead of time (on link hover, say); the next visit reuses it briefly. */
+  async prefetch(path: string): Promise<void> {
+    const route = this.match(path);
+    await this.runLoader(route, new AbortController().signal, true);
+  }
+
+  /** Drop cached loader results: one path, or all of them. */
+  invalidate(path?: string): void {
+    if (path) this.cache.delete(path);
+    else this.cache.clear();
+  }
+
+  /** Run the current route's loader again, e.g. after a save, and show the fresh data. */
+  async reload(): Promise<void> {
+    if (!this.currentRoute) return;
+    this.invalidate(this.currentRoute.fullPath);
+    await this.handleRoute();
+  }
+
+  /** Whether a navigation is still waiting for its loader. */
+  isLoading(): boolean {
+    return this.loading;
+  }
+
+  /** Data the server rendered for `path`, so the first visit doesn't load it again. */
+  seed(path: string, data: unknown): void {
+    this.cache.set(path, { data, expires: Date.now() + SEED_TTL });
+  }
+
+  private readSeed(): void {
+    try {
+      const el = document.getElementById('nx-route-data');
+      if (!el?.textContent) return;
+      const { path, data } = JSON.parse(el.textContent);
+      if (typeof path === 'string') this.seed(path, data);
+    } catch {
+      // No usable seed: the loader simply runs
+    }
+  }
+
+  /**
+   * Handle route change
+   */
+  private async handleRoute(): Promise<void> {
+    const id = ++this.navId;
+    this.controller?.abort();
+    const controller = (this.controller = new AbortController());
+    const stale = () => id !== this.navId;
+
+    const route = this.match(this.getCurrentPath());
 
     // Run before hooks
     const from = this.currentRoute;
@@ -254,15 +379,29 @@ export class Router extends EventBus {
 
     for (const hook of this.beforeHooks) {
       const result = await hook(route, from);
-      if (result === false) return;
+      if (stale() || result === false) return;
     }
 
     // Run route-specific beforeEnter
     for (const matchedRoute of route.matched) {
       if (matchedRoute.beforeEnter) {
         const result = await matchedRoute.beforeEnter(route);
-        if (result === false) return;
+        if (stale() || result === false) return;
       }
+    }
+
+    // Load data before showing the route; a newer navigation abandons this one
+    if (route.matched[0]?.loader) {
+      this.loading = true;
+      this.emit('loading', { to: route, from });
+      try {
+        await this.runLoader(route, controller.signal);
+      } catch {
+        // Aborted by a newer navigation
+      }
+      if (stale()) return;
+      this.loading = false;
+      this.emit('loaded', { to: route, from });
     }
 
     // Update current route
@@ -273,7 +412,7 @@ export class Router extends EventBus {
     for (const hook of this.afterHooks) {
       hook(route, from);
     }
-    
+
     this.emit('afterNavigate', { to: route, from });
   }
 
