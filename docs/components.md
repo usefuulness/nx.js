@@ -355,6 +355,7 @@ Form container: collects values from named fields, validates, and fires `submit`
 | `action` | `action` | `string` | Post to the server like a native form (after validation, unless `submit` is prevented) |
 | `columns` | `columns` | `number` | Lay fields out in N columns |
 | `enctype` | `enctype` | `application/x-www-form-urlencoded` `multipart/form-data` `text/plain` | Encoding used with `action` (`multipart/form-data` for file uploads) |
+| `enhance` | `enhance` | `boolean` | Post with `fetch` instead of navigating: the page stays put, the form is busy meanwhile, and a JSON error response is shown on the fields it names (see the `error` event). Still posts natively when JavaScript is off or hasn't loaded. |
 | `gap` | `gap` | `string \| number` | Space between fields (px number or CSS length) |
 | `method` | `method` | `get` `post` `dialog` | HTTP method used with `action` |
 | `target` | `target` | `string` | Where the response of `action` opens |

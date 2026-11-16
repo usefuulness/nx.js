@@ -351,3 +351,36 @@ test('a new page opens at the top; Back restores where the previous page was scr
   await expect(page.getByText('Everything at a glance.')).toBeAttached();
   await expect.poll(() => outlet.evaluate(el => el.scrollTop)).toBeGreaterThan(100);
 });
+
+test('enhanced form: posts with fetch, shows the server error on its field and focuses it, without navigating', async ({ page }) => {
+  await page.goto('/#/');
+  let posted = '';
+  await page.route('**/api/signup', async route => {
+    posted = route.request().postData() ?? '';
+    await route.fulfill({
+      status: 422,
+      contentType: 'application/json',
+      body: JSON.stringify({ errors: { email: 'That email is already registered' } })
+    });
+  });
+  await page.evaluate(() => {
+    const form = document.createElement('nx-form');
+    form.id = 'signup';
+    form.setAttribute('action', '/api/signup');
+    form.setAttribute('method', 'post');
+    form.setAttribute('enhance', '');
+    form.innerHTML = `
+      <nx-input name="email" type="email" label="Email" value="ada@example.com" required></nx-input>
+      <nx-button slot="buttons" type="submit">Sign up</nx-button>`;
+    document.querySelector('nx-outlet')!.append(form);
+  });
+  const url = page.url();
+  await page.locator('#signup nx-button').click();
+  await expect(page.locator('#signup nx-input')).toContainText('That email is already registered');
+  await expect(page.locator('#signup nx-input input')).toBeFocused();
+  await expect(page.locator('#signup nx-input input')).toHaveAttribute('aria-invalid', 'true');
+  expect(posted).toBe('email=ada%40example.com');
+  expect(page.url()).toBe(url);
+  await expect(page.locator('#signup')).not.toHaveAttribute('aria-busy', 'true');
+  await expect(page.locator('#signup nx-button')).not.toHaveAttribute('disabled', '');
+});

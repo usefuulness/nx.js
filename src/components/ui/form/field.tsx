@@ -271,6 +271,10 @@ export abstract class NXField extends BaseComponent {
 
   protected afterRender(): void {
     this.syncFormValue();
+    // A message given up front (`error-text`, e.g. from the server) makes the control invalid too
+    const control = this.control();
+    if (this.getProp<string>('error-text', '')) control?.setAttribute('aria-invalid', 'true');
+    else if (control?.getAttribute('aria-invalid') === 'true') this.showError(this.touched ? this.validationMessage() : '');
   }
 
   protected fieldStyles(): string {

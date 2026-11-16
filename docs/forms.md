@@ -82,6 +82,30 @@ The browser blocks the post while a field is invalid and shows that field's erro
 <nx-input name="email" label="Email" value="{{ old.email }}" error-text="{{ errors.email }}"></nx-input>
 ```
 
+### Without leaving the page: `enhance`
+
+Add `enhance` and the same form posts with `fetch` instead of navigating. The markup is unchanged, so with JavaScript off (or not loaded yet) it still posts natively:
+
+```html
+<nx-form action="/signup" method="post" enhance>
+  <nx-input name="email" type="email" label="Email" required></nx-input>
+  <nx-button slot="buttons" type="submit">Sign up</nx-button>
+</nx-form>
+```
+
+- Validation, the cancelable `submit` event and a submit button's `formaction`/`formmethod` work as before. The request carries `Accept: application/json` and `X-Requested-With: nx-form`, so a server can tell it apart from a normal post. Bodies are urlencoded, or multipart when the form has files or `enctype="multipart/form-data"`; `method="get"` sends a query string.
+- While it waits, the form is `aria-busy`, its submit buttons are disabled and a second submit is ignored. `form.abort()` cancels the request quietly.
+- **Success** (2xx) fires `success` (`detail: { response, status, data }`, cancelable). Like a native post, a response that was redirected then moves the page to its URL unless you `preventDefault()`.
+- **Validation errors** (any other status) put messages on the fields they name and focus the first one. The server replies with JSON in either shape:
+
+  ```json
+  { "errors": { "email": "That email is already registered", "name": ["Too short", "Use a full name"] } }
+  { "errors": [{ "field": "email", "message": "That email is already registered" }] }
+  ```
+
+  An error is cleared when the user changes that field. A `message`, or an error named `_form`, shows above the fields as an alert, and so does a generic message when the server fails without naming a field. A network failure does the same. All of these fire `error` (`detail: { status, errors, data }`; `status` is 0 for a network failure).
+- Only send what the visitor may see. Error text is rendered as text, never as HTML.
+
 ## Before JavaScript loads
 
 When a page is [server-rendered](server-rendering.md), every field carries a **native stand-in**: a real `<input>`, `<select>` or date input in the light DOM, slotted exactly where the component's control appears. A visitor can fill in and submit the form the moment it appears, with the browser's own validation (`required`, `type="email"`, `min`, `max`…). The combobox stands in with a native `<select>`, the date picker with `<input type="date">`, and submit buttons with an invisible native button over the visible one.
