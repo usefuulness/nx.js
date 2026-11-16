@@ -67,6 +67,14 @@ router: [{
 - Tree nodes with a `route` navigate when selected, and the tree highlights the node for the current route.
 - Below 768px (`breakpoint`), `west`/`east` regions become off-canvas drawers. `class="nx-mobile-only"` and `"nx-desktop-only"` show things per screen size.
 
+### Navigation behaviour
+
+- **Scroll:** a new page opens at the top of the outlet (or at its `#fragment`). Back and Forward return to where that page was scrolled; `route.history` is `true` for those visits.
+- **Links** (`mode: 'history'`): plain `<a href>` clicks to the same origin navigate without a page load, including links inside shadow DOM. Modified clicks, `target`, `download`, `rel="external"`, `data-nx-external` and other origins are left to the browser. Pass `links: false` to handle clicks yourself.
+- **Prefetch:** hovering or focusing such a link runs its route's loader ahead of the click (`prefetch: false` turns it off).
+- **Transitions:** `NX.app({ viewTransitions: true })` animates page changes with the View Transitions API where it exists, and not for visitors who prefer reduced motion.
+- `router.stop()` removes the router's browser listeners.
+
 ## Layout
 
 ```tsx

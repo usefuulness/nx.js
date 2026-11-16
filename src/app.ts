@@ -37,6 +37,8 @@ export interface ApplicationConfig {
   stores?: Record<string, StoreConfig | Store<any>>;
   /** Routes render their `view` into the `{ xtype: 'outlet' }` component */
   router?: RouterConfig | RouteConfig[];
+  /** Animate page changes with the View Transitions API where the browser has it (skipped for reduced motion) */
+  viewTransitions?: boolean;
   plugins?: Plugin[];
   ready?: (app: NXApplication) => void;
 }
@@ -60,6 +62,7 @@ export class NXApplication extends EventTarget {
   private config: ApplicationConfig = {};
   private container: HTMLElement | null = null;
   private router: Router | null = null;
+  private scrollPositions = new Map<string, number>();
   private stores = new Map<string, Store<any>>();
   private viewport: HTMLElement | null = null;
   private ready = false;
@@ -105,6 +108,11 @@ export class NXApplication extends EventTarget {
       const routerConfig = Array.isArray(config.router) ? { routes: config.router } : config.router;
       this.router = new Router(routerConfig);
       this.router.on('navigate', route => this.handleRouteChange(route));
+      // Remember where each page was scrolled, to restore it on back/forward
+      this.router.on('beforeNavigate', ({ from }: { from: Route | null }) => {
+        const outlet = this.container?.querySelector('nx-outlet, [data-outlet]');
+        if (from && outlet) this.scrollPositions.set(from.fullPath, outlet.scrollTop);
+      });
       // Loaders keep the old page up; tell assistive tech and CSS the outlet is busy
       const outlet = () => this.container?.querySelector('nx-outlet, [data-outlet]');
       this.router.on('loading', () => outlet()?.setAttribute('aria-busy', 'true'));
@@ -206,10 +214,32 @@ export class NXApplication extends EventTarget {
       // A newer navigation may have happened meanwhile
       if (this.router?.getCurrentRoute() !== route) return;
       const element = ComponentRegistry.build(view);
-      outlet.replaceChildren(...(element ? [element] : []));
+      const swap = () => {
+        outlet.replaceChildren(...(element ? [element] : []));
+        this.restoreScroll(outlet, route);
+      };
+      const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (this.config.viewTransitions && !reduced && typeof document.startViewTransition === 'function') {
+        await document.startViewTransition(swap).updateCallbackDone;
+      } else {
+        swap();
+      }
     } catch (error) {
       console.error(`[nx] Failed to render route "${route.path}"`, error);
     }
+  }
+
+  /** Back/forward return to where the page was; a link or `#fragment` goes to its target; else the top. */
+  private restoreScroll(outlet: Element, route: Route): void {
+    const saved = this.scrollPositions.get(route.fullPath);
+    if (route.history && saved !== undefined) {
+      outlet.scrollTop = saved;
+      return;
+    }
+    const target = route.hash ? outlet.querySelector(`[id="${route.hash.replace(/["\\]/g, '')}"]`) : null;
+    // Scroll the outlet itself; scrollIntoView() would scroll the whole page too
+    if (target) outlet.scrollTop += target.getBoundingClientRect().top - outlet.getBoundingClientRect().top;
+    else outlet.scrollTop = 0;
   }
 
   // ────────── Public API ──────────

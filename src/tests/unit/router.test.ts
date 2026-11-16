@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Router, routeDataScript, type Route } from '@/index';
 
 const tick = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
@@ -7,11 +7,15 @@ const deferred = <T>() => {
   const promise = new Promise<T>(r => (resolve = r));
   return { promise, resolve };
 };
+const started: Router[] = [];
 const make = (routes: any[]) => {
   const router = new Router({ mode: 'history', routes });
   router.start();
+  started.push(router);
   return router;
 };
+// Routers listen on window/document; stop them so tests don't hear each other
+afterEach(() => started.splice(0).forEach(router => router.stop()));
 
 describe('Router loaders', () => {
   beforeEach(() => {
@@ -144,5 +148,75 @@ describe('Router loaders', () => {
     const parsed = JSON.parse(document.getElementById('nx-route-data')!.textContent!);
     expect(parsed.data.s).toBe('</script><img src=x onerror=alert(1)> ');
     expect(document.body.querySelector('img')).toBeNull();
+  });
+});
+
+describe('Router navigation', () => {
+  beforeEach(() => {
+    history.replaceState(null, '', '/');
+    document.body.innerHTML = '';
+  });
+
+  const click = (el: Element, init: MouseEventInit = {}) => {
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, button: 0, ...init });
+    el.dispatchEvent(event);
+    return event;
+  };
+  const link = (href: string, attrs: Record<string, string> = {}) => {
+    const a = document.createElement('a');
+    a.href = href;
+    Object.entries(attrs).forEach(([k, v]) => a.setAttribute(k, v));
+    document.body.append(a);
+    return a;
+  };
+
+  it('marks back/forward visits as history and link/navigate() visits as not', async () => {
+    const router = make([{ path: '/' }, { path: '/a' }, { path: '/b' }]);
+    await tick();
+    router.navigate('/a');
+    await tick();
+    expect(router.getCurrentRoute()!.history).toBe(false);
+    router.navigate('/b');
+    await tick();
+    history.back();
+    await tick(30);
+    expect(router.getCurrentRoute()).toMatchObject({ path: '/a', history: true });
+  });
+
+  it('turns same-origin link clicks into navigations, and leaves the rest to the browser', async () => {
+    const router = make([{ path: '/' }, { path: '/docs/:page' }]);
+    await tick();
+    const a = link('/docs/intro?x=1#top');
+    expect(click(a).defaultPrevented).toBe(true);
+    await tick();
+    expect(location.pathname + location.search + location.hash).toBe('/docs/intro?x=1#top');
+    expect(router.getCurrentRoute()).toMatchObject({ path: '/docs/intro', query: { x: '1' }, hash: 'top' });
+
+    const skipped = [
+      click(link('/docs/a'), { ctrlKey: true }),
+      click(link('/docs/a'), { button: 1 }),
+      click(link('/docs/a', { target: '_blank' })),
+      click(link('/docs/a', { download: '' })),
+      click(link('/docs/a', { rel: 'external' })),
+      click(link('/docs/a', { 'data-nx-external': '' })),
+      click(link('https://example.org/docs/a')),
+      click(link('#fragment'))
+    ];
+    expect(skipped.map(e => e.defaultPrevented)).toEqual(skipped.map(() => false));
+    expect(location.pathname).toBe('/docs/intro');
+  });
+
+  it('prefetches a link route when the pointer reaches it', async () => {
+    const loader = vi.fn(async () => 'warm');
+    const router = make([{ path: '/' }, { path: '/p', loader }]);
+    await tick();
+    const a = link('/p');
+    a.dispatchEvent(new Event('pointerover', { bubbles: true, composed: true }));
+    await tick();
+    expect(loader).toHaveBeenCalledTimes(1);
+    click(a);
+    await tick();
+    expect(loader).toHaveBeenCalledTimes(1);
+    expect(router.getCurrentRoute()!.data).toBe('warm');
   });
 });

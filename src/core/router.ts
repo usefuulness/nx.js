@@ -43,6 +43,8 @@ export interface Route {
   fullPath: string;
   matched: RouteConfig[];
   meta: Record<string, any>;
+  /** True when the visit came from the browser's back/forward buttons rather than a link or `navigate()` */
+  history?: boolean;
   /** What the route's `loader` returned */
   data?: any;
   /** What the route's `loader` threw, if it did */
@@ -53,6 +55,13 @@ export interface RouterConfig {
   mode?: 'hash' | 'history';
   base?: string;
   routes?: RouteConfig[];
+  /**
+   * `history` mode only (default true): same-origin `<a href>` clicks navigate without a page load.
+   * Left alone: modified clicks, `target`, `download`, `rel="external"` and other origins.
+   */
+  links?: boolean;
+  /** Load a link's route data when the pointer or focus reaches it (default 'hover'); `false` to turn off */
+  prefetch?: 'hover' | false;
 }
 
 interface RouteMatch {
@@ -91,6 +100,11 @@ export class Router extends EventBus {
   private beforeHooks: Array<(to: Route, from: Route | null) => boolean | Promise<boolean>> = [];
   private afterHooks: Array<(to: Route, from: Route | null) => void> = [];
   private navId = 0;
+  private programmatic = false;
+  private fromHistory = false;
+  private linkOptions: { links: boolean; prefetch: 'hover' | false };
+  private prefetching = new Set<string>();
+  private disposers: Array<() => void> = [];
   private controller: AbortController | null = null;
   private loading = false;
   private cache = new Map<string, { data: any; expires: number }>();
@@ -99,6 +113,7 @@ export class Router extends EventBus {
     super();
     this.mode = config.mode || 'hash';
     this.base = this.normalizeBase(config.base || '/');
+    this.linkOptions = { links: config.links ?? this.mode === 'history', prefetch: config.prefetch ?? 'hover' };
     
     if (config.routes) {
       this.addRoutes(config.routes);
@@ -162,11 +177,14 @@ export class Router extends EventBus {
    * Start the router
    */
   start(): void {
-    if (this.mode === 'hash') {
-      window.addEventListener('hashchange', () => this.handleRoute());
-    } else {
-      window.addEventListener('popstate', () => this.handleRoute());
-    }
+    // The browser's own navigation (back/forward, a typed hash) is not a navigate() call
+    const onBrowserNavigation = () => {
+      this.fromHistory = !this.programmatic;
+      this.programmatic = false;
+      this.handleRoute();
+    };
+    this.listen(window, this.mode === 'hash' ? 'hashchange' : 'popstate', onBrowserNavigation);
+    if (this.mode === 'history' && this.linkOptions.links) this.interceptLinks();
 
     if (typeof document !== 'undefined') this.readSeed();
 
@@ -181,6 +199,8 @@ export class Router extends EventBus {
     const url = this.createUrl(path);
 
     if (this.mode === 'hash') {
+      if (location.hash === url) return; // no hashchange would follow
+      this.programmatic = true;
       if (options.replace) {
         location.replace(url);
       } else {
@@ -192,7 +212,67 @@ export class Router extends EventBus {
       } else {
         history.pushState(options.state, '', url);
       }
+      this.fromHistory = false;
       this.handleRoute();
+    }
+  }
+
+  private listen(target: EventTarget, type: string, handler: (e: Event) => void): void {
+    target.addEventListener(type, handler);
+    this.disposers.push(() => target.removeEventListener(type, handler));
+  }
+
+  /** Stop listening to the browser (history, links). A stopped router can be `start()`ed again. */
+  stop(): void {
+    this.disposers.forEach(dispose => dispose());
+    this.disposers = [];
+    this.controller?.abort();
+    this.navId++;
+  }
+
+  /** The route path a same-origin link points at, or null when the router should leave it alone. */
+  private linkTarget(anchor: HTMLAnchorElement): string | null {
+    if (anchor.target && anchor.target !== '_self') return null;
+    if (anchor.hasAttribute('download') || /\bexternal\b/.test(anchor.rel) || anchor.hasAttribute('data-nx-external')) return null;
+    let url: URL;
+    try {
+      url = new URL(anchor.href, location.href);
+    } catch {
+      return null;
+    }
+    if (url.origin !== location.origin) return null;
+    const { pathname } = url;
+    if (this.base !== '/' && pathname !== this.base && !pathname.startsWith(this.base + '/')) return null;
+    const path = this.base === '/' ? pathname : pathname.slice(this.base.length) || '/';
+    return path + url.search + url.hash;
+  }
+
+  private interceptLinks(): void {
+    const anchorOf = (e: Event) =>
+      e.composedPath().find((el): el is HTMLAnchorElement => el instanceof HTMLAnchorElement && el.hasAttribute('href'));
+
+    this.listen(document, 'click', (e: Event) => {
+      if (!(e instanceof MouseEvent)) return;
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const anchor = anchorOf(e);
+      const target = anchor && this.linkTarget(anchor);
+      if (target === null || target === undefined) return;
+      // A bare #fragment on this page is the browser's job
+      if (anchor!.getAttribute('href')!.startsWith('#')) return;
+      e.preventDefault();
+      this.navigate(target);
+    });
+
+    if (this.linkOptions.prefetch === 'hover') {
+      const warm = (e: Event) => {
+        const anchor = anchorOf(e);
+        const target = anchor && this.linkTarget(anchor);
+        if (!target || this.prefetching.has(target)) return;
+        this.prefetching.add(target);
+        this.prefetch(target).catch(() => {}).finally(() => this.prefetching.delete(target));
+      };
+      this.listen(document, 'pointerover', warm);
+      this.listen(document, 'focusin', warm);
     }
   }
 
@@ -229,9 +309,10 @@ export class Router extends EventBus {
     }
     
     const path = location.pathname;
-    if (this.base === '/') return path;
-    
-    return path.startsWith(this.base) ? path.slice(this.base.length) : path;
+    const rest = location.search + location.hash;
+    if (this.base === '/') return path + rest;
+
+    return (path.startsWith(this.base) ? path.slice(this.base.length) || '/' : path) + rest;
   }
 
   /**
@@ -255,8 +336,13 @@ export class Router extends EventBus {
    * Match a path (`/users/42?tab=1`) against the routes. Pure: no location, no hooks, no loaders.
    */
   match(path: string): Route {
-    const [pathname, search] = path.split('?');
-    const [pathWithoutHash, hash] = pathname.split('#');
+    // The fragment comes last (`/a?x=1#top`), so cut it first, then the query
+    const hashAt = path.indexOf('#');
+    const hash = hashAt >= 0 ? path.slice(hashAt + 1) : '';
+    const beforeHash = hashAt >= 0 ? path.slice(0, hashAt) : path;
+    const queryAt = beforeHash.indexOf('?');
+    const pathWithoutHash = queryAt >= 0 ? beforeHash.slice(0, queryAt) : beforeHash;
+    const search = queryAt >= 0 ? beforeHash.slice(queryAt + 1) : '';
 
     const route: Route = {
       path: pathWithoutHash,
@@ -372,6 +458,8 @@ export class Router extends EventBus {
     const stale = () => id !== this.navId;
 
     const route = this.match(this.getCurrentPath());
+    route.history = this.fromHistory;
+    this.fromHistory = false;
 
     // Run before hooks
     const from = this.currentRoute;

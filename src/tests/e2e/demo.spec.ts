@@ -332,3 +332,22 @@ test('a loader that throws shows the route errorView, and the app stays usable',
   await page.getByRole('button', { name: 'All users' }).click();
   await expect(page.locator('#users-grid')).toBeVisible();
 });
+
+test('a new page opens at the top; Back restores where the previous page was scrolled', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 420 });
+  await page.goto('/#/');
+  const outlet = page.locator('nx-outlet');
+  await expect(page.getByText('Everything at a glance.')).toBeVisible();
+  await outlet.evaluate(el => (el.scrollTop = 160));
+  expect(await outlet.evaluate(el => el.scrollTop)).toBeGreaterThan(100);
+
+  await page.locator('nx-tree .nx-tree-node-content', { hasText: 'Users' }).first().click();
+  await expect(page).toHaveURL(/#\/users$/);
+  await expect(page.locator('#users-grid')).toBeVisible();
+  expect(await outlet.evaluate(el => el.scrollTop)).toBe(0);
+
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(page.getByText('Everything at a glance.')).toBeAttached();
+  await expect.poll(() => outlet.evaluate(el => el.scrollTop)).toBeGreaterThan(100);
+});
