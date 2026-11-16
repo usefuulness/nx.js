@@ -135,6 +135,32 @@ users.sort({ property: 'name', direction: 'ASC' });
 NX.store('orders', { proxy: { type: 'rest', url: '/api/orders' }, autoLoad: true });
 ```
 
+### Millions of rows: buffered stores
+
+A `buffered` store fetches rows in pages as they scroll into view, so the grid can sit on a table far too big to download. The grid is virtual automatically.
+
+```ts
+stores: {
+  events: {
+    buffered: true,
+    pageSize: 100,                                   // rows per request (default 100)
+    maxBufferedPages: 40,                            // pages kept in memory (default 40, least recently used go first)
+    proxy: { type: 'rest', url: '/api/events' }
+  }
+}
+// <DataGrid store="events" search columns={…} height={480} />
+```
+
+Each request is `GET /api/events?start=300&limit=100&page=4`, answered with `{ "data": [...], "total": 1000000 }` (the `reader` options rename those keys). Sorting and searching are done by your server:
+
+- A sorted header adds `sort=[{"property":"name","direction":"DESC"}]`.
+- The search box adds `filter=[{"property":"*","value":"text","operator":"like"}]` (property `*` means "any column"), once typing pauses for 250 ms.
+- Rows whose page hasn't arrived show as skeleton rows of the same height, announced as "Loading", so the scrollbar never jumps.
+- Requests for a page already in flight are shared, an answer to an older sort or search is discarded, and a page that failed is retried after 5 seconds (the store fires `exception`).
+
+Limits: row selection and CSV export see only the rows that are loaded, and editing changes the cached row (listen to `cell-change` to save it).
+
+
 ## Dialogs and toasts
 
 The helpers return promises:

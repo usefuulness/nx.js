@@ -99,6 +99,12 @@ export interface GridConfig<T extends Record<string, any> = any> {
   emptyText?: string;
 }
 
+/** Rows by position: all of them for plain data, only the loaded ones (the rest `undefined`) for a buffered store. */
+interface RowSource<T> {
+  length: number;
+  at(index: number): T | undefined;
+}
+
 const cssSize = (value: unknown): string =>
   typeof value === 'number' || /^\d+(\.\d+)?$/.test(String(value)) ? `${value}px` : String(value);
 
@@ -146,6 +152,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   private query = '';
   private page = 1;
   private scrollFrame = 0;
+  private searchTimer = 0;
   private widths = new Map<string, number>();
   private order: string[] = [];
   private stateLoaded = false;
@@ -153,7 +160,10 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   private active = { pos: 0, col: 0 };
   private editing: { row: T; field: string; draft: unknown; error?: string } | null = null;
   private readonly onStoreChange = () => {
-    if (this.store) this.setRowsInternal(this.store.getData());
+    if (!this.store) return;
+    // A buffered store keeps most rows on the server: just redraw what's in view
+    if (this.store.isBuffered()) this.refresh();
+    else this.setRowsInternal(this.store.getData());
   };
 
   protected initializeState(): void {}
@@ -227,6 +237,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
   /** Rows after search + sort (all pages). */
   getVisibleRows(): T[] {
+    // A buffered store sorts and filters on the server; these are the rows that have arrived
+    if (this.isBuffered()) return this.store!.getData();
     let rows = this.rows;
 
     if (this.query) {
@@ -279,6 +291,12 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     this.sortDirection = direction ?? (this.sortField === key && this.sortDirection === 'asc' ? 'desc' : 'asc');
     this.sortField = key;
     this.emit('sort-change', { field: key, direction: this.sortDirection });
+    if (this.isBuffered()) {
+      (this.$('.nx-grid-body') as HTMLElement | null)?.scrollTo?.(0, 0);
+      this.store!.sort({ property: key, direction: this.sortDirection === 'asc' ? 'ASC' : 'DESC' });
+      this.refresh();
+      return;
+    }
     this.refresh();
   }
 
@@ -288,6 +306,15 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     this.page = 1;
     const input = this.$('.nx-grid-search input') as HTMLInputElement | null;
     if (input && input.value !== query) input.value = query;
+    if (this.isBuffered()) {
+      // The server searches: send it as a filter on `*`, once typing pauses
+      clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => {
+        (this.$('.nx-grid-body') as HTMLElement | null)?.scrollTo?.(0, 0);
+        this.store?.filter(query ? { property: '*', value: query, operator: 'like' } : []);
+      }, 250) as unknown as number;
+      return;
+    }
     this.refresh();
   }
 
@@ -441,7 +468,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
   /** Make a cell the active one and move focus to it, scrolling a virtual grid to reach it. */
   private focusCell(pos: number, col: number): void {
-    const rows = this.renderedRows();
+    const rows = this.rowSource();
     const cols = this.visibleColumns();
     if (!rows.length || !cols.length) return;
     pos = Math.max(0, Math.min(pos, rows.length - 1));
@@ -467,7 +494,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   }
 
   private beginEdit(pos: number, colIndex: number): void {
-    const row = this.renderedRows()[pos];
+    const row = this.rowSource().at(pos);
     const col = this.visibleColumns()[colIndex];
     if (!row || !col || !this.canEdit(col, row)) return;
     this.active = { pos, col: colIndex };
@@ -560,7 +587,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     const pos = Number(td.dataset.pos);
     const col = Number(td.dataset.col);
     const rtl = getComputedStyle(this).direction === 'rtl';
-    const last = this.renderedRows().length - 1;
+    const last = this.rowSource().length - 1;
     const page = 10;
     const go = (p: number, c: number) => {
       e.preventDefault();
@@ -721,8 +748,26 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     return path.split('.').reduce<any>((obj, key) => obj?.[key], row);
   }
 
+  /** A store that pages rows in as they scroll into view; always virtual. */
+  private isBuffered(): boolean {
+    return !!this.store?.isBuffered();
+  }
+
   private isVirtual(): boolean {
-    return !!this.getProp('virtual', false);
+    return !!this.getProp('virtual', false) || this.isBuffered();
+  }
+
+  private rowSource(): RowSource<T> {
+    if (this.isBuffered()) {
+      const store = this.store!;
+      return { length: store.getTotalCount(), at: i => store.getRecordAt(i)?.data };
+    }
+    const rows = this.renderedRows();
+    return { length: rows.length, at: i => rows[i] };
+  }
+
+  private rowAtIndex(index: number): T | null {
+    return (this.isBuffered() ? this.store!.getRecordAt(index)?.data : this.rows[index]) ?? null;
   }
 
   private rowHeight(): number {
@@ -748,11 +793,12 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       this.scrollFrame = 0;
       const tbody = this.$('.nx-grid-table tbody');
       if (!tbody) return;
-      const all = this.getVisibleRows();
-      const { start, end } = this.virtualWindow(all.length);
+      const source = this.rowSource();
+      const { start, end } = this.virtualWindow(source.length);
       // Only touch the DOM when the window moved
       if (tbody.getAttribute('data-window') === `${start}-${end}`) return;
-      tbody.replaceWith(this.renderBody(all, this.visibleColumns(), start, end));
+      if (this.isBuffered()) void this.store!.ensureRange(start, end);
+      tbody.replaceWith(this.renderBody(source, this.visibleColumns(), start, end));
     });
   }
 
@@ -809,11 +855,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
               <label class="nx-grid-search">
                 <span html={Icons.get('search')} />
                 <input type="search" placeholder="Search…" value={this.query} aria-label="Search rows"
-                       onInput={(e: Event) => {
-                         this.query = (e.target as HTMLInputElement).value;
-                         this.page = 1;
-                         this.refresh();
-                       }} />
+                       onInput={(e: Event) => this.setFilter((e.target as HTMLInputElement).value)} />
               </label>
             )}
           </div>
@@ -832,13 +874,15 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
   private renderTable(): Node {
     const cols = this.visibleColumns();
-    const all = this.getVisibleRows();
     this.page = Math.min(this.page, this.pageCount());
     const virtual = this.isVirtual();
-    const rows = virtual ? all : this.currentPageRows(all);
+    const buffered = this.isBuffered();
+    const source = this.rowSource();
+    // "Select all" speaks for the rows that are here; a buffered grid has most of them elsewhere
+    const rows = buffered ? this.getVisibleRows() : this.renderedRows();
 
     const checkbox = !!this.getProp('checkbox-selection', false);
-    const allChecked = rows.length > 0 && rows.every(row => this.selected.has(row));
+    const allChecked = !buffered && rows.length > 0 && rows.every(row => this.selected.has(row));
     const someChecked = rows.some(row => this.selected.has(row));
 
     // Auto-width columns get at least 10rem; below that the body scrolls sideways
@@ -853,7 +897,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     return (
       <table class="nx-grid-table" part="table" style={{ minWidth }}
              role={this.hasEditable() ? 'grid' : undefined}
-             aria-rowcount={virtual ? String(all.length + 1) : undefined}>
+             aria-rowcount={virtual ? String(source.length + 1) : undefined}>
         <colgroup>
           {checkbox && <col style="width: 3rem" />}
           {cols.map(col => <col style={col.width ? { width: cssSize(col.width) } : undefined} />)}
@@ -925,15 +969,20 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
             })}
           </tr>
         </thead>
-        {virtual && rows.length
-          ? this.renderBody(rows, cols, ...Object.values(this.virtualWindow(rows.length)) as [number, number])
-          : this.renderBody(rows, cols, 0, rows.length)}
+        {this.renderBodyFor(source, cols, virtual)}
       </table>
     );
   }
 
+  private renderBodyFor(source: RowSource<T>, cols: GridColumn<T>[], virtual: boolean): HTMLElement {
+    if (!virtual || !source.length) return this.renderBody(source, cols, 0, source.length);
+    const { start, end } = this.virtualWindow(source.length);
+    if (this.isBuffered()) void this.store!.ensureRange(start, end);
+    return this.renderBody(source, cols, start, end);
+  }
+
   /** The `<tbody>`: every row, or for a virtual grid just rows `start`–`end` between two spacers. */
-  private renderBody(rows: T[], cols: GridColumn<T>[], start: number, end: number): HTMLElement {
+  private renderBody(source: RowSource<T>, cols: GridColumn<T>[], start: number, end: number): HTMLElement {
     const checkbox = !!this.getProp('checkbox-selection', false);
     const striped = this.getProp('striped', false);
     const hoverable = this.getProp('hoverable', true);
@@ -944,19 +993,34 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     const offsets = this.pinnedOffsets(cols, checkbox);
     const anyPinned = offsets.size > 0;
     const grid = this.hasEditable();
+    const buffered = this.isBuffered();
+    // A row whose page is still on its way keeps its height, so the scrollbar doesn't jump
+    const placeholder = (i: number) => (
+      <tr class="loading-row" aria-busy="true" aria-rowindex={String(i + 2)}>
+        {checkbox && <td class="check" />}
+        {cols.map((col, n) => (
+          <td class={this.align(col)}>
+            <span class="skeleton-bar" aria-hidden="true" />
+            {n === 0 && <span class="sr-only">Loading</span>}
+          </td>
+        ))}
+      </tr>
+    );
     const spacer = (count: number) =>
       count > 0 ? <tr class="spacer" aria-hidden="true"><td colspan={span} style={{ height: `${count * rh}px`, padding: '0', border: '0' }} /></tr> : null;
 
     return (
       <tbody data-window={virtual ? `${start}-${end}` : undefined}>
-        {rows.length ? [
+        {source.length ? [
           spacer(virtual ? start : 0),
-          ...rows.slice(start, end).map((row, n) => {
+          ...Array.from({ length: end - start }, (_, n) => {
             const i = start + n;
+            const row = source.at(i);
+            if (row === undefined) return placeholder(i);
             const isSelected = this.selected.has(row);
             return (
               <tr class={{ striped: striped && i % 2, hoverable, selected: isSelected, clickable: selectable }}
-                  data-index={this.rows.indexOf(row)} aria-selected={selectable ? String(isSelected) : undefined}
+                  data-index={buffered ? i : this.rows.indexOf(row)} aria-selected={selectable ? String(isSelected) : undefined}
                   aria-rowindex={virtual ? String(i + 2) : undefined}>
                 {checkbox && <td class={['check', { pinned: anyPinned }]} style={anyPinned ? { left: '0px' } : undefined}><input type="checkbox" class="check-row" aria-label="Select row" checked={isSelected} /></td>}
                 {cols.map((col, ci) => {
@@ -977,13 +1041,13 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
               </tr>
             );
           }),
-          spacer(virtual ? rows.length - end : 0)
+          spacer(virtual ? source.length - end : 0)
         ] : (
           <tr class="empty">
             <td colspan={span}>
               <div class="nx-grid-empty">
                 <span html={Icons.get(this.query ? 'search' : 'table')} />
-                <span>{this.query ? `No results for “${this.query}”` : this.getProp('empty-text', 'No data to display')}</span>
+                <span>{buffered && this.store?.isLoading() ? 'Loading…' : this.query ? `No results for “${this.query}”` : this.getProp('empty-text', 'No data to display')}</span>
               </div>
             </td>
           </tr>
@@ -1026,8 +1090,12 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
   private renderFooter(): Node {
     const perPage = this.pageSize();
-    const total = this.getVisibleRows().length;
+    const buffered = this.isBuffered();
+    const total = buffered ? this.store!.getTotalCount() : this.getVisibleRows().length;
     const selectedCount = this.selected.size;
+    if (buffered && !selectedCount) {
+      return <div class="nx-grid-footer" part="footer"><span class="info">{total.toLocaleString()} {total === 1 ? 'row' : 'rows'}</span></div>;
+    }
     if (!perPage && !selectedCount) return <div class="nx-grid-footer" hidden />;
 
     const pages = this.pageCount();
@@ -1110,7 +1178,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
   private rowFromEvent(e: Event): T | null {
     const tr = (e.target as HTMLElement).closest('tr[data-index]') as HTMLElement | null;
-    return tr ? this.rows[Number(tr.dataset.index)] ?? null : null;
+    return tr ? this.rowAtIndex(Number(tr.dataset.index)) : null;
   }
 
   protected styles(): string {
@@ -1208,6 +1276,24 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       }
 
       .dense th, .dense td { height: 2.25rem; padding: 0 0.75rem; }
+      .skeleton-bar {
+        display: block;
+        width: 60%;
+        height: 0.75rem;
+        border-radius: var(--radius-sm);
+        background: var(--color-muted);
+        animation: nx-grid-pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes nx-grid-pulse { 50% { opacity: 0.5; } }
+      @media (prefers-reduced-motion: reduce) { .skeleton-bar { animation: none; } }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
       td[tabindex]:focus-visible { outline: 2px solid var(--color-ring); outline-offset: -2px; }
       td.editing { padding: 0 0.25rem; overflow: visible; }
       .cell-editing { position: relative; display: block; }

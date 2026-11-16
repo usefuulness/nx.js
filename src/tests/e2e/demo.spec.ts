@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -383,4 +384,71 @@ test('enhanced form: posts with fetch, shows the server error on its field and f
   expect(page.url()).toBe(url);
   await expect(page.locator('#signup')).not.toHaveAttribute('aria-busy', 'true');
   await expect(page.locator('#signup nx-button')).not.toHaveAttribute('disabled', '');
+});
+
+test('a buffered grid over 1,000,000 server rows: skeletons, few requests, server sort and search, and accessible', async ({ page }) => {
+  const TOTAL = 1_000_000;
+  const starts: number[] = [];
+  let lastSort = '';
+  let lastFilter = '';
+  await page.route('**/api/big**', async route => {
+    const url = new URL(route.request().url());
+    const start = Number(url.searchParams.get('start'));
+    const limit = Number(url.searchParams.get('limit'));
+    starts.push(start);
+    lastSort = url.searchParams.get('sort') ?? '';
+    lastFilter = url.searchParams.get('filter') ?? '';
+    const desc = lastSort.includes('DESC');
+    const search = lastFilter ? JSON.parse(lastFilter)[0].value : '';
+    // A search narrows the data to the rows whose number ends with the text
+    const count = search ? 10 : TOTAL;
+    const data = Array.from({ length: Math.max(0, Math.min(limit, count - start)) }, (_, i) => {
+      const n = start + i;
+      return { id: desc ? TOTAL - 1 - n : n, name: search ? `Match ${search}-${n}` : `Row ${desc ? TOTAL - 1 - n : n}` };
+    });
+    await new Promise(resolve => setTimeout(resolve, 150)); // a real server takes a moment
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ data, total: count }) });
+  });
+
+  await page.goto('/#/');
+  await page.evaluate(async () => {
+    // The page's own module (same instance as the demo app); a variable keeps TypeScript out of it
+    const entry = '/src/index.ts';
+    const { NX, Store } = await import(/* @vite-ignore */ entry);
+    const store = new Store({ buffered: true, pageSize: 100, autoLoad: true, proxy: { type: 'rest', url: '/api/big' } });
+    const grid = NX.create({
+      xtype: 'grid', id: 'big-grid', title: 'Big data', store, search: true, rowHeight: 40, height: 320,
+      columns: [{ field: 'id', header: 'Id', width: 120 }, { field: 'name', header: 'Name' }]
+    } as any);
+    document.querySelector('nx-outlet')!.prepend(grid);
+  });
+
+  const body = page.locator('#big-grid .nx-grid-body');
+  await expect(page.locator('#big-grid td', { hasText: 'Row 0' }).first()).toBeVisible();
+  await expect(page.locator('#big-grid .nx-grid-footer')).toContainText('1,000,000 rows');
+  expect(await page.locator('#big-grid tbody tr:not(.spacer)').count()).toBeLessThan(60);
+
+  // Jump to the middle: skeletons first, then the rows, and only a few pages are requested
+  const before = starts.length;
+  await body.evaluate(el => (el.scrollTop = 40 * 500_000));
+  await expect(page.locator('#big-grid tr.loading-row').first()).toBeVisible();
+  await expect(page.locator('#big-grid td', { hasText: 'Row 500000' }).first()).toBeVisible();
+  expect(starts.length - before).toBeLessThanOrEqual(3);
+
+  // Axe on the grid while a page is still loading (skeleton rows)
+  await body.evaluate(el => (el.scrollTop = 40 * 700_000));
+  await expect(page.locator('#big-grid tr.loading-row').first()).toBeVisible();
+  const results = await new AxeBuilder({ page }).include('#big-grid').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(results.violations.map(v => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
+  await expect(page.locator('#big-grid td', { hasText: 'Row 700000' }).first()).toBeVisible();
+
+  // Sort and search are the server's job
+  await page.locator('#big-grid th[data-field="id"] button').click();
+  await page.locator('#big-grid th[data-field="id"] button').click();
+  await expect.poll(() => lastSort).toContain('DESC');
+  await expect(page.locator('#big-grid td', { hasText: 'Row 999999' }).first()).toBeVisible();
+  await page.locator('#big-grid .nx-grid-search input').fill('42');
+  await expect(page.locator('#big-grid td', { hasText: 'Match 42-0' }).first()).toBeVisible();
+  expect(lastFilter).toContain('"value":"42"');
+  await expect(page.locator('#big-grid .nx-grid-footer')).toContainText('10 rows');
 });

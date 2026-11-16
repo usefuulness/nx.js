@@ -54,4 +54,12 @@ describe('Store', () => {
     expect(Store.lookup('things')).toBe(store);
     expect(Store.lookup(store)).toBe(store);
   });
+
+  it('keeps an id of 0 and only generates ids for records that have none', () => {
+    const store = new Store({ data: [{ id: 0, name: 'zero' }, { name: 'none' }, { id: 'abc', name: 'text' }] });
+    expect(store.getAt(0)!.id).toBe(0);
+    expect(store.getAt(0)!.data.id).toBe(0);
+    expect(String(store.getAt(1)!.id)).toMatch(/^record-/);
+    expect(store.getAt(2)!.id).toBe('abc');
+  });
 });
