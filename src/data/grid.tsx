@@ -103,6 +103,18 @@ export interface GridConfig<T extends Record<string, any> = any> {
   groupBy?: string;
   /** Start with every group collapsed */
   groupCollapsed?: boolean;
+  /**
+   * Show rows that have `children` (a field of the row) as a tree: the first column gets
+   * an expander and indentation, the Right and Left arrow keys open and close nodes, and sorting and search
+   * apply within and across levels (a match keeps its ancestors). Ignores `pageSize` and `groupBy`.
+   */
+  tree?: boolean;
+  /** The row field holding child rows (default `children`) */
+  childrenField?: string;
+  /** The column that holds the expander (default: the first) */
+  treeColumn?: string;
+  /** Start with every node expanded */
+  treeExpanded?: boolean;
   /** Drag a header's right edge to resize (also focusable: Left/Right arrows, Shift for bigger steps, Enter or double-click resets) */
   resizable?: boolean;
   /** Reorder columns by dragging headers, or with Alt+Left/Right on a focused header */
@@ -121,6 +133,17 @@ interface RowSource<T> {
   at(index: number): T | undefined;
   /** Set for positions that are a group header or a group's summary row, not a data row */
   group?(index: number): GroupItem<T> | undefined;
+  /** Set in a tree: where the row at this position sits */
+  node?(index: number): TreeNode<T> | undefined;
+}
+
+interface TreeNode<T> {
+  row: T;
+  depth: number;
+  parent: TreeNode<T> | null;
+  children: TreeNode<T>[];
+  /** Showing its children: expanded by the user, or opened because a search match is below it */
+  open: boolean;
 }
 
 interface GroupItem<T> {
@@ -148,7 +171,7 @@ const isNumeric = (col: GridColumn): boolean =>
   col.type === 'number' || col.type === 'currency' || col.type === 'percent';
 
 /**
- * Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, store binding.
+ * Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, tree rows, store binding.
  *
  * @example
  * ```typescript
@@ -168,13 +191,13 @@ const isNumeric = (col: GridColumn): boolean =>
  * }
  * ```
  *
- * Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`, `column-change`, `cell-change`, `group-toggle`.
+ * Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`, `column-change`, `cell-change`, `group-toggle`, `node-toggle`.
  */
 export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   static get observedAttributes(): string[] {
     return [
       'title', 'search', 'striped', 'hoverable', 'dense', 'bordered',
-      'selectable', 'checkbox-selection', 'page-size', 'empty-text', 'store', 'virtual', 'row-height', 'height', 'resizable', 'reorderable', 'state-key', 'group-by', 'group-collapsed'
+      'selectable', 'checkbox-selection', 'page-size', 'empty-text', 'store', 'virtual', 'row-height', 'height', 'resizable', 'reorderable', 'state-key', 'group-by', 'group-collapsed', 'tree', 'children-field', 'tree-column', 'tree-expanded'
     ];
   }
 
@@ -189,6 +212,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   private page = 1;
   private scrollFrame = 0;
   private searchTimer = 0;
+  private expandedNodes = new Set<T>();
+  private seenNodes = new Set<T>();
   private collapsedGroups = new Set<string>();
   private seenGroups = new Set<string>();
   private widths = new Map<string, number>();
@@ -277,31 +302,29 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   getVisibleRows(): T[] {
     // A buffered store sorts and filters on the server; these are the rows that have arrived
     if (this.isBuffered()) return this.store!.getData();
-    let rows = this.rows;
+    // A tree: every node that matches, parents first, whether or not its parent is expanded
+    if (this.isTree()) return this.flattenTree(this.buildTree(this.rows, 0, null), true).map(node => node.row);
+    return this.sortRows(this.query ? this.rows.filter(row => this.matchesQuery(row)) : this.rows);
+  }
 
-    if (this.query) {
-      const q = this.query.toLowerCase();
-      const cols = this.visibleColumns();
-      rows = rows.filter(row =>
-        cols.some(col => String(this.value(row, col.field) ?? '').toLowerCase().includes(q))
-      );
-    }
+  private matchesQuery(row: T): boolean {
+    const q = this.query.toLowerCase();
+    return this.visibleColumns().some(col => String(this.value(row, col.field) ?? '').toLowerCase().includes(q));
+  }
 
-    if (this.sortField) {
-      const field = this.sortField;
-      const dir = this.sortDirection === 'asc' ? 1 : -1;
-      rows = [...rows].sort((a, b) => {
-        const av = this.value(a, field);
-        const bv = this.value(b, field);
-        if (av === bv) return 0;
-        if (av === null || av === undefined) return 1;
-        if (bv === null || bv === undefined) return -1;
-        if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
-        return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' }) * dir;
-      });
-    }
-
-    return rows;
+  private sortRows(rows: T[]): T[] {
+    if (!this.sortField) return rows;
+    const field = this.sortField;
+    const dir = this.sortDirection === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const av = this.value(a, field);
+      const bv = this.value(b, field);
+      if (av === bv) return 0;
+      if (av === null || av === undefined) return 1;
+      if (bv === null || bv === undefined) return -1;
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' }) * dir;
+    });
   }
 
   getSelected(): T[] {
@@ -560,6 +583,81 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     if (emit) this.emit('column-change', this.getColumnState());
   }
 
+  // ────────── Tree rows ──────────
+
+  private isTree(): boolean {
+    return !!this.getProp('tree', false);
+  }
+
+  private childrenOf(row: T): T[] {
+    const kids = (row as any)[this.getProp<string>('children-field', 'children')];
+    return Array.isArray(kids) ? kids : [];
+  }
+
+  private treeColumnIndex(): number {
+    const field = this.getProp<string>('tree-column', '');
+    return Math.max(0, field ? this.visibleColumns().findIndex(c => String(c.field) === field) : 0);
+  }
+
+  /** The nodes that match the search (with their ancestors), siblings sorted. */
+  private buildTree(rows: T[], depth: number, parent: TreeNode<T> | null): TreeNode<T>[] {
+    const nodes: TreeNode<T>[] = [];
+    for (const row of this.sortRows(rows)) {
+      const node: TreeNode<T> = { row, depth, parent, children: [], open: false };
+      node.children = this.buildTree(this.childrenOf(row), depth + 1, node);
+      if (this.query && !this.matchesQuery(row) && !node.children.length) continue;
+      if (!this.seenNodes.has(row)) {
+        this.seenNodes.add(row);
+        if (this.getProp('tree-expanded', false)) this.expandedNodes.add(row);
+      }
+      // A search shows where it matched, so the path down to a match is open
+      node.open = this.expandedNodes.has(row) || (!!this.query && node.children.length > 0);
+      nodes.push(node);
+    }
+    return nodes;
+  }
+
+  /** Depth-first list of nodes: only the ones showing, or all of them. */
+  private flattenTree(nodes: TreeNode<T>[], all: boolean, out: TreeNode<T>[] = []): TreeNode<T>[] {
+    for (const node of nodes) {
+      out.push(node);
+      if (all || node.open) this.flattenTree(node.children, all, out);
+    }
+    return out;
+  }
+
+  /** Open or close the node at position `pos`; keeps focus on its cell. */
+  private toggleNodeAt(pos: number, open?: boolean): void {
+    const node = this.rowSource().node?.(pos);
+    if (!node || !node.children.length) return;
+    const next = open ?? !node.open;
+    if (next) this.expandedNodes.add(node.row);
+    else this.expandedNodes.delete(node.row);
+    this.emit('node-toggle', { row: node.row, expanded: next });
+    this.refresh();
+    if (this.shadow?.activeElement || this.active.pos === pos) this.focusCell(pos, this.active.col);
+  }
+
+  /** Expand one node (by its row object) and every ancestor, so it is visible. */
+  expandNode(row: T): void {
+    const open = (nodes: TreeNode<T>[]): boolean => {
+      for (const node of nodes) {
+        if (node.row === row || open(node.children)) {
+          if (node.row !== row || node.children.length) this.expandedNodes.add(node.row);
+          return true;
+        }
+      }
+      return false;
+    };
+    open(this.buildTree(this.rows, 0, null));
+    this.refresh();
+  }
+
+  collapseNode(row: T): void {
+    this.expandedNodes.delete(row);
+    this.refresh();
+  }
+
   // ────────── Grouping and summaries ──────────
 
   /** Collapse or expand one group (all of them are open unless `group-collapsed`). */
@@ -574,12 +672,19 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     buttons.find(b => b.dataset.group === key)?.focus();
   }
 
+  /** Open every group, or every node of a tree. */
   expandAll(): void {
     this.collapsedGroups.clear();
+    if (this.isTree()) this.flattenTree(this.buildTree(this.rows, 0, null), true).forEach(node => this.expandedNodes.add(node.row));
     this.refresh();
   }
 
   collapseAll(): void {
+    if (this.isTree()) {
+      this.expandedNodes.clear();
+      this.refresh();
+      return;
+    }
     const field = this.getProp<string>('group-by', '');
     if (!field) return;
     this.groupRows(this.getVisibleRows(), field).forEach(group => this.collapsedGroups.add(group.key));
@@ -617,6 +722,24 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     return this.renderCell(shown, { ...col, type, renderer: undefined, formatter: undefined });
   }
 
+  /** The tree column's cell: indentation, the expander (or a gap of the same width), then the value. */
+  private renderTreeCell(node: TreeNode<T>, content: Child, label: string): Node {
+    const expandable = node.children.length > 0;
+    return (
+      <span class="tree-cell" style={{ paddingInlineStart: `${node.depth * 1.25}rem` }}>
+        {expandable ? (
+          // Mouse and touch use this; the keyboard uses Right and Left on the cell
+          <button type="button" class="tree-toggle" tabindex="-1" aria-expanded={String(node.open)}
+                  aria-label={`${node.open ? 'Collapse' : 'Expand'} ${label}`}
+                  html={Icons.get(node.open ? 'chevron-down' : 'chevron-right')} />
+        ) : (
+          <span class="tree-gap" aria-hidden="true" />
+        )}
+        <span class="tree-value">{content}</span>
+      </span>
+    );
+  }
+
   private renderSummaryRow(rows: T[], cols: GridColumn<T>[], checkbox: boolean, label: string, rowIndex?: number): HTMLElement {
     const offsets = this.pinnedOffsets(cols, checkbox);
     const anyPinned = offsets.size > 0;
@@ -636,6 +759,11 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   }
 
   // ────────── Cell editing and the grid keyboard model ──────────
+
+  /** Cells are focusable (roving tabindex, arrow keys) when they can be edited or the rows form a tree. */
+  private isGridMode(): boolean {
+    return this.hasEditable() || this.isTree();
+  }
 
   private hasEditable(): boolean {
     return this.columns.some(c => !c.hidden && !!c.editable);
@@ -808,6 +936,22 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       e.preventDefault();
       this.focusCell(p, c, p < pos ? -1 : 1);
     };
+    if (this.isTree() && col === this.treeColumnIndex() && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+      const nodes = this.rowSource();
+      const node = nodes.node?.(pos);
+      // In a tree the horizontal arrows open and close first, and Left climbs to the parent
+      const opens = (e.key === 'ArrowRight') !== rtl;
+      if (node?.children.length && node.open !== opens) {
+        e.preventDefault();
+        this.toggleNodeAt(pos, opens);
+        return;
+      }
+      if (!opens && node?.parent) {
+        for (let p = pos - 1; p >= 0; p--) {
+          if (nodes.node!(p)!.row === node.parent.row) return go(p, col);
+        }
+      }
+    }
     switch (e.key) {
       case 'ArrowDown': return go(pos + 1, col);
       case 'ArrowUp': return go(pos - 1, col);
@@ -977,6 +1121,10 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       const store = this.store!;
       return { length: store.getTotalCount(), at: i => store.getRecordAt(i)?.data };
     }
+    if (this.isTree()) {
+      const nodes = this.flattenTree(this.buildTree(this.rows, 0, null), false);
+      return { length: nodes.length, at: i => nodes[i]?.row, node: i => nodes[i] };
+    }
     const rows = this.renderedRows();
     const field = this.getProp<string>('group-by', '');
     if (!field) return { length: rows.length, at: i => rows[i] };
@@ -1022,6 +1170,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   }
 
   private rowAtIndex(index: number): T | null {
+    // In a tree, nested rows are not in this.rows: positions are the only handle
+    if (this.isTree()) return this.rowSource().at(index) ?? null;
     return (this.isBuffered() ? this.store!.getRecordAt(index)?.data : this.rows[index]) ?? null;
   }
 
@@ -1058,7 +1208,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   }
 
   private pageSize(): number {
-    if (this.isVirtual()) return 0;
+    if (this.isVirtual() || this.isTree()) return 0;
     return Number(this.getProp('page-size', 0)) || 0;
   }
 
@@ -1152,7 +1302,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
     return (
       <table class="nx-grid-table" part="table" style={{ minWidth }}
-             role={this.hasEditable() ? 'grid' : undefined}
+             role={this.isTree() ? 'treegrid' : this.hasEditable() ? 'grid' : undefined}
              aria-rowcount={virtual ? String(source.length + 1) : undefined}>
         <colgroup>
           {checkbox && <col style="width: 3rem" />}
@@ -1251,7 +1401,9 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     const span = cols.length + (checkbox ? 1 : 0);
     const offsets = this.pinnedOffsets(cols, checkbox);
     const anyPinned = offsets.size > 0;
-    const grid = this.hasEditable();
+    const grid = this.isGridMode();
+    const tree = this.isTree();
+    const treeColumn = tree ? this.treeColumnIndex() : -1;
     const buffered = this.isBuffered();
     // A row whose page is still on its way keeps its height, so the scrollbar doesn't jump
     const placeholder = (i: number) => (
@@ -1291,11 +1443,14 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
             }
             const row = source.at(i);
             if (row === undefined) return placeholder(i);
+            const node = source.node?.(i);
             const isSelected = this.selected.has(row);
             return (
               <tr class={{ striped: striped && i % 2, hoverable, selected: isSelected, clickable: selectable }}
-                  data-index={buffered ? i : this.rows.indexOf(row)} aria-selected={selectable ? String(isSelected) : undefined}
-                  aria-rowindex={virtual ? String(i + 2) : undefined}>
+                  data-index={buffered || tree ? i : this.rows.indexOf(row)} aria-selected={selectable ? String(isSelected) : undefined}
+                  aria-rowindex={virtual ? String(i + 2) : undefined}
+                  aria-level={node ? String(node.depth + 1) : undefined}
+                  aria-expanded={node?.children.length ? String(node.open) : undefined}>
                 {checkbox && <td class={['check', { pinned: anyPinned }]} style={anyPinned ? { left: '0px' } : undefined}><input type="checkbox" class="check-row" aria-label="Select row" checked={isSelected} /></td>}
                 {cols.map((col, ci) => {
                   const field = String(col.field);
@@ -1308,7 +1463,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
                         data-pos={String(i)} data-col={String(ci)}
                         tabindex={grid ? (this.active.pos === i && this.active.col === ci ? '0' : '-1') : undefined}
                         aria-readonly={grid && !editable ? 'true' : undefined}>
-                      {isEditing ? this.renderEditor(col) : this.renderCell(row, col)}
+                      {isEditing ? this.renderEditor(col) : ci === treeColumn && node ? this.renderTreeCell(node, this.renderCell(row, col), this.headerText(col)) : this.renderCell(row, col)}
                     </td>
                   );
                 })}
@@ -1413,6 +1568,14 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   private onClick(e: MouseEvent): void {
     const target = e.target as HTMLElement;
 
+    const treeToggle = target.closest('.tree-toggle');
+    if (treeToggle) {
+      const td = treeToggle.closest('td') as HTMLElement;
+      this.active = { pos: Number(td.dataset.pos), col: Number(td.dataset.col) };
+      this.toggleNodeAt(this.active.pos);
+      return;
+    }
+
     const toggle = target.closest('.group-toggle') as HTMLElement | null;
     if (toggle) {
       this.toggleGroup(toggle.dataset.group ?? '');
@@ -1421,7 +1584,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
     // Clicking a cell makes it the one Tab returns to
     const cell = target.closest('td[data-pos]') as HTMLElement | null;
-    if (cell && this.hasEditable() && !this.editing) {
+    if (cell && this.isGridMode() && !this.editing) {
       this.shadow?.querySelectorAll('tbody td[tabindex="0"]').forEach(el => el.setAttribute('tabindex', '-1'));
       this.active = { pos: Number(cell.dataset.pos), col: Number(cell.dataset.col) };
       cell.setAttribute('tabindex', '0');
@@ -1556,6 +1719,21 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       }
 
       .dense th, .dense td { height: 2.25rem; padding: 0 0.75rem; }
+      .tree-cell { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
+      .tree-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+      .tree-toggle, .tree-gap { flex: none; width: 1.5rem; height: 1.5rem; }
+      .tree-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 0;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+      }
+      .tree-toggle:hover { background: var(--color-accent); }
       .group-row td { padding: 0; background: var(--color-muted); }
       .group-toggle {
         display: flex;

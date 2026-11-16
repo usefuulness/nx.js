@@ -39,6 +39,15 @@ const orders = Array.from({ length: 6 }, (_, i) => ({
   status: ['Paid', 'Paid', 'Pending', 'Refunded', 'Paid', 'Pending'][i]
 }));
 
+const files = [
+  { name: 'docs', kind: 'Folder', size: 0, children: [
+    { name: 'guide.md', kind: 'Markdown', size: 30 },
+    { name: 'api', kind: 'Folder', size: 0, children: [{ name: 'grid.md', kind: 'Markdown', size: 7 }, { name: 'router.md', kind: 'Markdown', size: 3 }] }
+  ] },
+  { name: 'src', kind: 'Folder', size: 0, children: [{ name: 'index.ts', kind: 'TypeScript', size: 12 }, { name: 'app.ts', kind: 'TypeScript', size: 21 }] },
+  { name: 'README.md', kind: 'Markdown', size: 2 }
+];
+
 // ────────── Small building blocks (plain function components) ──────────
 
 const Page = ({ title, description, actions, children }: { title: string; description: string; actions?: Child; children?: Child }) => (
@@ -290,6 +299,21 @@ const ComponentsPage = () => (
           Export
         </Button>
       </HStack>
+    </Card>
+
+    <Card title="Tree grid" subtitle="Rows with children: Right and Left open and close nodes.">
+      <DataGrid
+        id="files-grid"
+        tree
+        height={260}
+        dense
+        columns={[
+          { field: 'name', header: 'Name' },
+          { field: 'kind', header: 'Kind', width: 120 },
+          { field: 'size', header: 'Size (KB)', type: 'number', width: 120, summary: 'sum' }
+        ]}
+        data={files}
+      />
     </Card>
 
     <Grid minColumnWidth={320} gap={16}>

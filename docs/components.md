@@ -27,7 +27,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-divider>`](#nx-divider) | `Divider` | Horizontal rule, optionally with a label. |
 | [`<nx-drawer>`](#nx-drawer) | `Drawer` | Slide-in panel (a "sheet"), built on the native `<dialog>` element: focus trap, Escape, top layer and inert background come from the browser. |
 | [`<nx-form>`](#nx-form) | `Form` | Form container: collects values from named fields, validates, and fires `submit`. Works with nx fields and plain `<input>`/`<select>`/`<textarea>` elements. |
-| [`<nx-grid>`](#nx-grid) | `DataGrid` | Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, store binding. |
+| [`<nx-grid>`](#nx-grid) | `DataGrid` | Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, tree rows, store binding. |
 | [`<nx-input>`](#nx-input) | `Input` | `<nx-input>`: the HTML name matching `<Input>` in JSX. |
 | [`<nx-loader>`](#nx-loader) | — | Loading indicator, optionally covering its container or the whole page. |
 | [`<nx-menu>`](#nx-menu) | `Menu` | A trigger button with a dropdown menu. |
@@ -255,6 +255,7 @@ Flex/grid layout box. Children are regular light-DOM elements.
 | --- | --- | --- | --- |
 | `bordered` | `bordered` | `boolean` | Borders between cells |
 | `checkbox-selection` | `checkboxSelection` | `boolean` | A checkbox column for selecting rows |
+| `children-field` | `childrenField` | `string` | The row field holding child rows (default `children`) |
 | `dense` | `dense` | `boolean` | Compact rows |
 | `empty-text` | `emptyText` | `string` | Shown when there are no rows |
 | `group-by` | `groupBy` | `string` | Group rows by this field: a header per group that collapses (Enter or Space on its button), with the column `summary` totals after each group. With `pageSize`, groups are made per page. Not available with a `buffered` store. |
@@ -271,6 +272,9 @@ Flex/grid layout box. Children are regular light-DOM elements.
 | `store` | `store` |  | …or a Store instance / registered store name |
 | `striped` | `striped` | `boolean` | Alternate row shading |
 | `title` | `title` | `string` | Toolbar heading |
+| `tree` | `tree` | `boolean` | Show rows that have `children` (a field of the row) as a tree: the first column gets an expander and indentation, the Right and Left arrow keys open and close nodes, and sorting and search apply within and across levels (a match keeps its ancestors). Ignores `pageSize` and `groupBy`. |
+| `tree-column` | `treeColumn` | `string` | The column that holds the expander (default: the first) |
+| `tree-expanded` | `treeExpanded` | `boolean` | Start with every node expanded |
 | `virtual` | `virtual` | `boolean` | Render only the rows in view, so tens of thousands of rows stay fast. Rows must be a fixed height (`rowHeight`), the body scrolls (`height`), and paging is ignored. |
 
 ## nx-datepicker
@@ -368,12 +372,13 @@ Form container: collects values from named fields, validates, and fires `submit`
 
 `<nx-grid>` · JSX: `<DataGrid>` · [source](../src/data/grid.tsx)
 
-Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, store binding.
+Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, tree rows, store binding.
 
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
 | `bordered` | `bordered` | `boolean` | Borders between cells |
 | `checkbox-selection` | `checkboxSelection` | `boolean` | A checkbox column for selecting rows |
+| `children-field` | `childrenField` | `string` | The row field holding child rows (default `children`) |
 | `dense` | `dense` | `boolean` | Compact rows |
 | `empty-text` | `emptyText` | `string` | Shown when there are no rows |
 | `group-by` | `groupBy` | `string` | Group rows by this field: a header per group that collapses (Enter or Space on its button), with the column `summary` totals after each group. With `pageSize`, groups are made per page. Not available with a `buffered` store. |
@@ -390,9 +395,12 @@ Data grid: sorting, search, selection, paging, row virtualization, column resize
 | `store` | `store` |  | …or a Store instance / registered store name |
 | `striped` | `striped` | `boolean` | Alternate row shading |
 | `title` | `title` | `string` | Toolbar heading |
+| `tree` | `tree` | `boolean` | Show rows that have `children` (a field of the row) as a tree: the first column gets an expander and indentation, the Right and Left arrow keys open and close nodes, and sorting and search apply within and across levels (a match keeps its ancestors). Ignores `pageSize` and `groupBy`. |
+| `tree-column` | `treeColumn` | `string` | The column that holds the expander (default: the first) |
+| `tree-expanded` | `treeExpanded` | `boolean` | Start with every node expanded |
 | `virtual` | `virtual` | `boolean` | Render only the rows in view, so tens of thousands of rows stay fast. Rows must be a fixed height (`rowHeight`), the body scrolls (`height`), and paging is ignored. |
 
-**Events:** `row-click`, `row-dblclick`, `selection-change`, `sort-change`, `column-change`, `cell-change`, `group-toggle`
+**Events:** `row-click`, `row-dblclick`, `selection-change`, `sort-change`, `column-change`, `cell-change`, `group-toggle`, `node-toggle`
 
 ## nx-input
 

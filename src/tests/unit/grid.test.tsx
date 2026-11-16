@@ -661,4 +661,118 @@ describe('NXGrid JSX renderers', () => {
       expect(virtual.shadowRoot!.querySelector('tr.group-row')!.getAttribute('aria-rowindex')).toBe('2');
     });
   });
+
+  describe('tree rows', () => {
+    const tree = () => [
+      { name: 'Docs', size: 0, children: [
+        { name: 'Guide', size: 30 },
+        { name: 'API', size: 10, children: [{ name: 'Grid', size: 7 }, { name: 'Router', size: 3 }] }
+      ] },
+      { name: 'Src', size: 0, children: [{ name: 'core', size: 50 }] },
+      { name: 'README', size: 2 }
+    ];
+    const cols = [{ field: 'name', header: 'Name' }, { field: 'size', header: 'Size', type: 'number' as const }];
+    const names = (grid: NXGrid) =>
+      Array.from(grid.shadowRoot!.querySelectorAll('tbody tr')).map(tr => tr.querySelector('.tree-value')!.textContent);
+    const td = (grid: NXGrid, pos: number, col = 0) => grid.shadowRoot!.querySelector(`td[data-pos="${pos}"][data-col="${col}"]`) as HTMLElement;
+    const key = (el: Element, k: string) => el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, composed: true }));
+    const toggle = (grid: NXGrid, pos: number) => (td(grid, pos).querySelector('.tree-toggle') as HTMLElement).click();
+
+    it('shows the roots first as a treegrid, with levels, expanded state and an expander per parent', () => {
+      const grid = mount({ data: tree(), columns: cols, tree: true });
+      expect(grid.shadowRoot!.querySelector('table')!.getAttribute('role')).toBe('treegrid');
+      expect(names(grid)).toEqual(['Docs', 'Src', 'README']);
+      const rows = grid.shadowRoot!.querySelectorAll('tbody tr');
+      expect(Array.from(rows).map(r => r.getAttribute('aria-level'))).toEqual(['1', '1', '1']);
+      expect(Array.from(rows).map(r => r.getAttribute('aria-expanded'))).toEqual(['false', 'false', null]);
+      expect(td(grid, 0).querySelector('.tree-toggle')!.getAttribute('aria-label')).toBe('Expand Name');
+      expect(td(grid, 2).querySelector('.tree-toggle')).toBeNull(); // a leaf has no expander
+    });
+
+    it('expands on click, indents by depth, collapses again, and emits node-toggle', () => {
+      const data = tree();
+      const grid = mount({ data, columns: cols, tree: true });
+      const toggled = vi.fn();
+      grid.addEventListener('node-toggle', toggled);
+      toggle(grid, 0);
+      expect(names(grid)).toEqual(['Docs', 'Guide', 'API', 'Src', 'README']);
+      expect((toggled.mock.calls[0][0] as CustomEvent).detail).toEqual({ row: data[0], expanded: true });
+      toggle(grid, 2); // API
+      expect(names(grid)).toEqual(['Docs', 'Guide', 'API', 'Grid', 'Router', 'Src', 'README']);
+      const level = (pos: number) => grid.shadowRoot!.querySelector(`td[data-pos="${pos}"]`)!.parentElement!.getAttribute('aria-level');
+      expect([0, 1, 3].map(level)).toEqual(['1', '2', '3']);
+      expect((td(grid, 3).querySelector('.tree-cell') as HTMLElement).style.paddingInlineStart).toBe('2.5rem');
+      toggle(grid, 0);
+      expect(names(grid)).toEqual(['Docs', 'Src', 'README']);
+    });
+
+    it('treeExpanded opens everything once; expandAll, collapseAll and expandNode work', () => {
+      const data = tree();
+      const grid = mount({ data, columns: cols, tree: true, treeExpanded: true });
+      expect(names(grid)).toHaveLength(8);
+      grid.collapseAll();
+      expect(names(grid)).toEqual(['Docs', 'Src', 'README']);
+      grid.expandAll();
+      expect(names(grid)).toHaveLength(8);
+      grid.collapseAll();
+      grid.expandNode(data[0].children![1].children![0] as any); // Docs/API/Grid: opens its ancestors
+      expect(names(grid)).toEqual(['Docs', 'Guide', 'API', 'Grid', 'Router', 'Src', 'README']);
+    });
+
+    it('sorts siblings within each level', () => {
+      const grid = mount({ data: tree(), columns: cols, tree: true, treeExpanded: true });
+      grid.sort('name', 'asc');
+      expect(names(grid)).toEqual(['Docs', 'API', 'Grid', 'Router', 'Guide', 'README', 'Src', 'core']);
+    });
+
+    it('search keeps the ancestors of a match and opens the path to it', () => {
+      const grid = mount({ data: tree(), columns: cols, tree: true });
+      grid.setFilter('router');
+      expect(names(grid)).toEqual(['Docs', 'API', 'Router']);
+      grid.setFilter('');
+      expect(names(grid)).toEqual(['Docs', 'Src', 'README']);
+    });
+
+    it('moves with the keyboard: Right opens then moves on, Left closes then climbs to the parent', () => {
+      const grid = mount({ data: tree(), columns: cols, tree: true });
+      td(grid, 0).focus();
+      key(td(grid, 0), 'ArrowRight'); // opens Docs
+      expect(names(grid)).toEqual(['Docs', 'Guide', 'API', 'Src', 'README']);
+      expect(grid.shadowRoot!.activeElement).toBe(td(grid, 0));
+      key(td(grid, 0), 'ArrowRight'); // already open: ordinary move right
+      expect(grid.shadowRoot!.activeElement).toBe(td(grid, 0, 1));
+      key(td(grid, 0, 1), 'ArrowLeft');
+      key(td(grid, 0), 'ArrowDown');
+      key(td(grid, 1), 'ArrowLeft'); // Guide is a leaf: climb to Docs
+      expect(grid.shadowRoot!.activeElement).toBe(td(grid, 0));
+      key(td(grid, 0), 'ArrowLeft'); // closes Docs
+      expect(names(grid)).toEqual(['Docs', 'Src', 'README']);
+      key(td(grid, 0), 'ArrowLeft'); // a root, closed: nowhere to go
+      expect(grid.shadowRoot!.activeElement).toBe(td(grid, 0));
+    });
+
+    it('maps clicks on nested rows to the right row object', () => {
+      const data = tree();
+      const grid = mount({ data, columns: cols, tree: true, treeExpanded: true });
+      const onClick = vi.fn();
+      grid.addEventListener('row-click', onClick);
+      (td(grid, 3, 1)).click(); // Docs, Guide, API, Grid
+      expect((onClick.mock.calls[0][0] as CustomEvent).detail.row).toBe(data[0].children![1].children![0]);
+    });
+
+    it('exports every node depth-first, even collapsed ones, and ignores paging and groupBy', () => {
+      const grid = mount({ data: tree(), columns: cols, tree: true, pageSize: 2, groupBy: 'name' });
+      expect(grid.getVisibleRows().map((r: any) => r.name)).toEqual(['Docs', 'Guide', 'API', 'Grid', 'Router', 'Src', 'core', 'README']);
+      expect(names(grid)).toEqual(['Docs', 'Src', 'README']);
+      expect(grid.shadowRoot!.querySelector('.pager')).toBeNull();
+      expect(grid.shadowRoot!.querySelector('.group-row')).toBeNull();
+    });
+
+    it('puts the expander in the chosen column, and counts only showing nodes in a virtual grid', () => {
+      const grid = mount({ data: tree(), columns: [cols[1], cols[0]], tree: true, treeColumn: 'name', virtual: true, rowHeight: 40 });
+      expect(td(grid, 0, 1).querySelector('.tree-toggle')).not.toBeNull();
+      expect(td(grid, 0, 0).querySelector('.tree-toggle')).toBeNull();
+      expect(grid.shadowRoot!.querySelector('table')!.getAttribute('aria-rowcount')).toBe('4');
+    });
+  });
 });

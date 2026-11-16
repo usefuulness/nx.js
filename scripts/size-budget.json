@@ -1,13 +1,13 @@
 [
   {
     "file": "nx.umd.js",
-    "maxGzipKB": 75,
+    "maxGzipKB": 77,
     "note": "the whole library, minified, for <script> tags: the number to compare with other UI kits"
   },
   {
     "file": "index.js",
     "closure": true,
-    "maxGzipKB": 92,
+    "maxGzipKB": 94,
     "note": "import { ... } from 'nx.js' bundled as ES modules. About 17 kB gz more than the UMD build of the same code (not yet explained); per-component entries are the way to ship less"
   },
   {
@@ -34,8 +34,8 @@
   {
     "file": "entries/grid.js",
     "closure": true,
-    "maxGzipKB": 31,
-    "note": "virtual, editable, buffered data grid"
+    "maxGzipKB": 33.5,
+    "note": "virtual, editable, buffered, grouped, tree data grid; raised 31 \u2192 33.5 for tree rows. Next grid features should load lazily instead"
   },
   {
     "file": "ssr.js",

@@ -117,6 +117,10 @@ test.describe('floating UI', () => {
   test('combobox filters and picks with the keyboard', async ({ page }) => {
     const box = page.getByRole('combobox', { name: 'Framework' });
     const list = page.getByRole('listbox', { name: 'Framework' });
+    // Any scroll closes an open list, and a scroll event fires a frame after the scroll itself:
+    // scroll the field into view and let that event pass before the list opens
+    await box.scrollIntoViewIfNeeded();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await box.fill('re');
     await expect(list.getByRole('option')).toHaveText(['Remix']);
     await box.press('Enter');
@@ -498,4 +502,33 @@ test('grouped grid: headers collapse from the keyboard, totals follow, and the f
   await page.keyboard.press('Space');
   await expect(paid).toHaveAttribute('aria-expanded', 'true');
   await expect(grid.locator('tbody tr:not(.group-row):not(.summary-row)')).toHaveCount(6);
+});
+
+test('tree grid: Right opens, Left closes and climbs to the parent, with treegrid semantics', async ({ page }) => {
+  await page.goto('/#/components');
+  const grid = page.locator('#files-grid');
+  await expect(grid.locator('table')).toHaveAttribute('role', 'treegrid');
+  await expect(grid.locator('tbody tr')).toHaveCount(3); // docs, src, README.md
+  const cell = (pos: number, col = 0) => grid.locator(`td[data-pos="${pos}"][data-col="${col}"]`);
+
+  await cell(0).focus();
+  await page.keyboard.press('ArrowRight'); // opens docs
+  await expect(grid.locator('tbody tr')).toHaveCount(5);
+  await expect(grid.locator('tbody tr').first()).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('ArrowDown'); // guide.md
+  await page.keyboard.press('ArrowDown'); // api
+  await page.keyboard.press('ArrowRight'); // opens api
+  await expect(grid.locator('tbody tr')).toHaveCount(7);
+  await expect(grid.locator('tbody tr').nth(3)).toHaveAttribute('aria-level', '3'); // grid.md
+  await page.keyboard.press('ArrowDown'); // grid.md
+  await page.keyboard.press('ArrowLeft'); // climbs to api
+  await expect(cell(2)).toBeFocused();
+  await page.keyboard.press('ArrowLeft'); // closes api
+  await expect(grid.locator('tbody tr')).toHaveCount(5);
+
+  // The expander works with the mouse, and the footer totals every node
+  await grid.locator('td[data-pos="1"] .tree-toggle').count();
+  await cell(0).locator('.tree-toggle').click();
+  await expect(grid.locator('tbody tr')).toHaveCount(3);
+  await expect(grid.locator('tfoot')).toContainText('75'); // 30+7+3+12+21+2
 });
