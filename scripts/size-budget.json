@@ -1,0 +1,6 @@
+[
+  { "file": "nx.umd.js", "maxGzipKB": 75, "note": "the whole library, minified: the number to compare with other UI kits" },
+  { "file": "app-*.js", "maxGzipKB": 90, "note": "the ESM chunk every export shares, not minified (your bundler does that)" },
+  { "file": "ssr.js", "maxGzipKB": 5 },
+  { "file": "nx.css", "maxGzipKB": 3 }
+]

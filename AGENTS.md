@@ -17,6 +17,7 @@ The default branch is `LIVE`.
 | `pnpm test:e2e` | after **any UI change**: Playwright in Chromium, with the demo, server-rendered pages, native forms, and an axe WCAG 2.1 AA audit that must stay at **zero violations**. If Chromium lives somewhere non-standard, set `PLAYWRIGHT_CHROMIUM_PATH` |
 | `pnpm docs:reference` | after changing a component's attributes or JSDoc; regenerates `docs/components.md` (a unit test fails when it is stale) |
 | `pnpm build` | library into `dist/`: ESM, CJS, UMD, `.d.ts`, `nx.css`, editor data |
+| `pnpm size` | after `pnpm build`: gzip/brotli sizes against `scripts/size-budget.json`; CI fails when a file is over budget |
 | `pnpm dev` | the demo app (`src/main.tsx`) at http://localhost:5173 |
 | `pnpm example:ssg`, `example:server`, `example:showcase` | the examples in `examples/` |
 | `pnpm site` | the GitHub Pages site into `site-dist/` (showcase, docs as HTML, demo). CI deploys it on every push to `LIVE` |
