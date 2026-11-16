@@ -9,7 +9,8 @@ All notable changes to Nexaro (nx.js). The format follows [Keep a Changelog](htt
 - **Router:** route `loader` functions with `staleTime`, `errorView`, `prefetch()`, `invalidate()`, `reload()`; `resolve()` and `routeDataScript()` for loading on the server without fetching twice in the browser; scroll restoration and `route.history`; history-mode link handling with hover prefetch; `viewTransitions`; `Router.stop()`.
 - **Data:** `buffered` stores page rows in as a virtual grid scrolls (LRU page cache, shared and stale-proof requests, server sort and search, skeleton rows).
 - **Forms:** `<nx-form enhance>` posts with `fetch`, shows server validation errors on the named fields, and follows redirects; `success`/`error` events, `isSubmitting()`, `abort()`.
-- `pnpm size`: a bundle-size budget checked in CI.
+- **Per-component imports:** `nx.js/components/<name>` (34 entries, with types) loads one component and the runtime it needs: `badge` is 13.6 kB gzipped, `form` 17.4 kB, `grid` 28.0 kB, against about 70 kB for everything.
+- `pnpm size`: a bundle-size budget checked in CI, including each entry's real cost.
 
 ### Changed
 - CI runs the browser tests (`pnpm test:e2e`, including the axe audit), the library build and the size budget before deploying.

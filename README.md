@@ -26,7 +26,7 @@ Accessible, themeable UI components you write like HTML: shadcn-style, as standa
 - **Forms that work before JavaScript.** Fields are form-associated: they post, validate and reset like native inputs, and server-rendered forms can be filled in and submitted before the script arrives.
 - **Accessible, and checked.** Keyboard support and ARIA throughout; an axe WCAG 2.1 AA audit of every page, in every theme, with overlays open, runs on every change and must report zero violations.
 - **Themeable.** Light, dark and midnight themes built in; your brand is a few design tokens.
-- **Small.** About 50 kB gzipped with every component, and no runtime dependencies.
+- **Small, and you pay for what you use.** About 70 kB gzipped (57 kB brotli) with every component, no runtime dependencies, and per-component imports: a badge is 14 kB, a form 17 kB, the full data grid 28 kB (`pnpm size` checks these in CI).
 
 ## Quick start
 

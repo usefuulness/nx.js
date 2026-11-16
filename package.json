@@ -39,6 +39,11 @@
       "import": "./dist/ssr-dom.js",
       "require": "./dist/ssr-dom.cjs"
     },
+    "./components/*": {
+      "types": "./dist/entries/*.d.ts",
+      "import": "./dist/entries/*.js",
+      "require": "./dist/entries/*.cjs"
+    },
     "./nx.css": "./dist/nx.css",
     "./custom-elements.json": "./dist/custom-elements.json",
     "./html-custom-data.json": "./dist/html-custom-data.json"

@@ -6,9 +6,12 @@
  * when a change shrinks the bundle, and raise it only on purpose, in the same commit that grows it.
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { resolve as resolvePath } from 'node:path';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
+import { build } from 'vite';
 
-type Budget = { file: string; maxGzipKB: number; note?: string };
+/** `closure`: bundle and minify the file with everything it imports, i.e. what a page importing it ships */
+type Budget = { file: string; maxGzipKB: number; closure?: boolean; note?: string };
 const budgets: Budget[] = JSON.parse(readFileSync(new URL('./size-budget.json', import.meta.url), 'utf8'));
 
 if (!existsSync('dist')) {
@@ -23,6 +26,26 @@ const resolve = (pattern: string): string | null => {
   return readdirSync('dist').find(f => f.startsWith(prefix) && f.endsWith(suffix)) ?? null;
 };
 
+/**
+ * What a page importing `name` downloads: the entry bundled with everything it imports and minified,
+ * the way an application build would ship it. (Compressing the dist/ chunks one by one over-counts,
+ * because small files lose the shared dictionary.)
+ */
+const bundle = async (name: string): Promise<Buffer> => {
+  const result = await build({
+    configFile: false,
+    logLevel: 'silent',
+    build: {
+      write: false,
+      minify: 'esbuild',
+      lib: { entry: resolvePath(`dist/${name}`), formats: ['es'], fileName: 'bundle' },
+      rollupOptions: { external: [/^node:/, 'happy-dom'] }
+    }
+  });
+  const outputs = (Array.isArray(result) ? result : [result]).flatMap(r => ('output' in r ? r.output : []));
+  return Buffer.from(outputs.map(o => ('code' in o ? o.code : '')).join('\n'));
+};
+
 const kb = (n: number) => (n / 1024).toFixed(1).padStart(7);
 let failed = false;
 console.log('file'.padEnd(22), '    raw     gzip   brotli   budget');
@@ -33,7 +56,7 @@ for (const budget of budgets) {
     failed = true;
     continue;
   }
-  const bytes = readFileSync(`dist/${name}`);
+  const bytes = budget.closure ? await bundle(name) : readFileSync(`dist/${name}`);
   const gzip = gzipSync(bytes, { level: 9 }).length;
   const brotli = brotliCompressSync(bytes).length;
   const over = gzip / 1024 > budget.maxGzipKB;

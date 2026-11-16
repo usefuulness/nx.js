@@ -120,6 +120,6 @@ pnpm dev          # demo with HMR
 pnpm check        # typecheck + unit tests (run before every commit)
 pnpm test:e2e     # Playwright: demo, a11y, SSR/hydration, native forms
 pnpm build        # library → dist/
-pnpm size         # after a build: gzip/brotli sizes against scripts/size-budget.json (CI fails over budget)
+pnpm size         # after a build: gzip/brotli sizes of the bundles and of each nx.js/components/* entry against scripts/size-budget.json (CI fails over budget)
 pnpm docs:reference   # regenerate docs/components.md
 ```
