@@ -71,7 +71,8 @@
     "example:showcase": "tsx examples/showcase/build.tsx",
     "docs:reference": "tsx scripts/custom-elements.ts dist --reference docs/components.md",
     "site": "tsx scripts/site.tsx",
-    "size": "tsx scripts/size.ts"
+    "size": "tsx scripts/size.ts",
+    "bench": "tsx scripts/bench.ts"
   },
   "peerDependencies": {
     "happy-dom": ">=17"
