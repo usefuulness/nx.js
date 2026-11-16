@@ -185,4 +185,65 @@ describe('NXGrid JSX renderers', () => {
       expect(bodyRows(grid)[0].querySelector('td')!.textContent).toBe('Row 49999');
     });
   });
+
+  describe('columns', () => {
+    const headers = (grid: NXGrid) =>
+      Array.from(grid.shadowRoot!.querySelectorAll('thead th')).map(th => th.getAttribute('data-field'));
+    const key = (k: string, extra: Record<string, any> = {}) =>
+      new KeyboardEvent('keydown', { key: k, bubbles: true, ...extra });
+
+    beforeEach(() => localStorage.clear());
+
+    it('resizes from the keyboard, respects minWidth, and double-click resets', () => {
+      const grid = mount({ data: rows, resizable: true, columns: [{ field: 'name', header: 'Name', width: 100, minWidth: 90 }, columns[1]] });
+      const handle = () => grid.shadowRoot!.querySelector('th[data-field="name"] .resize-handle') as HTMLElement;
+      expect(handle().getAttribute('role')).toBe('separator');
+      handle().dispatchEvent(key('ArrowRight', { shiftKey: true }));
+      expect((grid.shadowRoot!.querySelector('col') as HTMLElement).style.width).toBe('150px');
+      handle().dispatchEvent(key('ArrowLeft', { shiftKey: true }));
+      handle().dispatchEvent(key('ArrowLeft', { shiftKey: true }));
+      expect(grid.getColumnState().widths.name).toBe(90);
+      handle().dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      expect(grid.getColumnState().widths.name).toBeUndefined();
+    });
+
+    it('has no resize handles unless resizable', () => {
+      const grid = mount({ data: rows });
+      expect(grid.shadowRoot!.querySelector('.resize-handle')).toBeNull();
+    });
+
+    it('moves columns with Alt+Arrow and emits column-change', () => {
+      const grid = mount({ data: rows, reorderable: true });
+      const changed = vi.fn();
+      grid.addEventListener('column-change', changed);
+      expect(headers(grid)).toEqual(['name', 'age', 'role']);
+      grid.shadowRoot!.querySelector('th[data-field="name"] button')!.dispatchEvent(key('ArrowRight', { altKey: true }));
+      expect(headers(grid)).toEqual(['age', 'name', 'role']);
+      expect(cellText(grid)).toEqual(['30', '25', '35']);
+      expect((changed.mock.calls[0][0] as CustomEvent).detail.order).toEqual(['age', 'name', 'role']);
+    });
+
+    it('keeps pinned columns first, with a sticky offset after the checkbox column', () => {
+      const grid = mount({
+        data: rows, checkboxSelection: true,
+        columns: [columns[0], { field: 'age', header: 'Age', width: 80, pinned: 'left' }, columns[2]]
+      });
+      expect(headers(grid)).toEqual([null, 'age', 'name', 'role']);
+      const th = grid.shadowRoot!.querySelector('th[data-field="age"]') as HTMLElement;
+      expect(th.classList.contains('pinned')).toBe(true);
+      expect(th.style.left).toBe('48px');
+    });
+
+    it('persists widths and order under state-key', () => {
+      const first = mount({ data: rows, resizable: true, reorderable: true, stateKey: 'users' });
+      first.shadowRoot!.querySelector('th[data-field="role"] button')!.dispatchEvent(key('ArrowLeft', { altKey: true }));
+      first.shadowRoot!.querySelector<HTMLElement>('th[data-field="name"] .resize-handle')!.dispatchEvent(key('ArrowRight'));
+      document.body.innerHTML = '';
+      const second = mount({ data: rows, resizable: true, reorderable: true, stateKey: 'users' });
+      expect(headers(second)).toEqual(['name', 'role', 'age']);
+      expect(second.getColumnState().widths.name).toBeGreaterThan(0);
+      second.resetColumns();
+      expect(headers(second)).toEqual(['name', 'age', 'role']);
+    });
+  });
 });

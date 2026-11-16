@@ -27,7 +27,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-divider>`](#nx-divider) | `Divider` | Horizontal rule, optionally with a label. |
 | [`<nx-drawer>`](#nx-drawer) | `Drawer` | Slide-in panel (a "sheet"), built on the native `<dialog>` element: focus trap, Escape, top layer and inert background come from the browser. |
 | [`<nx-form>`](#nx-form) | `Form` | Form container: collects values from named fields, validates, and fires `submit`. Works with nx fields and plain `<input>`/`<select>`/`<textarea>` elements. |
-| [`<nx-grid>`](#nx-grid) | `DataGrid` | Data grid: sorting, search, selection, paging, row virtualization, store binding. |
+| [`<nx-grid>`](#nx-grid) | `DataGrid` | Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, store binding. |
 | [`<nx-input>`](#nx-input) | `Input` | `<nx-input>`: the HTML name matching `<Input>` in JSX. |
 | [`<nx-loader>`](#nx-loader) | — | Loading indicator, optionally covering its container or the whole page. |
 | [`<nx-menu>`](#nx-menu) | `Menu` | A trigger button with a dropdown menu. |
@@ -260,9 +260,12 @@ Flex/grid layout box. Children are regular light-DOM elements.
 | `height` | `height` | `string \| number` | Height of the scrolling body, as a CSS size or px number (a `virtual` grid defaults to 24rem) |
 | `hoverable` | `hoverable` | `boolean` | Highlight the row under the pointer |
 | `page-size` | `pageSize` | `number` | Rows per page; omit for no paging |
+| `reorderable` | `reorderable` | `boolean` | Reorder columns by dragging headers, or with Alt+Left/Right on a focused header |
+| `resizable` | `resizable` | `boolean` | Drag a header's right edge to resize (also focusable: Left/Right arrows, Shift for bigger steps, Enter or double-click resets) |
 | `row-height` | `rowHeight` | `number` | Row height in px for a `virtual` grid (default 48, or 36 when `dense`) |
 | `search` | `search` | `boolean` | Show a search box that filters across all visible columns |
 | `selectable` | `selectable` | `boolean \| 'single' \| 'multiple'` | Row selection: `true` or `'single'` for one row, `'multiple'` for several |
+| `state-key` | `stateKey` | `string` | Remember column widths and order in localStorage under this key |
 | `store` | `store` |  | …or a Store instance / registered store name |
 | `striped` | `striped` | `boolean` | Alternate row shading |
 | `title` | `title` | `string` | Toolbar heading |
@@ -362,7 +365,7 @@ Form container: collects values from named fields, validates, and fires `submit`
 
 `<nx-grid>` · JSX: `<DataGrid>` · [source](../src/data/grid.tsx)
 
-Data grid: sorting, search, selection, paging, row virtualization, store binding.
+Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, store binding.
 
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
@@ -373,15 +376,18 @@ Data grid: sorting, search, selection, paging, row virtualization, store binding
 | `height` | `height` | `string \| number` | Height of the scrolling body, as a CSS size or px number (a `virtual` grid defaults to 24rem) |
 | `hoverable` | `hoverable` | `boolean` | Highlight the row under the pointer |
 | `page-size` | `pageSize` | `number` | Rows per page; omit for no paging |
+| `reorderable` | `reorderable` | `boolean` | Reorder columns by dragging headers, or with Alt+Left/Right on a focused header |
+| `resizable` | `resizable` | `boolean` | Drag a header's right edge to resize (also focusable: Left/Right arrows, Shift for bigger steps, Enter or double-click resets) |
 | `row-height` | `rowHeight` | `number` | Row height in px for a `virtual` grid (default 48, or 36 when `dense`) |
 | `search` | `search` | `boolean` | Show a search box that filters across all visible columns |
 | `selectable` | `selectable` | `boolean \| 'single' \| 'multiple'` | Row selection: `true` or `'single'` for one row, `'multiple'` for several |
+| `state-key` | `stateKey` | `string` | Remember column widths and order in localStorage under this key |
 | `store` | `store` |  | …or a Store instance / registered store name |
 | `striped` | `striped` | `boolean` | Alternate row shading |
 | `title` | `title` | `string` | Toolbar heading |
 | `virtual` | `virtual` | `boolean` | Render only the rows in view, so tens of thousands of rows stay fast. Rows must be a fixed height (`rowHeight`), the body scrolls (`height`), and paging is ignored. |
 
-**Events:** `row-click`, `row-dblclick`, `selection-change`, `sort-change`
+**Events:** `row-click`, `row-dblclick`, `selection-change`, `sort-change`, `column-change`
 
 ## nx-input
 

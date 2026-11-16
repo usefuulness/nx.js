@@ -110,7 +110,7 @@ const DashboardPage = () => (
         height={280}
         search
         columns={[
-          { field: 'id', header: 'Event', width: 100, type: 'number' },
+          { field: 'id', header: 'Event', width: 100, type: 'number', pinned: 'left' },
           { field: 'source', header: 'Source' },
           { field: 'level', header: 'Level', type: 'badge', width: 110, badges: { Info: 'info', Warn: 'warning', Error: 'error' } }
         ]}
@@ -216,6 +216,9 @@ const UsersPage = () => {
         search
         pageSize={10}
         checkboxSelection
+        resizable
+        reorderable
+        stateKey="users-grid"
         columns={userColumns}
         onSelectionChange={(e: CustomEvent) => deleteButton.current!.toggleAttribute('disabled', !e.detail.selected.length)}
         onRowDblclick={(e: CustomEvent) => NX.alert(`${e.detail.row.name} <${e.detail.row.email}>`, { title: 'User' })}

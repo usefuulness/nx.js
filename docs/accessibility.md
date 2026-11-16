@@ -35,7 +35,7 @@ Every component is built to work with a keyboard and a screen reader, in every t
 | Command palette | type to filter · **↑ ↓** move · **Home End** first/last · **Enter** run · **Escape** close |
 | Popover | **Enter Space** on the trigger toggles · focus moves into the panel · **Escape** or a click outside closes and returns focus |
 | Tooltip | appears on keyboard focus as well as hover · **Escape** hides |
-| Data grid | sortable headers are buttons (**Enter Space** sort) · selection checkboxes and paging buttons are native |
+| Data grid | sortable headers are buttons (**Enter Space** sort) · selection checkboxes and paging buttons are native · resize handles are focusable separators (**←** **→**, **Shift** for bigger steps, **Enter** resets) · **Alt+←** **Alt+→** on a header moves the column |
 | Radio group, Slider, Checkbox, Switch, Select | the browser's native keys (arrows, Space, Home/End, Page Up/Down) |
 
 ## Testing a new component

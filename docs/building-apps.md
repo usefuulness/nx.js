@@ -84,6 +84,7 @@ app.toggleRegion('west');   // open the side nav on phones, collapse a collapsib
 - Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`.
 - Clicks on buttons, links and inputs inside cells don't select the row. Sortable headers are buttons, so sorting works from the keyboard.
 - Cell values are always escaped. Only a `renderer` that returns an HTML string bypasses that.
+- **Columns:** `resizable` adds a handle to each header (drag it, or focus it and use **Left/Right**, **Shift** for bigger steps, **Enter** or double-click to reset). `reorderable` lets you drag headers or press **Alt+Left/Right** on a focused header. `pinned: 'left'` (with a px `width`) keeps a column at the left edge while the body scrolls sideways; pinned columns stay in front. Add `minWidth` or `resizable: false` per column. `stateKey: 'users'` remembers widths and order in `localStorage`. API: `getColumnState()`, `setColumnState()`, `resetColumns()`; event: `column-change`.
 - **Large data:** `virtual: true` renders only the rows in view (plus a small overscan), so 50,000+ rows scroll smoothly. Set `rowHeight` (px, default 48, or 36 when `dense`) and `height` (default `24rem`); rows must stay that height, and paging is ignored. The table reports its full size through `aria-rowcount`, but rows that are scrolled out of view are not in the DOM, so browser find-in-page won't see them. Use `search` for that.
 
 ## Stores

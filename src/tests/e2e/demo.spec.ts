@@ -218,3 +218,44 @@ test('virtual grid renders a window of 20,000 rows and scrolls to the end', asyn
   await expect(page.locator('#events-grid tbody tr', { hasText: '20,000' }).first()).toBeVisible();
   expect(await rows.count()).toBeLessThan(60);
 });
+
+test('grid columns resize with the pointer and the keyboard, and the width is remembered', async ({ page }) => {
+  await page.goto('/#/users');
+  const handle = page.locator('#users-grid th[data-field="email"] .resize-handle');
+  const th = page.locator('#users-grid th[data-field="email"]');
+  const before = (await th.boundingBox())!.width;
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 80, box.y + box.height / 2, { steps: 4 });
+  await page.mouse.up();
+  const after = (await th.boundingBox())!.width;
+  expect(after).toBeGreaterThan(before + 60);
+
+  await handle.focus();
+  await page.keyboard.press('Shift+ArrowLeft');
+  await expect(handle).toBeFocused();
+  expect((await th.boundingBox())!.width).toBeLessThan(after - 40);
+
+  const saved = await page.evaluate(() => localStorage.getItem('nx-grid:users-grid'));
+  expect(JSON.parse(saved!).widths.email).toBeGreaterThan(0);
+  await page.reload();
+  await expect(page.locator('#users-grid th[data-field="email"]')).toBeVisible();
+  expect(JSON.parse((await page.evaluate(() => localStorage.getItem('nx-grid:users-grid')))!).widths.email).toBeGreaterThan(0);
+});
+
+test('grid columns reorder with Alt+Arrow and a pinned column stays put while scrolling sideways', async ({ page }) => {
+  await page.goto('/#/users');
+  const order = () => page.locator('#users-grid thead th[data-field]').evaluateAll(ths => ths.map(th => (th as HTMLElement).dataset.field));
+  expect((await order())[0]).toBe('name');
+  await page.locator('#users-grid th[data-field="name"] .sort-btn').focus();
+  await page.keyboard.press('Alt+ArrowRight');
+  expect((await order())[1]).toBe('name');
+
+  await page.goto('/#/');
+  const pinned = page.locator('#events-grid th[data-field="id"]');
+  await expect(pinned).toBeVisible();
+  const x = (await pinned.boundingBox())!.x;
+  await page.locator('#events-grid .nx-grid-body').evaluate(el => (el.scrollLeft = 50));
+  expect(Math.abs((await pinned.boundingBox())!.x - x)).toBeLessThan(1);
+});

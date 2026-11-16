@@ -23,6 +23,12 @@ export interface GridColumn<T = any> {
   /** Defaults to true */
   sortable?: boolean;
   hidden?: boolean;
+  /** Smallest width in px when resizing (default 60) */
+  minWidth?: number;
+  /** Set `false` to stop this column being resized or moved when the grid allows it */
+  resizable?: boolean;
+  /** Keep the column at the left edge while the body scrolls sideways. Give it a px `width` */
+  pinned?: 'left';
   /**
    * Built-in cell types:
    * - `number`, `currency`, `percent`, `date`, `boolean`
@@ -69,6 +75,12 @@ export interface GridConfig<T extends Record<string, any> = any> {
   virtual?: boolean;
   /** Row height in px for a `virtual` grid (default 48, or 36 when `dense`) */
   rowHeight?: number;
+  /** Drag a header's right edge to resize (also focusable: Left/Right arrows, Shift for bigger steps, Enter or double-click resets) */
+  resizable?: boolean;
+  /** Reorder columns by dragging headers, or with Alt+Left/Right on a focused header */
+  reorderable?: boolean;
+  /** Remember column widths and order in localStorage under this key */
+  stateKey?: string;
   /** Height of the scrolling body, as a CSS size or px number (a `virtual` grid defaults to 24rem) */
   height?: number | string;
   /** Shown when there are no rows */
@@ -82,7 +94,7 @@ const isNumeric = (col: GridColumn): boolean =>
   col.type === 'number' || col.type === 'currency' || col.type === 'percent';
 
 /**
- * Data grid: sorting, search, selection, paging, row virtualization, store binding.
+ * Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, store binding.
  *
  * @example
  * ```typescript
@@ -102,13 +114,13 @@ const isNumeric = (col: GridColumn): boolean =>
  * }
  * ```
  *
- * Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`.
+ * Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`, `column-change`.
  */
 export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   static get observedAttributes(): string[] {
     return [
       'title', 'search', 'striped', 'hoverable', 'dense', 'bordered',
-      'selectable', 'checkbox-selection', 'page-size', 'empty-text', 'store', 'virtual', 'row-height', 'height'
+      'selectable', 'checkbox-selection', 'page-size', 'empty-text', 'store', 'virtual', 'row-height', 'height', 'resizable', 'reorderable', 'state-key'
     ];
   }
 
@@ -122,6 +134,9 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   private query = '';
   private page = 1;
   private scrollFrame = 0;
+  private widths = new Map<string, number>();
+  private order: string[] = [];
+  private stateLoaded = false;
   private readonly onStoreChange = () => {
     if (this.store) this.setRowsInternal(this.store.getData());
   };
@@ -179,6 +194,10 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     // A named store may be registered after the grid was configured
     if (!this.store) this.bindStore();
     else this.store.on('datachanged', this.onStoreChange);
+  }
+
+  protected afterRender(): void {
+    this.syncHandleValues();
   }
 
   protected cleanup(): void {
@@ -280,6 +299,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     if (scrollTop) body.scrollTop = scrollTop;
     if (scrollLeft) body.scrollLeft = scrollLeft;
     this.$('.nx-grid-footer')?.replaceWith(this.renderFooter());
+    this.syncHandleValues();
   }
 
   /** Download visible rows as CSV. */
@@ -299,7 +319,155 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   // ────────── Rendering ──────────
 
   private visibleColumns(): GridColumn<T>[] {
-    return this.columns.filter(col => !col.hidden);
+    this.loadState();
+    const rank = (c: GridColumn<T>) => this.order.indexOf(String(c.field));
+    const cols = this.columns
+      .filter(col => !col.hidden)
+      .map((col, i) => ({ col, i }))
+      .sort((a, b) => {
+        // Pinned first, then the user's order (unknown fields keep their place), then config order
+        const pin = Number(b.col.pinned === 'left') - Number(a.col.pinned === 'left');
+        if (pin) return pin;
+        const ra = rank(a.col), rb = rank(b.col);
+        return ra >= 0 && rb >= 0 ? ra - rb : a.i - b.i;
+      })
+      .map(({ col }) => col);
+    return cols.map(col => {
+      const w = this.widths.get(String(col.field));
+      return w ? { ...col, width: w } : col;
+    });
+  }
+
+  // ────────── Column state: widths, order, persistence ──────────
+
+  private storageKey(): string | null {
+    const key = this.getProp<string>('state-key');
+    return key ? `nx-grid:${key}` : null;
+  }
+
+  private loadState(): void {
+    if (this.stateLoaded) return;
+    this.stateLoaded = true;
+    const key = this.storageKey();
+    if (!key) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) ?? 'null');
+      if (saved?.widths) this.widths = new Map(Object.entries(saved.widths).map(([k, v]) => [k, Number(v)]));
+      if (Array.isArray(saved?.order)) this.order = saved.order.map(String);
+    } catch {
+      // Storage blocked or corrupt: fall back to the configured columns
+    }
+  }
+
+  /** Current widths (px) and order of the columns, as saved under `state-key`. */
+  getColumnState(): { widths: Record<string, number>; order: string[] } {
+    return { widths: Object.fromEntries(this.widths), order: this.visibleColumns().map(c => String(c.field)) };
+  }
+
+  setColumnState(state: { widths?: Record<string, number>; order?: string[] }): void {
+    this.stateLoaded = true;
+    this.widths = new Map(Object.entries(state.widths ?? {}).map(([k, v]) => [k, Number(v)]));
+    this.order = (state.order ?? []).map(String);
+    this.columnsChanged(false);
+  }
+
+  /** Back to the configured widths and order. */
+  resetColumns(): void {
+    this.setColumnState({});
+  }
+
+  private columnsChanged(emit = true): void {
+    const key = this.storageKey();
+    if (key) {
+      try {
+        localStorage.setItem(key, JSON.stringify(this.getColumnState()));
+      } catch {
+        // Not persisted; the grid still works
+      }
+    }
+    this.refresh();
+    if (emit) this.emit('column-change', this.getColumnState());
+  }
+
+  /** Handles announce their real pixel width, which is only known after layout. */
+  private syncHandleValues(): void {
+    this.shadow?.querySelectorAll('th[data-field] .resize-handle').forEach(handle => {
+      const width = Math.round((handle.parentElement as HTMLElement).getBoundingClientRect().width);
+      if (width) handle.setAttribute('aria-valuenow', String(width));
+    });
+  }
+
+  private headerCell(field: string): HTMLElement | null {
+    const cells = this.shadow?.querySelectorAll('th[data-field]') ?? [];
+    return (Array.from(cells) as HTMLElement[]).find(th => th.dataset.field === field) ?? null;
+  }
+
+  private minColumnWidth(field: string): number {
+    return this.columns.find(c => String(c.field) === field)?.minWidth ?? 60;
+  }
+
+  private resizeBy(field: string, delta: number): void {
+    const th = this.headerCell(field);
+    const configured = parseFloat(cssSize(this.columns.find(c => String(c.field) === field)?.width));
+    const current = this.widths.get(field) || th?.getBoundingClientRect().width || configured || 120;
+    this.widths.set(field, Math.max(this.minColumnWidth(field), Math.round(current + delta)));
+    this.columnsChanged();
+    (this.headerCell(field)?.querySelector('.resize-handle') as HTMLElement | null)?.focus();
+  }
+
+  private moveColumn(field: string, to: number): void {
+    // Pinned columns stay in front; moving only happens among the rest
+    const fields = this.visibleColumns().map(c => String(c.field));
+    const from = fields.indexOf(field);
+    if (from < 0 || to < 0 || to >= fields.length || from === to) return;
+    const pinned = (f: string) => this.columns.find(c => String(c.field) === f)?.pinned === 'left';
+    if (pinned(field) !== pinned(fields[to])) return;
+    fields.splice(to, 0, ...fields.splice(from, 1));
+    this.order = fields;
+    this.columnsChanged();
+    (this.headerCell(field)?.querySelector('.sort-btn, .th') as HTMLElement | null)?.focus();
+  }
+
+  private startResize(e: PointerEvent, field: string): void {
+    const handle = e.currentTarget as HTMLElement;
+    const th = handle.closest('th') as HTMLElement;
+    const index = Array.from(th.parentElement!.children).indexOf(th);
+    const col = this.$('colgroup')?.children[index] as HTMLElement | undefined;
+    const startX = e.clientX;
+    const startWidth = th.getBoundingClientRect().width;
+    // A right-to-left page grows a column when the pointer moves left
+    const dir = getComputedStyle(this).direction === 'rtl' ? -1 : 1;
+    let width = startWidth;
+    e.preventDefault();
+    handle.setPointerCapture?.(e.pointerId);
+    const move = (ev: PointerEvent) => {
+      width = Math.max(this.minColumnWidth(field), Math.round(startWidth + (ev.clientX - startX) * dir));
+      if (col) col.style.width = `${width}px`;
+    };
+    const up = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+      if (width !== startWidth) {
+        this.widths.set(field, width);
+        this.columnsChanged();
+      }
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  }
+
+  /** Left offsets (px) of pinned columns, including the checkbox column. */
+  private pinnedOffsets(cols: GridColumn<T>[], checkbox: boolean): Map<string, number> {
+    const offsets = new Map<string, number>();
+    let left = checkbox && cols.some(c => c.pinned === 'left') ? 48 : 0;
+    for (const col of cols) {
+      if (col.pinned !== 'left') continue;
+      offsets.set(String(col.field), left);
+      left += parseFloat(cssSize(col.width)) || 160;
+    }
+    return offsets;
   }
 
   private headerText(col: GridColumn<T>): string {
@@ -431,6 +599,11 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
     // Auto-width columns get at least 10rem; below that the body scrolls sideways
     const fixed = cols.filter(c => c.width).map(c => cssSize(c.width));
+    const resizable = !!this.getProp('resizable', false);
+    const reorderable = !!this.getProp('reorderable', false);
+    const offsets = this.pinnedOffsets(cols, checkbox);
+    const anyPinned = offsets.size > 0;
+    const rtl = getComputedStyle(this).direction === 'rtl';
     const minWidth = `calc(${[...fixed, `${(cols.length - fixed.length) * 10}rem`, checkbox ? '3rem' : '0px'].join(' + ')})`;
 
     return (
@@ -443,16 +616,34 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
         <thead>
           <tr>
             {checkbox && (
-              <th class="check">
+              <th class={['check', { pinned: anyPinned }]} style={anyPinned ? { left: '0px' } : undefined}>
                 <input type="checkbox" class="check-all" aria-label="Select all" checked={allChecked} indeterminate={someChecked && !allChecked} />
               </th>
             )}
-            {cols.map(col => {
+            {cols.map((col, ci) => {
               const sortable = col.sortable !== false;
-              const active = this.sortField === String(col.field);
+              const field = String(col.field);
+              const active = this.sortField === field;
+              const canMove = reorderable && col.resizable !== false;
+              const canResize = resizable && col.resizable !== false;
+              const left = offsets.get(field);
               return (
-                <th class={[this.align(col), { sortable, sorted: active }]} data-field={String(col.field)}
-                    aria-sort={active ? (this.sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}>
+                <th class={[this.align(col), { sortable, sorted: active, pinned: left !== undefined }]} data-field={field}
+                    style={left !== undefined ? { left: `${left}px` } : undefined}
+                    aria-sort={active ? (this.sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+                    draggable={canMove}
+                    onDragStart={canMove ? (e: DragEvent) => e.dataTransfer?.setData('text/x-nx-column', field) : undefined}
+                    onDragOver={canMove ? (e: DragEvent) => e.preventDefault() : undefined}
+                    onDrop={canMove ? (e: DragEvent) => {
+                      e.preventDefault();
+                      const from = e.dataTransfer?.getData('text/x-nx-column');
+                      if (from && from !== field) this.moveColumn(from, ci);
+                    } : undefined}
+                    onKeyDown={canMove ? (e: KeyboardEvent) => {
+                      if (!e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+                      e.preventDefault();
+                      this.moveColumn(field, ci + ((e.key === 'ArrowRight') !== rtl ? 1 : -1));
+                    } : undefined}>
                   {sortable ? (
                     // A real button, so sorting works from the keyboard too
                     <button type="button" class="th sort-btn" part="sort">
@@ -461,6 +652,28 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
                     </button>
                   ) : (
                     <span class="th">{this.headerText(col)}</span>
+                  )}
+                  {canResize && (
+                    <span class="resize-handle" role="separator" aria-orientation="vertical" tabindex="0"
+                          aria-label={`Resize ${this.headerText(col)} column`}
+                          aria-valuenow={Math.round(parseFloat(cssSize(col.width))) || this.minColumnWidth(field)}
+                          aria-valuemin={this.minColumnWidth(field)} aria-valuemax={1000}
+                          onClick={(e: Event) => e.stopPropagation()}
+                          onPointerDown={(e: PointerEvent) => this.startResize(e, field)}
+                          onDblClick={() => { this.widths.delete(field); this.columnsChanged(); }}
+                          onKeyDown={(e: KeyboardEvent) => {
+                            const step = e.shiftKey ? 50 : 10;
+                            const grow = (e.key === 'ArrowRight') !== rtl ? step : -step;
+                            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              this.resizeBy(field, grow);
+                            } else if (e.key === 'Enter') {
+                              e.preventDefault();
+                              this.widths.delete(field);
+                              this.columnsChanged();
+                            }
+                          }} />
                   )}
                 </th>
               );
@@ -483,6 +696,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     const virtual = this.isVirtual();
     const rh = this.rowHeight();
     const span = cols.length + (checkbox ? 1 : 0);
+    const offsets = this.pinnedOffsets(cols, checkbox);
+    const anyPinned = offsets.size > 0;
     const spacer = (count: number) =>
       count > 0 ? <tr class="spacer" aria-hidden="true"><td colspan={span} style={{ height: `${count * rh}px`, padding: '0', border: '0' }} /></tr> : null;
 
@@ -497,8 +712,11 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
               <tr class={{ striped: striped && i % 2, hoverable, selected: isSelected, clickable: selectable }}
                   data-index={this.rows.indexOf(row)} aria-selected={selectable ? String(isSelected) : undefined}
                   aria-rowindex={virtual ? String(i + 2) : undefined}>
-                {checkbox && <td class="check"><input type="checkbox" class="check-row" aria-label="Select row" checked={isSelected} /></td>}
-                {cols.map(col => <td class={this.align(col)}>{this.renderCell(row, col)}</td>)}
+                {checkbox && <td class={['check', { pinned: anyPinned }]} style={anyPinned ? { left: '0px' } : undefined}><input type="checkbox" class="check-row" aria-label="Select row" checked={isSelected} /></td>}
+                {cols.map(col => {
+                  const left = offsets.get(String(col.field));
+                  return <td class={[this.align(col), { pinned: left !== undefined }]} style={left !== undefined ? { left: `${left}px` } : undefined}>{this.renderCell(row, col)}</td>;
+                })}
               </tr>
             );
           }),
@@ -725,6 +943,34 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       }
 
       .dense th, .dense td { height: 2.25rem; padding: 0 0.75rem; }
+      th.pinned, td.pinned { position: sticky; z-index: 1; background: var(--color-background); }
+      th.pinned { z-index: 3; background: var(--color-muted); }
+      tr.striped td.pinned { background: color-mix(in srgb, var(--color-muted) 50%, var(--color-background)); }
+      tr.hoverable:hover td.pinned, tr.selected td.pinned { background: var(--color-accent); }
+      th, td { box-sizing: border-box; }
+      th { position: sticky; }
+      th:has(.resize-handle) { padding-inline-end: 0.5rem; }
+      .resize-handle {
+        position: absolute;
+        inset-block: 0;
+        inset-inline-end: 0;
+        width: 0.5rem;
+        cursor: col-resize;
+        touch-action: none;
+      }
+      .resize-handle::after {
+        content: '';
+        position: absolute;
+        inset-block: 25%;
+        inset-inline-end: 0.125rem;
+        width: 2px;
+        border-radius: 1px;
+        background: var(--color-border);
+        transition: background-color var(--transition-duration);
+      }
+      .resize-handle:hover::after, .resize-handle:focus-visible::after { background: var(--color-ring); }
+      .resize-handle:focus-visible { outline: none; }
+      th[draggable='true'] { cursor: grab; }
       .virtual td { height: var(--nx-row-h); box-sizing: border-box; }
 
       th {
