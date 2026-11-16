@@ -59,7 +59,7 @@ Each of these has broken something before. The tests named catch most of them.
 
 ## Adding or changing a component
 
-Follow [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-component). In short: copy `badge.tsx`; register it in `src/components/index.ts` and `src/index.ts`; add the JSX wrapper and tag types in `src/jsx/components.tsx`; write unit tests; show it in `src/main.tsx` (the a11y audit covers it there) and in `examples/ssg/pages.tsx` (the hydration audit covers it there); document it; run `pnpm docs:reference`, `pnpm check` and `pnpm test:e2e`.
+Follow [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-component). In short: copy `badge.tsx`; register it in `src/components/index.ts` and `src/index.ts`, and add `src/entries/<name>.ts` (the `nx.js/components/<name>` import; a test checks it); add the JSX wrapper and tag types in `src/jsx/components.tsx`; write unit tests; show it in `src/main.tsx` (the a11y audit covers it there) and in `examples/ssg/pages.tsx` (the hydration audit covers it there); document it; run `pnpm docs:reference`, `pnpm check` and `pnpm test:e2e`.
 
 ## Verifying UI work
 
