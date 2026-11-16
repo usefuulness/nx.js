@@ -39,6 +39,10 @@ jobs:
       # Typecheck + unit tests: never publish a broken build
       - run: pnpm check
 
+      # Browser tests: demo, server-rendered pages, native forms and the axe WCAG audit
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+
       - run: pnpm site
 
       - uses: actions/configure-pages@v5

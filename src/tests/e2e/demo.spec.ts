@@ -208,3 +208,13 @@ test.describe('more components', () => {
     await expect(alert).toHaveCount(0);
   });
 });
+
+test('virtual grid renders a window of 20,000 rows and scrolls to the end', async ({ page }) => {
+  await page.goto('/#/');
+  const rows = page.locator('#events-grid tbody tr:not(.spacer)');
+  await expect(rows.first()).toBeVisible();
+  expect(await rows.count()).toBeLessThan(60);
+  await page.locator('#events-grid .nx-grid-body').evaluate(el => (el.scrollTop = el.scrollHeight));
+  await expect(page.locator('#events-grid tbody tr', { hasText: '20,000' }).first()).toBeVisible();
+  expect(await rows.count()).toBeLessThan(60);
+});

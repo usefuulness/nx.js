@@ -137,4 +137,52 @@ describe('NXGrid JSX renderers', () => {
     await nextFrame();
     expect(header().getAttribute('aria-sort')).toBe('ascending');
   });
+
+  describe('virtual', () => {
+    const many = Array.from({ length: 50000 }, (_, i) => ({ name: `Row ${i}`, age: i, role: 'User' }));
+    const bodyRows = (grid: NXGrid) => grid.shadowRoot!.querySelectorAll('tbody tr:not(.spacer)');
+
+    it('renders only a window of rows, with spacers for the rest', () => {
+      const grid = mount({ data: many, virtual: true, rowHeight: 40 });
+      const rendered = bodyRows(grid).length;
+      expect(rendered).toBeGreaterThan(0);
+      expect(rendered).toBeLessThan(60);
+      const spacer = grid.shadowRoot!.querySelector('tr.spacer td') as HTMLElement | null;
+      const bottom = grid.shadowRoot!.querySelectorAll('tr.spacer td');
+      expect(spacer).toBeTruthy();
+      // Spacers plus rendered rows add up to the full scroll height
+      const heights = Array.from(bottom).reduce((n, td) => n + parseFloat((td as HTMLElement).style.height), 0);
+      expect(heights + rendered * 40).toBe(50000 * 40);
+    });
+
+    it('moves the window on scroll', async () => {
+      const grid = mount({ data: many, virtual: true, rowHeight: 40 });
+      const body = grid.shadowRoot!.querySelector('.nx-grid-body') as HTMLElement;
+      body.scrollTop = 40 * 20000;
+      body.dispatchEvent(new Event('scroll'));
+      await nextFrame();
+      await nextFrame();
+      const names = Array.from(bodyRows(grid)).map(tr => tr.querySelector('td')!.textContent);
+      expect(names).toContain('Row 20000');
+      expect(names).not.toContain('Row 0');
+    });
+
+    it('reports the full row count to assistive tech and maps clicks to the right row', async () => {
+      const grid = mount({ data: many, virtual: true, rowHeight: 40 });
+      expect(grid.shadowRoot!.querySelector('table')!.getAttribute('aria-rowcount')).toBe('50001');
+      const onClick = vi.fn();
+      grid.addEventListener('row-click', onClick);
+      (bodyRows(grid)[2].querySelector('td') as HTMLElement).click();
+      expect((onClick.mock.calls[0][0] as CustomEvent).detail.row.name).toBe('Row 2');
+    });
+
+    it('ignores paging and keeps sorting and search working', () => {
+      const grid = mount({ data: many, virtual: true, pageSize: 10 });
+      expect(grid.shadowRoot!.querySelector('.pager')).toBeNull();
+      grid.setFilter('Row 4999');
+      expect(grid.getVisibleRows()).toHaveLength(11);
+      grid.sort('age', 'desc');
+      expect(bodyRows(grid)[0].querySelector('td')!.textContent).toBe('Row 49999');
+    });
+  });
 });

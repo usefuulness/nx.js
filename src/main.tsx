@@ -100,6 +100,21 @@ const DashboardPage = () => (
           { field: 'total', header: 'Total', type: 'currency', width: 110 }
         ]}
       />
+      <DataGrid
+        id="events-grid"
+        title="Event log (20,000 rows)"
+        style="grid-column: span 3"
+        data={events}
+        virtual
+        rowHeight={40}
+        height={280}
+        search
+        columns={[
+          { field: 'id', header: 'Event', width: 100, type: 'number' },
+          { field: 'source', header: 'Source' },
+          { field: 'level', header: 'Level', type: 'badge', width: 110, badges: { Info: 'info', Warn: 'warning', Error: 'error' } }
+        ]}
+      />
       <Card title="Goals" subtitle="Q2 progress">
         <VStack gap={20}>
           {([['New customers', 72], ['Revenue target', 54], ['NPS survey', 91]] as const).map(([label, value]) => (
@@ -113,6 +128,12 @@ const DashboardPage = () => (
     </Grid>
   </Page>
 );
+
+const events = Array.from({ length: 20000 }, (_, i) => ({
+  id: i + 1,
+  source: ['api', 'worker', 'scheduler', 'billing'][i % 4],
+  level: ['Info', 'Info', 'Warn', 'Error'][i % 4]
+}));
 
 const userColumns: GridColumn<User>[] = [
   { field: 'name', header: 'Name' },
