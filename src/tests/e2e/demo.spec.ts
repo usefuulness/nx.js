@@ -452,3 +452,28 @@ test('a buffered grid over 1,000,000 server rows: skeletons, few requests, serve
   expect(lastFilter).toContain('"value":"42"');
   await expect(page.locator('#big-grid .nx-grid-footer')).toContainText('10 rows');
 });
+
+test('Export Excel downloads a real .xlsx of the rows the grid shows', async ({ page }) => {
+  await page.goto('/#/users');
+  await expect(page.locator('#users-grid tbody tr')).toHaveCount(10);
+  // Narrow the grid first: the file holds what search shows, from every page
+  await page.locator('#users-grid .nx-grid-search input').fill('ada');
+  await expect(page.locator('#users-grid tbody tr')).toHaveCount(3);
+
+  await page.locator('nx-menu').first().click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('menuitem', { name: 'Export Excel' }).click()
+  ]);
+  expect(download.suggestedFilename()).toBe('users.xlsx');
+  const file = await download.path();
+  const bytes = (await import('node:fs')).readFileSync(file);
+  expect(bytes.subarray(0, 2).toString()).toBe('PK');
+  // Stored (uncompressed) entries, so the part names and cell text are readable in the bytes
+  const text = bytes.toString('latin1');
+  expect(text).toContain('xl/worksheets/sheet1.xml');
+  expect(text).toContain('<autoFilter ref="A1:F4"/>'); // header plus the 3 matching rows, 6 columns
+  expect(text).toContain('Ada Lovelace');
+  expect(text).not.toContain('Grace Hopper');
+  await download.saveAs(process.env.NX_XLSX_OUT ?? file); // lets a person open it in Excel
+});

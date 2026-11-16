@@ -42,8 +42,9 @@ const bundle = async (name: string): Promise<Buffer> => {
       rollupOptions: { external: [/^node:/, 'happy-dom'] }
     }
   });
+  // Only what loads up front: chunks behind a dynamic import() (the Excel writer) arrive on first use
   const outputs = (Array.isArray(result) ? result : [result]).flatMap(r => ('output' in r ? r.output : []));
-  return Buffer.from(outputs.map(o => ('code' in o ? o.code : '')).join('\n'));
+  return Buffer.from(outputs.flatMap(o => (o.type === 'chunk' && o.isEntry ? [o.code] : [])).join('\n'));
 };
 
 const kb = (n: number) => (n / 1024).toFixed(1).padStart(7);

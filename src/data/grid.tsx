@@ -8,6 +8,8 @@ import type { Child } from '@/jsx/jsx-runtime';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { keepInView } from '@/core/position';
+import { escapeHTML } from '@/core/dom-utils';
+import type { XlsxCell } from '@/core/xlsx';
 import { Store } from '@/data/store';
 
 export type BadgeTone = 'neutral' | 'info' | 'success' | 'warning' | 'error';
@@ -107,6 +109,16 @@ interface RowSource<T> {
 
 const cssSize = (value: unknown): string =>
   typeof value === 'number' || /^\d+(\.\d+)?$/.test(String(value)) ? `${value}px` : String(value);
+
+/**
+ * A text cell that starts with `=`, `+`, `-`, `@`, tab or carriage return runs as a formula when the
+ * file or pasted text reaches a spreadsheet (CSV injection). A leading apostrophe makes it plain text.
+ * Numbers are left alone: a real -5 is not an attack.
+ */
+const spreadsheetSafe = (value: unknown): string => {
+  const text = String(value ?? '');
+  return typeof value === 'string' && /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+};
 
 const isNumeric = (col: GridColumn): boolean =>
   col.type === 'number' || col.type === 'currency' || col.type === 'percent';
@@ -344,18 +356,109 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     this.syncHandleValues();
   }
 
-  /** Download visible rows as CSV. */
-  exportCSV(filename = 'export.csv'): void {
-    const cols = this.visibleColumns();
-    const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const lines = [
-      cols.map(c => escape(this.headerText(c))).join(','),
-      ...this.getVisibleRows().map(row => cols.map(c => escape(this.value(row, c.field))).join(','))
-    ];
-    const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
+  /**
+   * The rows after search and sort (every page, not just the visible one), as typed values for the
+   * visible columns. A buffered grid has only the rows that have been loaded.
+   */
+  private exportTable(): { headers: string[]; columns: GridColumn<T>[]; rows: T[] } {
+    const columns = this.visibleColumns();
+    return { headers: columns.map(c => this.headerText(c)), columns, rows: this.getVisibleRows() };
+  }
+
+  /** A value for a spreadsheet cell, typed by the column: numbers, dates and booleans stay themselves. */
+  private cellValue(row: T, col: GridColumn<T>): XlsxCell {
+    const value = this.value(row, col.field);
+    if (value === null || value === undefined) return null;
+    if (isNumeric(col)) {
+      const n = Number(value);
+      return Number.isFinite(n) && value !== '' ? n : String(value);
+    }
+    if (col.type === 'date') {
+      const date = value instanceof Date ? value : new Date(value);
+      return Number.isNaN(date.getTime()) ? String(value) : date;
+    }
+    if (col.type === 'boolean' && typeof value === 'boolean') return value;
+    if (typeof value === 'number' || typeof value === 'boolean' || value instanceof Date) return value;
+    return typeof value === 'object' ? JSON.stringify(value) : String(value);
+  }
+
+  /** Search-and-sort rows as CSV text. Cells that spreadsheets would run as formulas are made text. */
+  toCSV(): string {
+    const { headers, columns, rows } = this.exportTable();
+    const quote = (v: unknown) => `"${spreadsheetSafe(v).replace(/"/g, '""')}"`;
+    return [
+      headers.map(quote).join(','),
+      ...rows.map(row => columns.map(c => quote(this.value(row, c.field))).join(','))
+    ].join('\r\n');
+  }
+
+  /** Tab-separated text, which Excel and Sheets paste into cells; `rows` defaults to all of them. */
+  toTSV(rows?: T[]): string {
+    const { headers, columns, rows: all } = this.exportTable();
+    const field = (v: unknown) => {
+      const text = spreadsheetSafe(v);
+      return /[\t\n\r"]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+    return [
+      headers.map(field).join('\t'),
+      ...(rows ?? all).map(row => columns.map(c => field(this.value(row, c.field))).join('\t'))
+    ].join('\n');
+  }
+
+  /**
+   * The rows as the bytes of an `.xlsx` file: typed cells, bold frozen header, filter, fitted widths.
+   * The writer is loaded on first use, so a grid that never exports doesn't carry it.
+   */
+  async toXLSX(sheetName = this.getProp<string>('title', '') || 'Sheet1'): Promise<Uint8Array> {
+    const { createXlsx } = await import('@/core/xlsx');
+    const { headers, columns, rows } = this.exportTable();
+    return createXlsx({ name: sheetName, headers, rows: rows.map(row => columns.map(c => this.cellValue(row, c))) });
+  }
+
+  private download(data: BlobPart, type: string, filename: string): void {
+    const url = URL.createObjectURL(new Blob([data], { type }));
     const a = Object.assign(document.createElement('a'), { href: url, download: filename });
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  /** Download the rows after search and sort as CSV (UTF-8 with a byte-order mark, so Excel reads accents). */
+  exportCSV(filename = 'export.csv'): void {
+    this.download('\uFEFF' + this.toCSV(), 'text/csv;charset=utf-8', filename);
+  }
+
+  /** Download the rows after search and sort as an Excel workbook. */
+  async exportXLSX(filename = 'export.xlsx'): Promise<void> {
+    this.download(await this.toXLSX(), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename);
+  }
+
+  /** Ctrl/Cmd+C: the selected rows (with a header row) or the focused cell, as TSV and an HTML table. */
+  private onCopy(e: ClipboardEvent): void {
+    const target = e.target as HTMLElement;
+    // Text being edited or selected in a field has its own copy
+    if (target.closest('textarea, select, .cell-editor, input:not([type="checkbox"])') || !e.clipboardData) return;
+
+    const selected = this.getVisibleRows().filter(row => this.selected.has(row));
+    let table: string[][];
+    if (selected.length) {
+      const { headers, columns } = this.exportTable();
+      table = [headers, ...selected.map(row => columns.map(c => spreadsheetSafe(this.value(row, c.field))))];
+    } else {
+      // Only a cell that has keyboard focus (an editable grid): a mouse text selection copies as usual
+      const td = target.closest('td[data-pos]') as HTMLElement | null;
+      if (!td || this.shadow?.activeElement !== td) return;
+      const row = td ? this.rowAtIndex(Number(td.parentElement?.getAttribute('data-index'))) : null;
+      const col = td ? this.visibleColumns()[Number(td.dataset.col)] : null;
+      if (!row || !col) return;
+      table = [[spreadsheetSafe(this.value(row, col.field))]];
+    }
+    const quote = (v: string) => (/[\t\n\r"]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    e.clipboardData.setData('text/plain', table.map(line => line.map(quote).join('\t')).join('\n'));
+    e.clipboardData.setData(
+      'text/html',
+      `<table>${table.map((line, i) => `<tr>${line.map(v => `<t${i ? 'd' : 'h'}>${escapeHTML(v)}</t${i ? 'd' : 'h'}>`).join('')}</tr>`).join('')}</table>`
+    );
+    e.preventDefault();
   }
 
   // ────────── Rendering ──────────
@@ -846,7 +949,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
              if (td && !this.editing) this.beginEdit(Number(td.dataset.pos), Number(td.dataset.col));
            }}
            onChange={(e: Event) => this.onCheckboxChange(e)}
-           onKeyDown={(e: KeyboardEvent) => this.onCellKeyDown(e)}>
+           onKeyDown={(e: KeyboardEvent) => this.onCellKeyDown(e)}
+           onCopy={(e: ClipboardEvent) => this.onCopy(e)}>
         {hasToolbar && (
           <div class="nx-grid-toolbar" part="toolbar">
             {title && <div class="nx-grid-title" part="title">{title}</div>}

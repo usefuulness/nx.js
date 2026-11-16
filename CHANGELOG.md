@@ -7,6 +7,7 @@ All notable changes to Nexaro (nx.js). The format follows [Keep a Changelog](htt
 ### Added
 - **Grid:** row virtualization (`virtual`, `rowHeight`, `height`); resizable, reorderable and left-pinned columns with state saved under `stateKey`; cell editing (`editable`, `editor`, `options`, `validate`, `cell-change`) with the ARIA grid keyboard model.
 - **Router:** route `loader` functions with `staleTime`, `errorView`, `prefetch()`, `invalidate()`, `reload()`; `resolve()` and `routeDataScript()` for loading on the server without fetching twice in the browser; scroll restoration and `route.history`; history-mode link handling with hover prefetch; `viewTransitions`; `Router.stop()`.
+- **Grid export:** `exportXLSX()`/`toXLSX()` write a dependency-free `.xlsx` (typed cells, frozen bold header, filter, widths); `toCSV()`, `toTSV()`; Ctrl/Cmd+C copies selected rows or the focused cell as TSV and HTML.
 - **Data:** `buffered` stores page rows in as a virtual grid scrolls (LRU page cache, shared and stale-proof requests, server sort and search, skeleton rows).
 - **Forms:** `<nx-form enhance>` posts with `fetch`, shows server validation errors on the named fields, and follows redirects; `success`/`error` events, `isSubmitting()`, `abort()`.
 - **Per-component imports:** `nx.js/components/<name>` (34 entries, with types) loads one component and the runtime it needs: `badge` is 13.6 kB gzipped, `form` 17.4 kB, `grid` 28.0 kB, against about 70 kB for everything.
@@ -16,6 +17,9 @@ All notable changes to Nexaro (nx.js). The format follows [Keep a Changelog](htt
 ### Changed
 - CI runs the browser tests (`pnpm test:e2e`, including the axe audit), the library build and the size budget before deploying.
 - Route params are URL-decoded.
+
+### Security
+- Grid CSV export and copied text no longer let a cell starting with `=`, `+`, `-` or `@` run as a spreadsheet formula (CSV injection).
 
 ### Fixed
 - A record with `id: 0` had its id replaced by a generated one.

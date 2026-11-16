@@ -417,4 +417,113 @@ describe('NXGrid JSX renderers', () => {
       expect(grid.shadowRoot!.activeElement).toBe(td(grid, 0, 0));
     });
   });
+
+  describe('export and clipboard', () => {
+    const data = () => [
+      { name: 'Ada', note: '=SUM(A1)', n: 5, joined: '2024-03-05', ok: true },
+      { name: 'Bob, "B"', note: '-cmd', n: -3, joined: '2024-12-31T13:45:30Z', ok: false },
+      { name: 'Eve\tT', note: 'plain\nline', n: 7, joined: 'not a date', ok: null }
+    ];
+    const cols = [
+      { field: 'name', header: 'Name' },
+      { field: 'note', header: 'Note' },
+      { field: 'n', header: 'N', type: 'number' as const },
+      { field: 'joined', header: 'Joined', type: 'date' as const },
+      { field: 'ok', header: 'OK', type: 'boolean' as const }
+    ];
+
+    it('CSV quotes fields, uses CRLF, and turns formula-looking text into text', () => {
+      const grid = mount({ data: data(), columns: cols });
+      const lines = grid.toCSV().split('\r\n');
+      expect(lines[0]).toBe('"Name","Note","N","Joined","OK"');
+      expect(lines[1]).toBe(`"Ada","'=SUM(A1)","5","2024-03-05","true"`);
+      // The text "-cmd" is guarded; the number -3 is not
+      expect(lines[2]).toContain(`"Bob, ""B""","'-cmd","-3"`);
+    });
+
+    it('exports what search and sort show, across pages', () => {
+      const grid = mount({ data: data(), columns: cols, pageSize: 1 });
+      grid.sort('n', 'desc');
+      const lines = grid.toCSV().split('\r\n');
+      expect(lines).toHaveLength(4); // header plus all three rows, not just the page
+      expect(lines[1].startsWith('"Eve')).toBe(true);
+      grid.setFilter('ada');
+      expect(grid.toCSV().split('\r\n')).toHaveLength(2);
+    });
+
+    it('TSV quotes tabs, newlines and quotes, and can take a subset of rows', () => {
+      const d = data();
+      const grid = mount({ data: d, columns: cols });
+      expect(grid.toTSV([d[2]])).toBe('Name\tNote\tN\tJoined\tOK\n"Eve\tT"\t"plain\nline"\t7\tnot a date\t');
+    });
+
+    it('XLSX keeps types: numbers, dates and booleans are not text', async () => {
+      const grid = mount({ data: data(), columns: cols, title: 'People' });
+      const bytes = await grid.toXLSX();
+      expect([bytes[0], bytes[1]]).toEqual([0x50, 0x4b]); // "PK"
+      const text = new TextDecoder().decode(bytes);
+      expect(text).toContain('name="People"');
+      expect(text).toMatch(/<c r="C2"><v>5<\/v><\/c>/); // number
+      expect(text).toMatch(/<c r="D2" s="2"><v>45356<\/v><\/c>/); // date
+      expect(text).toMatch(/<c r="E2" t="b"><v>1<\/v><\/c>/); // boolean
+      expect(text).toMatch(/<c r="D4" t="inlineStr"><is><t xml:space="preserve">not a date/); // unparseable stays text
+      expect(text).not.toContain('<f>');
+    });
+
+    it('downloads CSV with a byte-order mark and XLSX as a workbook', async () => {
+      const grid = mount({ data: data(), columns: cols });
+      const blobs: Blob[] = [];
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+        expect(this.download).toMatch(/\.(csv|xlsx)$/);
+      });
+      Object.assign(URL, { createObjectURL: (blob: Blob) => (blobs.push(blob), 'blob:x'), revokeObjectURL: vi.fn() });
+      grid.exportCSV('people.csv');
+      await grid.exportXLSX('people.xlsx');
+      expect(click).toHaveBeenCalledTimes(2);
+      expect(blobs[0].type).toContain('text/csv');
+      const bytes = await new Promise<Uint8Array>(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
+        reader.readAsArrayBuffer(blobs[0]);
+      });
+      expect(Array.from(bytes.slice(0, 3))).toEqual([0xef, 0xbb, 0xbf]);
+      expect(blobs[1].type).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      click.mockRestore();
+    });
+
+    const copyEvent = (target: Element) => {
+      const clip: Record<string, string> = {};
+      const event = Object.assign(new Event('copy', { bubbles: true, cancelable: true, composed: true }), {
+        clipboardData: { setData: (type: string, value: string) => (clip[type] = value) }
+      });
+      target.dispatchEvent(event);
+      return { event, clip };
+    };
+
+    it('copies the selected rows as TSV and an HTML table', () => {
+      const d = data();
+      const grid = mount({ data: d, columns: cols, checkboxSelection: true });
+      grid.select([d[0], d[1]]);
+      const { event, clip } = copyEvent(grid.shadowRoot!.querySelector('tbody td')!);
+      expect(event.defaultPrevented).toBe(true);
+      expect(clip['text/plain'].split('\n')[0]).toBe('Name\tNote\tN\tJoined\tOK');
+      expect(clip['text/plain']).toContain("Ada\t'=SUM(A1)\t5");
+      expect(clip['text/html']).toContain('<th>Name</th>');
+      expect(clip['text/html']).toContain('<td>&#39;=SUM(A1)</td>'); // escaped, and still the guarded text
+    });
+
+    it('copies the focused cell, and leaves copy alone inside inputs and with nothing selected', () => {
+      const d = data();
+      const grid = mount({ data: d, columns: [{ field: 'name', editable: true }, cols[1]], search: true });
+      const cell = grid.shadowRoot!.querySelector('tbody td') as HTMLElement;
+      cell.focus();
+      expect(copyEvent(cell).clip['text/plain']).toBe('Ada');
+      // A cell that merely got a mouse selection, without keyboard focus, copies as the browser would
+      (grid.shadowRoot!.querySelectorAll('tbody td')[1] as HTMLElement).focus();
+      expect(copyEvent(cell).event.defaultPrevented).toBe(false);
+      expect(copyEvent(grid.shadowRoot!.querySelector('.nx-grid-search input')!).event.defaultPrevented).toBe(false);
+      const plain = mount({ data: d, columns: cols });
+      expect(copyEvent(plain.shadowRoot!.querySelector('tbody td')!).event.defaultPrevented).toBe(false);
+    });
+  });
 });

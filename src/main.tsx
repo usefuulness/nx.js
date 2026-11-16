@@ -202,6 +202,7 @@ const UsersPage = () => {
         <HStack gap={8}>
           <Menu icon="more" items={[
             { text: 'Export CSV', icon: 'download', handler: () => grid.current!.exportCSV('users.csv') },
+            { text: 'Export Excel', icon: 'download', handler: () => grid.current!.exportXLSX('users.xlsx') },
             { text: 'Select all', icon: 'check', handler: () => grid.current!.selectAll() },
             { text: 'Clear selection', handler: () => grid.current!.clearSelection() }
           ]} />
