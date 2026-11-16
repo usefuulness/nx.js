@@ -5,7 +5,7 @@
  */
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
-  Divider, Drawer, Form, Grid, HStack, Input, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Switch,
+  Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Switch,
   Tab, Tabs, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
 
@@ -140,6 +140,7 @@ export const Components = () => (
                     options={{ de: 'Germany', fr: 'France', it: 'Italy', es: 'Spain', nl: 'Netherlands' }} />
           <Slider name="volume" label="Volume" value={30} showValue unit="%" />
           <DatePicker name="due" label="Due date" value="2025-06-15" locale="en-US" />
+          <FileUpload name="attachments" label="Attachments" multiple accept=".pdf,image/*" maxSize="5MB" helperText="PDF or images, up to 5 MB each." />
         </VStack>
       </Card>
     </Grid>

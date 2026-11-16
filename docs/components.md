@@ -26,6 +26,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-dialog>`](#nx-dialog) | `Dialog` | `<nx-dialog>`: the HTML name matching `<Dialog>` in JSX. |
 | [`<nx-divider>`](#nx-divider) | `Divider` | Horizontal rule, optionally with a label. |
 | [`<nx-drawer>`](#nx-drawer) | `Drawer` | Slide-in panel (a "sheet"), built on the native `<dialog>` element: focus trap, Escape, top layer and inert background come from the browser. |
+| [`<nx-file-upload>`](#nx-file-upload) | `FileUpload` | File upload: a drop zone and a file list that behave like a form field. The zone is a real file input underneath, so keyboard, screen readers and native pickers work, and a plain `<form>` posts the files. Files are checked against `accept`, `max-size` and `max-files`; rejected ones are announced and reported in the `reject` event. |
 | [`<nx-form>`](#nx-form) | `Form` | Form container: collects values from named fields, validates, and fires `submit`. Works with nx fields and plain `<input>`/`<select>`/`<textarea>` elements. |
 | [`<nx-grid>`](#nx-grid) | `DataGrid` | Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, tree rows, store binding. |
 | [`<nx-input>`](#nx-input) | `Input` | `<nx-input>`: the HTML name matching `<Input>` in JSX. |
@@ -350,6 +351,27 @@ Slide-in panel (a "sheet"), built on the native `<dialog>` element: focus trap, 
 | `title` | `title` | `string` | Drawer heading |
 
 **Events:** `open`, `close`
+
+## nx-file-upload
+
+`<nx-file-upload>` · JSX: `<FileUpload>` · [source](../src/components/ui/form/fileupload.tsx)
+
+File upload: a drop zone and a file list that behave like a form field. The zone is a real file input underneath, so keyboard, screen readers and native pickers work, and a plain `<form>` posts the files. Files are checked against `accept`, `max-size` and `max-files`; rejected ones are announced and reported in the `reject` event.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `accept` | `accept` | `string` | Accepted types, like the native attribute: `".pdf,.docx"`, `"image/*"`, `"image/png,image/jpeg"` |
+| `disabled` | `disabled` | `boolean` | Not interactive (fields are also left out when a form posts) |
+| `error-text` | `errorText` | `string` | Error shown under the field (for example from the server); marks it invalid |
+| `helper-text` | `helperText` | `string` | Hint shown under the field |
+| `label` | `label` | `string` | Label shown with the field |
+| `max-files` | `maxFiles` | `number` | Most files (with `multiple`) |
+| `max-size` | `maxSize` | `string \| number` | Largest file: bytes, or text such as `"5MB"`, `"500 KB"` |
+| `multiple` | `multiple` | `boolean` | Allow more than one file |
+| `name` | `name` | `string` | Field name: the key in form values, and the name it posts under |
+| `required` | `required` | `boolean` | A value is required before the form can submit |
+
+**Events:** `change`, `reject`
 
 ## nx-form
 

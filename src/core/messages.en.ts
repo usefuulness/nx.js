@@ -49,6 +49,14 @@ export const en: Messages = {
   'pagination.perPage': 'Rows per page',
 
   // Forms
+  'upload.drop': 'Drop files here or click to choose',
+  'upload.dropOne': 'Drop a file here or click to choose',
+  'upload.release': 'Release to add',
+  'upload.remove': 'Remove {name}',
+  'upload.required': 'Choose at least one file',
+  'upload.tooLarge': '{name} is larger than {max}',
+  'upload.wrongType': '{name} is not an accepted file type',
+  'upload.tooMany': { one: '{name} was not added: only {count} file is allowed', other: '{name} was not added: only {count} files are allowed' },
   'form.network': "Couldn't reach the server. Check your connection and try again.",
   'form.server': "The server couldn't process the form ({status}).",
 

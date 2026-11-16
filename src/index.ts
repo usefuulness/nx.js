@@ -110,6 +110,8 @@ export type { RadioGroupConfig, RadioOption } from '@/components/ui/form/radio';
 export { NXCombobox } from '@/components/ui/form/combobox';
 export type { ComboboxConfig } from '@/components/ui/form/combobox';
 export { NXSlider } from '@/components/ui/form/slider';
+export { NXFileUpload, acceptsFile, parseSize } from '@/components/ui/form/fileupload';
+export type { FileUploadConfig } from '@/components/ui/form/fileupload';
 export type { SliderConfig } from '@/components/ui/form/slider';
 export { NXDatePicker, parseISODate } from '@/components/ui/form/datepicker';
 export type { DatePickerConfig } from '@/components/ui/form/datepicker';

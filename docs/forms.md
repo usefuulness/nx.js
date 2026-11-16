@@ -15,6 +15,7 @@ Nexaro's fields are **form-associated custom elements**. They behave like native
 | `RadioGroup` | `nx-radio-group` | `radio`, `radiogroup` | one of a few options; `variant="cards"` for plan pickers |
 | `Slider` | `nx-slider` | `slider`, `range` | a number in a range |
 | `DatePicker` | `nx-datepicker` | `datepicker`, `date` | a calendar; the value is `YYYY-MM-DD` |
+| `FileUpload` | `nx-file-upload` | `file-upload`, `fileupload` | a drop zone and file list; the value is an array of `File`s |
 
 Every field takes `name`, `label`, `helperText`, `errorText`, `required`, `disabled` and `validator`, plus its own attributes; see the [component reference](components.md).
 
@@ -105,6 +106,23 @@ Add `enhance` and the same form posts with `fetch` instead of navigating. The ma
 
   An error is cleared when the user changes that field. A `message`, or an error named `_form`, shows above the fields as an alert, and so does a generic message when the server fails without naming a field. A network failure does the same. All of these fire `error` (`detail: { status, errors, data }`; `status` is 0 for a network failure).
 - Only send what the visitor may see. Error text is rendered as text, never as HTML.
+
+### File uploads
+
+`FileUpload` is a drop zone over a real file input, so keyboard, screen readers and native pickers work, and a plain form posts the files:
+
+```html
+<nx-form action="/upload" method="post" enctype="multipart/form-data" enhance>
+  <nx-file-upload name="docs" label="Documents" multiple accept=".pdf,image/*" max-size="5MB" max-files="3" required></nx-file-upload>
+  <nx-button slot="buttons" type="submit">Upload</nx-button>
+</nx-form>
+```
+
+- `accept` works like the native attribute (`.pdf`, `image/*`, `image/png`); `max-size` takes bytes or text (`"5MB"`, `"500 KB"`); `max-files` applies with `multiple`.
+- A file that breaks a rule is not added. The reason is shown under the field, announced to screen readers, and reported in the `reject` event (`detail.rejected`: `{ file, reason: 'type' | 'size' | 'count' }`). A single-file field swaps its file; a `multiple` one appends and skips exact repeats.
+- Each file has a **Remove** button; focus returns to the field. `field.files` is the array, `change` fires on every change, and `required` blocks submitting with none.
+- With `enhance` the form sends `multipart/form-data` over `fetch`, files included (see [`enhance`](#without-leaving-the-page-enhance)). Without JavaScript the server-rendered markup includes a native `<input type="file">` that posts normally. Files chosen before the upgrade are kept.
+- The check is in the browser: always validate type and size again on the server.
 
 ## Before JavaScript loads
 

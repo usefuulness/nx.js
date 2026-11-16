@@ -38,6 +38,7 @@ import '@/components/ui/form/checkbox';
 import '@/components/ui/form/radio';
 import '@/components/ui/form/combobox';
 import '@/components/ui/form/slider';
+import '@/components/ui/form/fileupload';
 import '@/components/ui/form/datepicker';
 
 // Data

@@ -36,6 +36,7 @@ import type { ComboboxConfig } from '@/components/ui/form/combobox';
 import type { PopoverConfig } from '@/components/ui/popover';
 import type { TooltipConfig } from '@/components/ui/tooltip';
 import type { SliderConfig } from '@/components/ui/form/slider';
+import type { FileUploadConfig } from '@/components/ui/form/fileupload';
 import type { DatePickerConfig } from '@/components/ui/form/datepicker';
 import type { AvatarConfig } from '@/components/ui/avatar';
 import type { AlertConfig } from '@/components/ui/alert';
@@ -135,6 +136,7 @@ declare module './jsx-runtime' {
     'nx-popover': Props<PopoverConfig>;
     'nx-tooltip': Props<TooltipConfig>;
     'nx-slider': Props<SliderConfig>;
+    'nx-file-upload': Props<FileUploadConfig>;
     'nx-datepicker': Props<DatePickerConfig>;
     'nx-avatar': Props<AvatarConfig>;
     'nx-alert': Props<AlertConfig>;
@@ -227,6 +229,7 @@ export const RadioGroup = (props: Props<RadioGroupConfig>) => <nx-radio-group {.
 /** Searchable select: type to filter the options */
 export const Combobox = (props: Props<ComboboxConfig>) => <nx-combobox {...props} />;
 export const Slider = (props: Props<SliderConfig>) => <nx-slider {...props} />;
+export const FileUpload = (props: Props<FileUploadConfig>) => <nx-file-upload {...props} />;
 /** Calendar in a popover; value is `YYYY-MM-DD` */
 export const DatePicker = (props: Props<DatePickerConfig>) => <nx-datepicker {...props} />;
 

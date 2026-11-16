@@ -680,3 +680,88 @@ test('pagination: pages keep their width, buttons work with the keyboard, focus 
   await expect(pager.locator('.range')).toHaveText('226–250 of 250');
   await expect(pager.getByRole('button', { name: 'Next page' })).toBeDisabled();
 });
+
+test('file upload: picks real files, lists them, rejects by rule, removes from the keyboard, and drops', async ({ page }) => {
+  await page.goto('/#/components');
+  const upload = page.locator('#demo-upload');
+  const picker = upload.locator('input[type="file"]');
+  await picker.scrollIntoViewIfNeeded();
+
+  await picker.setInputFiles([
+    { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') },
+    { name: 'photo.png', mimeType: 'image/png', buffer: Buffer.alloc(2048) }
+  ]);
+  await expect(upload.locator('.file-name')).toHaveText(['notes.txt', 'photo.png']);
+  await expect(upload.locator('.file-size').first()).toHaveText('5 byte');
+
+  // A type that isn't accepted, and a file over 1 MB, are refused and announced
+  await picker.setInputFiles([
+    { name: 'app.exe', mimeType: 'application/x-msdownload', buffer: Buffer.from('MZ') },
+    { name: 'big.txt', mimeType: 'text/plain', buffer: Buffer.alloc(1024 * 1024 + 1) }
+  ]);
+  await expect(upload.locator('.rejected li')).toHaveText(['app.exe is not an accepted file type', 'big.txt is larger than 1 MB']);
+  await expect(upload.locator('.file-name')).toHaveText(['notes.txt', 'photo.png']);
+
+  // Only 3 files fit: the fourth is refused
+  await picker.setInputFiles([{ name: 'c.txt', mimeType: 'text/plain', buffer: Buffer.from('c') }, { name: 'd.txt', mimeType: 'text/plain', buffer: Buffer.from('d') }]);
+  await expect(upload.locator('.file-name')).toHaveText(['notes.txt', 'photo.png', 'c.txt']);
+  await expect(upload.locator('.rejected li')).toContainText('only 3 files are allowed');
+
+  // Remove with the keyboard: focus returns to the field
+  const remove = upload.getByRole('button', { name: 'Remove notes.txt' });
+  await remove.focus();
+  await page.keyboard.press('Enter');
+  await expect(upload.locator('.file-name')).toHaveText(['photo.png', 'c.txt']);
+  await expect(picker).toBeFocused();
+
+  // Drag and drop with a real DataTransfer
+  const dataTransfer = await page.evaluateHandle(() => {
+    const dt = new DataTransfer();
+    dt.items.add(new File(['dropped'], 'dropped.txt', { type: 'text/plain' }));
+    return dt;
+  });
+  await upload.locator('.zone').dispatchEvent('dragover', { dataTransfer });
+  await expect(upload.locator('.zone')).toHaveClass(/dragging/);
+  await upload.locator('.zone').dispatchEvent('drop', { dataTransfer });
+  await expect(upload.locator('.file-name')).toHaveText(['photo.png', 'c.txt', 'dropped.txt']);
+  await expect(upload.locator('.zone')).not.toHaveClass(/dragging/);
+});
+
+test('file upload inside an enhanced form sends the real file bytes as multipart', async ({ page }) => {
+  await page.goto('/#/');
+  let contentType = '';
+  let body = '';
+  await page.route('**/api/files', async route => {
+    contentType = route.request().headers()['content-type'] ?? '';
+    body = route.request().postDataBuffer()?.toString('latin1') ?? '';
+    await route.fulfill({ status: 201, contentType: 'application/json', body: '{"ok":true}' });
+  });
+  await page.evaluate(() => {
+    const form = document.createElement('nx-form');
+    form.id = 'upload-form';
+    form.setAttribute('action', '/api/files');
+    form.setAttribute('method', 'post');
+    form.setAttribute('enctype', 'multipart/form-data');
+    form.setAttribute('enhance', '');
+    form.innerHTML = `
+      <nx-input name="title" label="Title" value="Quarterly"></nx-input>
+      <nx-file-upload name="report" label="Report" required></nx-file-upload>
+      <nx-button slot="buttons" type="submit">Send</nx-button>`;
+    document.querySelector('nx-outlet')!.append(form);
+  });
+  const form = page.locator('#upload-form');
+  // Required: submitting with no file shows the error and sends nothing
+  await form.locator('nx-button').click();
+  await expect(form.locator('nx-file-upload')).toContainText('Choose at least one file');
+  expect(body).toBe('');
+
+  await form.locator('input[type="file"]').setInputFiles({ name: 'report.csv', mimeType: 'text/csv', buffer: Buffer.from('a,b\n1,2\n') });
+  const success = page.evaluate(() => new Promise(resolve => document.getElementById('upload-form')!.addEventListener('success', () => resolve(true), { once: true })));
+  await form.locator('nx-button').click();
+  await success;
+  expect(contentType).toMatch(/^multipart\/form-data; boundary=/);
+  expect(body).toContain('name="title"');
+  expect(body).toContain('Quarterly');
+  expect(body).toContain('name="report"; filename="report.csv"');
+  expect(body).toContain('a,b\n1,2\n');
+});
