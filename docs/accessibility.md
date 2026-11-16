@@ -23,6 +23,7 @@ Every component is built to work with a keyboard and a screen reader, in every t
 
 | Component | Keys |
 | --- | --- |
+| Pagination | every control is a native button (**Tab**, **Enter**, **Space**); the current page has `aria-current="page"` and keeps focus when the buttons are redrawn |
 | Dialog, Drawer | **Tab** stays inside; **Escape** closes (unless `close-on-escape="false"`) |
 | Menu, dropdown button | **↑ ↓** move · **Home End** first/last · **→** opens a submenu, **←** closes it · **Enter Space** choose · **Escape Tab** close · letters jump (type-ahead) |
 | MenuBar | **← →** move between menus · **↓ Enter Space** open |

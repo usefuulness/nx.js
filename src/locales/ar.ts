@@ -10,6 +10,8 @@ i18n.extend('ar', {
   'select.placeholder': 'اختر…', 'menu.open': 'فتح القائمة',
   'command.empty': 'لم يتم العثور على نتائج.', 'command.placeholder': 'اكتب أمرًا أو ابحث…', 'command.commands': 'الأوامر',
   'region.toggle': 'تبديل المنطقة', 'panel.expand': 'توسيع اللوحة', 'panel.collapse': 'طي اللوحة', 'panel.close': 'إغلاق اللوحة',
+  'pagination.label': 'ترقيم الصفحات', 'pagination.previous': 'الصفحة السابقة', 'pagination.next': 'الصفحة التالية', 'pagination.page': 'صفحة {page}',
+  'pagination.status': 'صفحة {page} من {pages}', 'pagination.range': '{from}–{to} من {total}', 'pagination.perPage': 'عدد الصفوف في الصفحة',
   'form.network': 'تعذّر الوصول إلى الخادم. تحقق من اتصالك وحاول مرة أخرى.',
   'form.server': 'تعذّر على الخادم معالجة النموذج ({status}).',
   'grid.search': 'بحث…', 'grid.searchRows': 'البحث في الصفوف', 'grid.selectAll': 'تحديد الكل', 'grid.selectRow': 'تحديد الصف',

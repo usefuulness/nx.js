@@ -56,6 +56,7 @@ Each of these has broken something before. The tests named catch most of them.
 9. **Server DOM quirks.** The server runs on happy-dom. It needs `:scope` support (v17 or later), and an `<option>`'s `selected` set before insertion isn't kept, so sync selection after render (`syncSelection()` in `select.tsx`).
 10. **Keyboard and ARIA claims must be true.** If docs or JSDoc say a key works, it must be implemented and tested. `docs/accessibility.md` lists every component's keys.
 11. **Docs come from the code.** A class's JSDoc (first paragraph, plus ``Events: `a`, `b` ``) and its `<Name>Config` prop docs feed `docs/components.md` and editor autocompletion. Keep them accurate, then run `pnpm docs:reference`.
+12. **`setX` methods are config setters.** `configure()` calls a component's `setX(value)` method for the config key `x`, so `{ page: 2 }` calls `setPage(2)` with every side effect it has (events, early returns). Name user-facing actions differently (`goTo()`, `changePageSize()`) and let config keys fall through to the attribute. `pagination.test.tsx` has the regression test.
 
 ## Adding or changing a component
 

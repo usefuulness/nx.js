@@ -16,6 +16,7 @@ import '@/components/ui/loader';
 import '@/components/ui/menu';
 import '@/components/ui/menubar';
 import '@/components/ui/modal';
+import '@/components/ui/pagination';
 import '@/components/ui/popover';
 import '@/components/ui/tooltip';
 import '@/components/ui/avatar';

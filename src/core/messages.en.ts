@@ -40,6 +40,14 @@ export const en: Messages = {
   'panel.collapse': 'Collapse panel',
   'panel.close': 'Close panel',
 
+  'pagination.label': 'Pagination',
+  'pagination.previous': 'Previous page',
+  'pagination.next': 'Next page',
+  'pagination.page': 'Page {page}',
+  'pagination.status': 'Page {page} of {pages}',
+  'pagination.range': '{from}–{to} of {total}',
+  'pagination.perPage': 'Rows per page',
+
   // Forms
   'form.network': "Couldn't reach the server. Check your connection and try again.",
   'form.server': "The server couldn't process the form ({status}).",

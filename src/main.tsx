@@ -4,7 +4,7 @@
  */
 import {
   NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Form, Grid,
-  HStack, Input, Menu, Outlet, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Switch, Tab, Tabs,
+  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Switch, Tab, Tabs,
   Textarea, Toolbar, Tooltip, Tree,
   VStack, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
@@ -377,6 +377,17 @@ const ComponentsPage = () => (
           <Alert variant="success" title="Saved">Your changes have been saved.</Alert>
           <Alert variant="warning" title="Trial ends soon">Upgrade to keep your projects.</Alert>
           <Alert variant="destructive" title="Payment failed">Your card was declined.</Alert>
+        </VStack>
+      </Card>
+
+      <Card title="Pagination" subtitle="Numbered pages that keep their width, with a range and a page size.">
+        <VStack gap={16}>
+          <Pagination id="demo-pagination" total={250} page={4} showTotal sizes="10,25,50"
+                      onPageChange={(e: CustomEvent) => {
+                        document.getElementById('page-status')!.textContent = `Page ${e.detail.page}, ${e.detail.pageSize} per page`;
+                      }} />
+          <span id="page-status" class="muted" role="status">Page 4, 10 per page</span>
+          <Pagination total={95} page={2} compact />
         </VStack>
       </Card>
 

@@ -651,3 +651,32 @@ test.describe('right to left (Arabic)', () => {
     expect(Math.abs(list.x + list.width - (button.x + button.width))).toBeLessThan(12);
   });
 });
+
+test('pagination: pages keep their width, buttons work with the keyboard, focus stays, and the page size changes the range', async ({ page }) => {
+  await page.goto('/#/components');
+  const pager = page.locator('#demo-pagination');
+  const status = page.locator('#page-status');
+  const current = pager.locator('.page.current');
+  await expect(current).toHaveText('4');
+  await expect(pager.locator('.range')).toHaveText('31–40 of 250');
+
+  // Count of page buttons is constant as the window moves
+  const count = () => pager.locator('li').count();
+  const before = await count();
+  await pager.getByRole('button', { name: 'Next page' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(current).toHaveText('5');
+  await expect(current).toBeFocused(); // the buttons were rebuilt, focus went to the current page
+  await expect(status).toHaveText('Page 5, 10 per page');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Space'); // Next page again
+  expect(await count()).toBe(before);
+
+  await pager.locator('select').selectOption('25');
+  await expect(status).toContainText('25 per page');
+  await expect(pager.locator('.range')).toContainText('of 250');
+  await pager.getByRole('button', { name: 'Page 10' }).click();
+  await expect(current).toHaveText('10');
+  await expect(pager.locator('.range')).toHaveText('226–250 of 250');
+  await expect(pager.getByRole('button', { name: 'Next page' })).toBeDisabled();
+});

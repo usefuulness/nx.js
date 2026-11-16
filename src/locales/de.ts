@@ -10,6 +10,8 @@ i18n.extend('de', {
   'select.placeholder': 'Auswählen…', 'menu.open': 'Menü öffnen',
   'command.empty': 'Keine Ergebnisse gefunden.', 'command.placeholder': 'Befehl eingeben oder suchen…', 'command.commands': 'Befehle',
   'region.toggle': 'Bereich umschalten', 'panel.expand': 'Bereich erweitern', 'panel.collapse': 'Bereich reduzieren', 'panel.close': 'Bereich schließen',
+  'pagination.label': 'Seitennavigation', 'pagination.previous': 'Vorherige Seite', 'pagination.next': 'Nächste Seite', 'pagination.page': 'Seite {page}',
+  'pagination.status': 'Seite {page} von {pages}', 'pagination.range': '{from}–{to} von {total}', 'pagination.perPage': 'Zeilen pro Seite',
   'form.network': 'Der Server ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.',
   'form.server': 'Der Server konnte das Formular nicht verarbeiten ({status}).',
   'grid.search': 'Suchen…', 'grid.searchRows': 'Zeilen durchsuchen', 'grid.selectAll': 'Alle auswählen', 'grid.selectRow': 'Zeile auswählen',

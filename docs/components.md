@@ -33,6 +33,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-menu>`](#nx-menu) | `Menu` | A trigger button with a dropdown menu. |
 | [`<nx-menubar>`](#nx-menubar) | `MenuBar` | Application menu bar (File / Edit / View …). Once a menu is open, hovering or arrowing to a neighbour switches menus, like a desktop app. |
 | [`<nx-modal>`](#nx-modal) | — | Modal dialog built on the native `<dialog>` element (focus trap, Escape, top layer and inert background for free). |
+| [`<nx-pagination>`](#nx-pagination) | `Pagination` | Page navigation: previous, numbered pages with gaps, next, and optionally a range label and a page-size selector. It only tracks the page; you load that page's data. |
 | [`<nx-panel>`](#nx-panel) | `Panel` | General-purpose container with an optional header. Inside a viewport, set `region` to dock it (`north`, `west`, `center`, ...). |
 | [`<nx-popover>`](#nx-popover) | `Popover` | Popover: a panel of rich content anchored to a trigger. Click the trigger to toggle; Escape, clicking outside or opening another popover closes it. |
 | [`<nx-progress>`](#nx-progress) | `Progress` | Progress bar. |
@@ -492,6 +493,27 @@ Modal dialog built on the native `<dialog>` element (focus trap, Escape, top lay
 | `title` | `title` | `string` | Dialog heading |
 
 **Events:** `open`, `close`
+
+## nx-pagination
+
+`<nx-pagination>` · JSX: `<Pagination>` · [source](../src/components/ui/pagination.tsx)
+
+Page navigation: previous, numbered pages with gaps, next, and optionally a range label and a page-size selector. It only tracks the page; you load that page's data.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `boundary` | `boundary` | `number` | Page buttons always shown at each end (default 1) |
+| `compact` | `compact` | `boolean` | Only previous, "Page 3 of 25" and next: for narrow spaces |
+| `disabled` | `disabled` | `boolean` |  |
+| `label` | `label` | `string` | Accessible name of the navigation (default "Pagination") |
+| `page` | `page` | `number` | Current page, starting at 1; kept in the attribute, so server HTML carries it |
+| `page-size` | `pageSize` | `number` | Items per page (default 10) |
+| `show-total` | `showTotal` | `boolean` | Show "1–10 of 250" |
+| `siblings` | `siblings` | `number` | Page buttons shown each side of the current page (default 1) |
+| `sizes` | `sizes` |  | Page sizes to offer in a selector, comma separated in HTML (`"10,25,50"`) |
+| `total` | `total` | `number` | Total number of items |
+
+**Events:** `page-change`, `page-size-change`
 
 ## nx-panel
 

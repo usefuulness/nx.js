@@ -5,7 +5,7 @@
  */
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
-  Divider, Drawer, Form, Grid, HStack, Input, Menu, MenuBar, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Switch,
+  Divider, Drawer, Form, Grid, HStack, Input, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Switch,
   Tab, Tabs, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
 
@@ -119,6 +119,13 @@ export const Components = () => (
           </HStack>
           <Progress value={64} label="Storage" showValue />
           <HStack gap={12} align="center"><Spinner /><Skeleton width="60%" /></HStack>
+        </VStack>
+      </Card>
+
+      <Card title="Pagination">
+        <VStack gap={12}>
+          <Pagination total={250} page={4} showTotal />
+          <Pagination total={95} page={2} compact />
         </VStack>
       </Card>
 
