@@ -49,6 +49,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-tab>`](#nx-tab) | `Tab` | A tab inside `<nx-tabpanel>`: `<nx-tab title="Account" icon="user" closable>…</nx-tab>`. |
 | [`<nx-tabpanel>`](#nx-tabpanel) | — | Tabs. Each item is a tab: `title`/`icon`/`closable`/`disabled` configure the tab button, everything else (`xtype`, `items`, `html`) is the tab's content. |
 | [`<nx-tabs>`](#nx-tabs) | `Tabs` | `<nx-tabs>`: the HTML name matching `<Tabs>` in JSX. |
+| [`<nx-tag-input>`](#nx-tag-input) | `TagInput` | Tag input: type a value and press **Enter** (or a separator such as a comma) to turn it into a removable chip. Paste splits on separators and newlines. **Backspace** in the empty box removes the last tag. Tags can also be removed with their × buttons. Additions and removals are announced. |
 | [`<nx-textarea>`](#nx-textarea) | `Textarea` | `<nx-textarea>`: a multi-line text field, like `<Textarea>` in JSX. |
 | [`<nx-textfield>`](#nx-textfield) | — | Text input (also: `xtype: 'textarea'`, `'numberfield'`, `'datefield'`, `'password'`, `'email'`). |
 | [`<nx-toast>`](#nx-toast) | — | Toast notifications: short messages that stack in a corner and dismiss themselves. Created on demand by the helpers, so you rarely write the tag: |
@@ -754,6 +755,31 @@ Tabs. Each item is a tab: `title`/`icon`/`closable`/`disabled` configure the tab
 | `active-tab` | `activeTab` | `number` | Index of the selected tab |
 | `position` | `position` | `left` `right` `top` `bottom` | Side the tab strip sits on |
 | `variant` | `variant` | `default` `pills` `underlined` | Tab strip style |
+
+## nx-tag-input
+
+`<nx-tag-input>` · JSX: `<TagInput>` · [source](../src/components/ui/form/taginput.tsx)
+
+Tag input: type a value and press **Enter** (or a separator such as a comma) to turn it into a removable chip. Paste splits on separators and newlines. **Backspace** in the empty box removes the last tag. Tags can also be removed with their × buttons. Additions and removals are announced.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `add-on-blur` | `addOnBlur` | `boolean` | Turn text typed but not confirmed into a tag when the field loses focus (default true) |
+| `allow-duplicates` | `allowDuplicates` | `boolean` | Allow the same tag twice (default false; comparison ignores case) |
+| `disabled` | `disabled` | `boolean` | Not interactive (fields are also left out when a form posts) |
+| `error-text` | `errorText` | `string` | Error shown under the field (for example from the server); marks it invalid |
+| `helper-text` | `helperText` | `string` | Hint shown under the field |
+| `label` | `label` | `string` | Label shown with the field |
+| `max` | `max` | `number` | Most tags |
+| `min` | `min` | `number` | Fewest tags before the field is valid |
+| `name` | `name` | `string` | Field name: the key in form values, and the name it posts under |
+| `placeholder` | `placeholder` | `string` |  |
+| `required` | `required` | `boolean` | A value is required before the form can submit |
+| `separators` | `separators` | `string` | Characters that end a tag as you type or paste (default `,`); Enter always does |
+| `suggestions` | `suggestions` |  | Suggestions offered by the browser while typing (a native datalist) |
+| `value` | `value` |  | The tags (an array; in HTML a comma separated string) |
+
+**Events:** `change`, `reject`, `duplicate`, `max`, `invalid`
 
 ## nx-textarea
 

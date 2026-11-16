@@ -4,7 +4,7 @@
  */
 import {
   NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, FileUpload, Form, Grid,
-  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Switch, Tab, Tabs,
+  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Switch, Tab, Tabs, TagInput,
   Textarea, Toolbar, Tooltip, Tree,
   VStack, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
@@ -360,6 +360,8 @@ const ComponentsPage = () => (
           </HStack>
           <Slider name="demo-slider" label="Opacity" value={70} showValue unit="%" />
           <DatePicker name="demo-date" label="Due date" value="2025-06-15" />
+          <TagInput id="demo-tags" name="demo-tags" label="Topics" value="css,html" max={4} suggestions="css,html,js,a11y"
+                    helperText="Enter or comma adds a tag; Backspace removes the last." />
           <FileUpload id="demo-upload" name="demo-files" label="Attachments" multiple accept=".pdf,.txt,image/*" maxSize="1MB" maxFiles={3}
                       helperText="PDF, text or images, up to 1 MB each, 3 files." />
         </VStack>

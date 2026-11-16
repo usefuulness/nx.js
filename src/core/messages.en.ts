@@ -49,6 +49,14 @@ export const en: Messages = {
   'pagination.perPage': 'Rows per page',
 
   // Forms
+  'tags.placeholder': 'Add a tag…',
+  'tags.remove': 'Remove {tag}',
+  'tags.added': 'Added {tag}',
+  'tags.removed': 'Removed {tag}',
+  'tags.duplicate': '{tag} is already added',
+  'tags.max': { one: 'At most {count} tag is allowed', other: 'At most {count} tags are allowed' },
+  'tags.required': 'Add at least one tag',
+  'tags.min': { one: 'Add at least {count} tag', other: 'Add at least {count} tags' },
   'upload.drop': 'Drop files here or click to choose',
   'upload.dropOne': 'Drop a file here or click to choose',
   'upload.release': 'Release to add',

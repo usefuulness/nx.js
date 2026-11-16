@@ -24,6 +24,7 @@ Every component is built to work with a keyboard and a screen reader, in every t
 | Component | Keys |
 | --- | --- |
 | Pagination | every control is a native button (**Tab**, **Enter**, **Space**); the current page has `aria-current="page"` and keeps focus when the buttons are redrawn |
+| Tag input | **Enter** or a separator adds the typed text, **Backspace** in the empty box removes the last tag, chips have × buttons; additions, removals and refusals are announced (`role="status"`) |
 | File upload | the drop zone is a real file input: **Tab** to it, **Enter** or **Space** opens the picker; each file has a **Remove** button, and refused files are announced (`role="status"`) |
 | Dialog, Drawer | **Tab** stays inside; **Escape** closes (unless `close-on-escape="false"`) |
 | Menu, dropdown button | **↑ ↓** move · **Home End** first/last · **→** opens a submenu, **←** closes it · **Enter Space** choose · **Escape Tab** close · letters jump (type-ahead) |

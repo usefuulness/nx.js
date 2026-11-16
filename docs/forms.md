@@ -15,6 +15,7 @@ Nexaro's fields are **form-associated custom elements**. They behave like native
 | `RadioGroup` | `nx-radio-group` | `radio`, `radiogroup` | one of a few options; `variant="cards"` for plan pickers |
 | `Slider` | `nx-slider` | `slider`, `range` | a number in a range |
 | `DatePicker` | `nx-datepicker` | `datepicker`, `date` | a calendar; the value is `YYYY-MM-DD` |
+| `TagInput` | `nx-tag-input` | `tag-input`, `taginput`, `tags` | a list of short values as removable chips; the value is an array of strings |
 | `FileUpload` | `nx-file-upload` | `file-upload`, `fileupload` | a drop zone and file list; the value is an array of `File`s |
 
 Every field takes `name`, `label`, `helperText`, `errorText`, `required`, `disabled` and `validator`, plus its own attributes; see the [component reference](components.md).
@@ -106,6 +107,17 @@ Add `enhance` and the same form posts with `fetch` instead of navigating. The ma
 
   An error is cleared when the user changes that field. A `message`, or an error named `_form`, shows above the fields as an alert, and so does a generic message when the server fails without naming a field. A network failure does the same. All of these fire `error` (`detail: { status, errors, data }`; `status` is 0 for a network failure).
 - Only send what the visitor may see. Error text is rendered as text, never as HTML.
+
+### Tag input
+
+```html
+<nx-tag-input name="topics" label="Topics" value="css,html" max="5" suggestions="css,html,js,a11y" required></nx-tag-input>
+```
+
+- **Enter** or a separator (a comma, or the characters in `separators`) turns the typed text into a tag; **Backspace** in the empty box removes the last tag; each chip has a × button. Pasting a list splits it on separators and line breaks. Text left in the box when the field loses focus becomes a tag unless `add-on-blur="false"`.
+- A tag is refused, with the reason under the field and in the `reject` event (`reason`: `duplicate` (ignoring case, unless `allow-duplicates`), `max` or `invalid`), when it repeats, would go over `max`, or `validateTag(tag)` returns a message. `min` and `required` decide validity.
+- Additions and removals are announced to screen readers. `suggestions` fills a native datalist.
+- With JavaScript each tag posts as its own `name` entry (`topics=css&topics=html`). **Before JavaScript loads** the server-rendered page posts the tags as one comma-separated value (plus whatever was typed in the box), so a server should **split every value of `name` on commas**; that handles both.
 
 ### File uploads
 

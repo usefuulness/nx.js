@@ -15,6 +15,8 @@ i18n.extend('fr', {
   'upload.drop': 'Déposez des fichiers ici ou cliquez pour choisir', 'upload.dropOne': 'Déposez un fichier ici ou cliquez pour choisir', 'upload.release': 'Relâchez pour ajouter', 'upload.remove': 'Retirer {name}',
   'upload.required': 'Choisissez au moins un fichier', 'upload.tooLarge': '{name} dépasse {max}', 'upload.wrongType': '{name} n’est pas un type de fichier accepté',
   'upload.tooMany': { one: '{name} n’a pas été ajouté : {count} fichier seulement est autorisé', other: '{name} n’a pas été ajouté : {count} fichiers seulement sont autorisés' },
+  'tags.placeholder': 'Ajouter une étiquette…', 'tags.remove': 'Retirer {tag}', 'tags.added': '{tag} ajoutée', 'tags.removed': '{tag} retirée', 'tags.duplicate': '{tag} est déjà ajoutée',
+  'tags.max': { one: '{count} étiquette au maximum', other: '{count} étiquettes au maximum' }, 'tags.required': 'Ajoutez au moins une étiquette', 'tags.min': { one: 'Ajoutez au moins {count} étiquette', other: 'Ajoutez au moins {count} étiquettes' },
   'form.network': 'Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.',
   'form.server': 'Le serveur n’a pas pu traiter le formulaire ({status}).',
   'grid.search': 'Rechercher…', 'grid.searchRows': 'Rechercher des lignes', 'grid.selectAll': 'Tout sélectionner', 'grid.selectRow': 'Sélectionner la ligne',

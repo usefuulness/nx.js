@@ -765,3 +765,80 @@ test('file upload inside an enhanced form sends the real file bytes as multipart
   expect(body).toContain('name="report"; filename="report.csv"');
   expect(body).toContain('a,b\n1,2\n');
 });
+
+test('tag input: type, Enter, comma, paste, duplicates, max, Backspace and the × button, announced', async ({ page }) => {
+  await page.goto('/#/components');
+  const field = page.locator('#demo-tags');
+  const box = field.locator('input.entry');
+  const tags = field.locator('.tag-text');
+  await box.scrollIntoViewIfNeeded();
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+  await expect(tags).toHaveText(['css', 'html']);
+
+  await box.click();
+  await page.keyboard.type('a11y');
+  await page.keyboard.press('Enter');
+  await expect(tags).toHaveText(['css', 'html', 'a11y']);
+  await expect(field.locator('.live')).toHaveText('Added a11y');
+  await expect(box).toHaveValue('');
+  await expect(box).toBeFocused();
+
+  await page.keyboard.type('js,');
+  await expect(tags).toHaveText(['css', 'html', 'a11y', 'js']);
+
+  // Max is 4: the next one is refused with the reason
+  await page.keyboard.type('svg');
+  await page.keyboard.press('Enter');
+  await expect(field.locator('.nx-field-helper')).toHaveText('At most 4 tags are allowed');
+  await expect(tags).toHaveCount(4);
+
+  // Backspace in the empty box removes the last tag
+  await box.fill('');
+  await page.keyboard.press('Backspace');
+  await expect(tags).toHaveText(['css', 'html', 'a11y']);
+  await expect(field.locator('.live')).toHaveText('Removed js');
+
+  // A duplicate (any case) is refused; the × button removes with the mouse and focus returns to the box
+  await page.keyboard.type('CSS');
+  await page.keyboard.press('Enter');
+  await expect(field.locator('.nx-field-helper')).toHaveText('CSS is already added');
+  await box.fill('');
+  await field.getByRole('button', { name: 'Remove html' }).click();
+  await expect(tags).toHaveText(['css', 'a11y']);
+  await expect(box).toBeFocused();
+
+  // Pasting a list splits it
+  await page.evaluate(() => {
+    const input = document.querySelector('#demo-tags')!.shadowRoot!.querySelector('input.entry')!;
+    const data = new DataTransfer();
+    data.setData('text', 'x, y\nz');
+    input.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+  });
+  await expect(tags).toHaveText(['css', 'a11y', 'x', 'y']); // z is over the max of 4
+});
+
+test('tag input in an enhanced form posts every tag as its own entry', async ({ page }) => {
+  await page.goto('/#/');
+  let body = '';
+  await page.route('**/api/tags', async route => {
+    body = route.request().postData() ?? '';
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+  });
+  await page.evaluate(() => {
+    const form = document.createElement('nx-form');
+    form.id = 'tag-form';
+    form.setAttribute('action', '/api/tags');
+    form.setAttribute('method', 'post');
+    form.setAttribute('enhance', '');
+    form.innerHTML = `<nx-tag-input name="topics" label="Topics" value="css,html" required></nx-tag-input>
+      <nx-button slot="buttons" type="submit">Save</nx-button>`;
+    document.querySelector('nx-outlet')!.append(form);
+  });
+  const form = page.locator('#tag-form');
+  await form.locator('input.entry').click();
+  await page.keyboard.type('js');
+  await page.keyboard.press('Enter');
+  await form.locator('nx-button').click();
+  await expect.poll(() => body).not.toBe('');
+  expect(new URLSearchParams(body).getAll('topics')).toEqual(['css', 'html', 'js']);
+});
