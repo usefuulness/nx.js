@@ -477,3 +477,25 @@ test('Export Excel downloads a real .xlsx of the rows the grid shows', async ({ 
   expect(text).not.toContain('Grace Hopper');
   await download.saveAs(process.env.NX_XLSX_OUT ?? file); // lets a person open it in Excel
 });
+
+test('grouped grid: headers collapse from the keyboard, totals follow, and the footer totals everything', async ({ page }) => {
+  await page.goto('/#/');
+  const grid = page.locator('#orders-grid');
+  await expect(grid.locator('.group-toggle')).toHaveCount(3); // Paid, Pending, Refunded
+  await expect(grid.locator('.group-toggle').first()).toContainText('Paid');
+  await expect(grid.locator('.group-toggle').first()).toContainText('3 rows');
+  // Paid: 249 + 1290 + 72; the grid total is every order
+  await expect(grid.locator('tr.summary-row').first()).toContainText('$1,611.00');
+  await expect(grid.locator('tfoot')).toContainText('$4,239.00');
+
+  const paid = grid.locator('.group-toggle').first();
+  await paid.focus();
+  await page.keyboard.press('Enter');
+  await expect(paid).toHaveAttribute('aria-expanded', 'false');
+  await expect(paid).toBeFocused();
+  await expect(grid.locator('tbody tr:not(.group-row):not(.summary-row)')).toHaveCount(3); // Pending 2 + Refunded 1
+  await expect(grid.locator('tfoot')).toContainText('$4,239.00');
+  await page.keyboard.press('Space');
+  await expect(paid).toHaveAttribute('aria-expanded', 'true');
+  await expect(grid.locator('tbody tr:not(.group-row):not(.summary-row)')).toHaveCount(6);
+});

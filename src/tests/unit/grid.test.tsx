@@ -526,4 +526,139 @@ describe('NXGrid JSX renderers', () => {
       expect(copyEvent(plain.shadowRoot!.querySelector('tbody td')!).event.defaultPrevented).toBe(false);
     });
   });
+
+  describe('grouping and summaries', () => {
+    const sales = () => [
+      { id: 1, rep: 'Ada', region: 'West', amount: 100, units: 2 },
+      { id: 2, rep: 'Bob', region: 'East', amount: 250, units: 5 },
+      { id: 3, rep: 'Cy', region: 'West', amount: 50, units: 1 },
+      { id: 4, rep: 'Di', region: 'North', amount: 400, units: 8 },
+      { id: 5, rep: 'Ed', region: 'East', amount: 50, units: 3 }
+    ];
+    const cols = (extra: Record<string, any> = {}) => [
+      { field: 'rep', header: 'Rep' },
+      { field: 'region', header: 'Region' },
+      { field: 'amount', header: 'Amount', type: 'currency' as const, summary: 'sum' as const },
+      { field: 'units', header: 'Units', type: 'number' as const, summary: 'avg' as const, ...extra }
+    ];
+    const rowsOf = (grid: NXGrid) =>
+      Array.from(grid.shadowRoot!.querySelectorAll('tbody tr')).map(tr =>
+        tr.classList.contains('group-row') ? `# ${tr.querySelector('.group-label')!.textContent}`
+          : tr.classList.contains('summary-row') ? `= ${Array.from(tr.querySelectorAll('td')).map(td => td.textContent!.trim()).join('|')}`
+          : tr.querySelector('td')!.textContent!.trim()
+      );
+    const footer = (grid: NXGrid) =>
+      Array.from(grid.shadowRoot!.querySelectorAll('tfoot td')).map(td => td.textContent!.trim());
+
+    it('groups rows under headers ordered by the group value, with counts and aria-expanded', () => {
+      const grid = mount({ data: sales(), columns: cols(), groupBy: 'region' });
+      expect(rowsOf(grid).filter(r => r.startsWith('#'))).toEqual(['# East', '# North', '# West']);
+      expect(rowsOf(grid).filter(r => !r.startsWith('#') && !r.startsWith('='))).toEqual(['Bob', 'Ed', 'Di', 'Ada', 'Cy']);
+      const east = grid.shadowRoot!.querySelector('.group-toggle') as HTMLElement;
+      expect(east.getAttribute('aria-expanded')).toBe('true');
+      expect(east.querySelector('.group-count')!.textContent).toBe('2 rows');
+      expect(grid.shadowRoot!.querySelectorAll('.group-toggle')[1].querySelector('.group-count')!.textContent).toBe('1 row');
+    });
+
+    it('follows the sort direction when sorting by the group field', () => {
+      const grid = mount({ data: sales(), columns: cols(), groupBy: 'region' });
+      grid.sort('region', 'desc');
+      expect(rowsOf(grid).filter(r => r.startsWith('#'))).toEqual(['# West', '# North', '# East']);
+    });
+
+    it('totals each group and the whole grid, formatted like the column', () => {
+      const grid = mount({ data: sales(), columns: cols(), groupBy: 'region' });
+      const subtotals = rowsOf(grid).filter(r => r.startsWith('='));
+      expect(subtotals).toEqual(['= Subtotal||$300.00|4', '= Subtotal||$400.00|8', '= Subtotal||$150.00|1.5']);
+      expect(footer(grid)).toEqual(['Total', '', '$850.00', '3.8']);
+    });
+
+    it('totals only the rows search leaves, and an empty total shows a dash', () => {
+      const grid = mount({ data: sales(), columns: cols({ summary: 'max' }), groupBy: 'region' });
+      grid.setFilter('west');
+      expect(footer(grid)).toEqual(['Total', '', '$150.00', '2']);
+      const none = mount({ data: [{ rep: 'X', amount: null, units: 'n/a' }], columns: cols() });
+      expect(footer(none)).toEqual(['Total', '', '—', '—']);
+    });
+
+    it('supports count, min and custom functions', () => {
+      const grid = mount({
+        data: sales(),
+        columns: [
+          { field: 'rep', header: 'Rep', summary: 'count' as const },
+          { field: 'amount', header: 'Amount', type: 'currency' as const, summary: 'min' as const },
+          { field: 'units', header: 'Units', summary: (values: number[]) => `${values.filter(v => v > 2).length} big` }
+        ]
+      });
+      expect(footer(grid)).toEqual(['5', '$50.00', '3 big']);
+      expect(rowsOf(grid).some(r => r.startsWith('#'))).toBe(false); // no groupBy: no headers, but a footer
+    });
+
+    it('collapses a group on click, keeps keyboard focus on its button, and emits group-toggle', () => {
+      const grid = mount({ data: sales(), columns: cols(), groupBy: 'region' });
+      const toggled = vi.fn();
+      grid.addEventListener('group-toggle', toggled);
+      (grid.shadowRoot!.querySelector('.group-toggle') as HTMLElement).click();
+      expect(rowsOf(grid).slice(0, 3)).toEqual(['# East', '# North', 'Di']);
+      expect((toggled.mock.calls[0][0] as CustomEvent).detail).toEqual({ key: 'East', collapsed: true });
+      const button = grid.shadowRoot!.querySelector('.group-toggle') as HTMLElement;
+      expect(button.getAttribute('aria-expanded')).toBe('false');
+      expect(grid.shadowRoot!.activeElement).toBe(button);
+      button.click();
+      expect(rowsOf(grid)[1]).toBe('Bob');
+      expect(footer(grid)[2]).toBe('$850.00'); // the footer totals every row, collapsed or not
+    });
+
+    it('starts collapsed with group-collapsed; expandAll and collapseAll work; setGroupBy(null) ungroups', async () => {
+      const grid = mount({ data: sales(), columns: cols(), groupBy: 'region', groupCollapsed: true });
+      expect(rowsOf(grid)).toEqual(['# East', '# North', '# West']);
+      grid.expandAll();
+      expect(rowsOf(grid)).toHaveLength(3 + 5 + 3);
+      grid.collapseAll();
+      expect(rowsOf(grid)).toEqual(['# East', '# North', '# West']);
+      grid.setGroupBy(null);
+      await nextFrame();
+      expect(rowsOf(grid).filter(r => r.startsWith('#'))).toEqual([]);
+      expect(rowsOf(grid)).toHaveLength(5);
+    });
+
+    it('is keyboard-navigable across headers: arrows skip them, End/Home reach the first and last rows', () => {
+      const grid = mount({
+        data: sales(), groupBy: 'region',
+        columns: [{ field: 'rep', header: 'Rep', editable: true }, { field: 'region', header: 'Region' }]
+      });
+      const td = (pos: number, col = 0) => grid.shadowRoot!.querySelector(`td[data-pos="${pos}"][data-col="${col}"]`) as HTMLElement;
+      const key = (el: Element, k: string, init: KeyboardEventInit = {}) =>
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, composed: true, ...init }));
+      // Items: 0 East header, 1 Bob, 2 Ed, 3 North header, 4 Di, 5 West header, 6 Ada, 7 Cy
+      td(1).focus();
+      key(td(1), 'ArrowDown');
+      expect(grid.shadowRoot!.activeElement).toBe(td(2));
+      key(td(2), 'ArrowDown'); // over the North header
+      expect(grid.shadowRoot!.activeElement).toBe(td(4));
+      key(td(4), 'ArrowUp');
+      expect(grid.shadowRoot!.activeElement).toBe(td(2));
+      key(td(2), 'Home', { ctrlKey: true });
+      expect(grid.shadowRoot!.activeElement).toBe(td(1));
+      key(td(1), 'End', { ctrlKey: true });
+      expect(grid.shadowRoot!.activeElement).toBe(td(7, 1));
+    });
+
+    it('keeps group headers out of data-index, so clicks still map to the right row', () => {
+      const data = sales();
+      const grid = mount({ data, columns: cols(), groupBy: 'region' });
+      const onClick = vi.fn();
+      grid.addEventListener('row-click', onClick);
+      (grid.shadowRoot!.querySelectorAll('tbody tr:not(.group-row):not(.summary-row)')[2].querySelector('td') as HTMLElement).click();
+      expect((onClick.mock.calls[0][0] as CustomEvent).detail.row).toBe(data[3]); // Di, the third row shown
+    });
+
+    it('groups per page when paging, and counts group rows in a virtual grid', () => {
+      const paged = mount({ data: sales(), columns: cols(), groupBy: 'region', pageSize: 3 });
+      expect(rowsOf(paged).filter(r => r.startsWith('#'))).toEqual(['# East', '# West']); // page 1 is rows 1-3 in data order (Ada, Bob, Cy), grouped
+      const virtual = mount({ data: sales(), columns: cols(), groupBy: 'region', virtual: true, rowHeight: 40 });
+      expect(virtual.shadowRoot!.querySelector('table')!.getAttribute('aria-rowcount')).toBe(String(3 + 5 + 3 + 1));
+      expect(virtual.shadowRoot!.querySelector('tr.group-row')!.getAttribute('aria-rowindex')).toBe('2');
+    });
+  });
 });

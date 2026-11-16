@@ -37,6 +37,12 @@ export interface GridColumn<T = any> {
   options?: Array<string | { value: string | number; text: string }>;
   /** Return an error message to reject an edit (it stays open and the message is announced) */
   validate?: (value: any, row: T) => string | true | void;
+  /**
+   * A total for this column: under each group and in a footer row for the whole grid.
+   * `sum`, `avg`, `min`, `max` read numbers; `count` counts rows; a function gets the column's
+   * values and the rows and returns what to show.
+   */
+  summary?: 'sum' | 'avg' | 'min' | 'max' | 'count' | ((values: any[], rows: T[]) => string | number | null);
   /** Smallest width in px when resizing (default 60) */
   minWidth?: number;
   /** Set `false` to stop this column being resized or moved when the grid allows it */
@@ -89,6 +95,14 @@ export interface GridConfig<T extends Record<string, any> = any> {
   virtual?: boolean;
   /** Row height in px for a `virtual` grid (default 48, or 36 when `dense`) */
   rowHeight?: number;
+  /**
+   * Group rows by this field: a header per group that collapses (Enter or Space on its button),
+   * with the column `summary` totals after each group. With `pageSize`, groups are made per page.
+   * Not available with a `buffered` store.
+   */
+  groupBy?: string;
+  /** Start with every group collapsed */
+  groupCollapsed?: boolean;
   /** Drag a header's right edge to resize (also focusable: Left/Right arrows, Shift for bigger steps, Enter or double-click resets) */
   resizable?: boolean;
   /** Reorder columns by dragging headers, or with Alt+Left/Right on a focused header */
@@ -105,6 +119,16 @@ export interface GridConfig<T extends Record<string, any> = any> {
 interface RowSource<T> {
   length: number;
   at(index: number): T | undefined;
+  /** Set for positions that are a group header or a group's summary row, not a data row */
+  group?(index: number): GroupItem<T> | undefined;
+}
+
+interface GroupItem<T> {
+  kind: 'header' | 'summary';
+  key: string;
+  label: string;
+  rows: T[];
+  collapsed: boolean;
 }
 
 const cssSize = (value: unknown): string =>
@@ -124,7 +148,7 @@ const isNumeric = (col: GridColumn): boolean =>
   col.type === 'number' || col.type === 'currency' || col.type === 'percent';
 
 /**
- * Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, store binding.
+ * Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, store binding.
  *
  * @example
  * ```typescript
@@ -144,13 +168,13 @@ const isNumeric = (col: GridColumn): boolean =>
  * }
  * ```
  *
- * Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`, `column-change`, `cell-change`.
+ * Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`, `column-change`, `cell-change`, `group-toggle`.
  */
 export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   static get observedAttributes(): string[] {
     return [
       'title', 'search', 'striped', 'hoverable', 'dense', 'bordered',
-      'selectable', 'checkbox-selection', 'page-size', 'empty-text', 'store', 'virtual', 'row-height', 'height', 'resizable', 'reorderable', 'state-key'
+      'selectable', 'checkbox-selection', 'page-size', 'empty-text', 'store', 'virtual', 'row-height', 'height', 'resizable', 'reorderable', 'state-key', 'group-by', 'group-collapsed'
     ];
   }
 
@@ -165,6 +189,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   private page = 1;
   private scrollFrame = 0;
   private searchTimer = 0;
+  private collapsedGroups = new Set<string>();
+  private seenGroups = new Set<string>();
   private widths = new Map<string, number>();
   private order: string[] = [];
   private stateLoaded = false;
@@ -534,6 +560,81 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     if (emit) this.emit('column-change', this.getColumnState());
   }
 
+  // ────────── Grouping and summaries ──────────
+
+  /** Collapse or expand one group (all of them are open unless `group-collapsed`). */
+  toggleGroup(key: string, collapsed?: boolean): void {
+    const next = collapsed ?? !this.collapsedGroups.has(key);
+    if (next) this.collapsedGroups.add(key);
+    else this.collapsedGroups.delete(key);
+    this.emit('group-toggle', { key, collapsed: next });
+    this.refresh();
+    // The button was redrawn: keep keyboard focus on it
+    const buttons = Array.from(this.shadow?.querySelectorAll('.group-toggle') ?? []) as HTMLElement[];
+    buttons.find(b => b.dataset.group === key)?.focus();
+  }
+
+  expandAll(): void {
+    this.collapsedGroups.clear();
+    this.refresh();
+  }
+
+  collapseAll(): void {
+    const field = this.getProp<string>('group-by', '');
+    if (!field) return;
+    this.groupRows(this.getVisibleRows(), field).forEach(group => this.collapsedGroups.add(group.key));
+    this.refresh();
+  }
+
+  /** Group by a field, or pass `null` to ungroup. */
+  setGroupBy(field: string | null): void {
+    this.collapsedGroups.clear();
+    this.seenGroups.clear();
+    this.setProp('group-by', field ?? '');
+  }
+
+  /** What a column's `summary` makes of these rows, or null when there is nothing to total. */
+  private summarize(col: GridColumn<T>, rows: T[]): string | number | null {
+    const kind = col.summary;
+    if (!kind) return null;
+    const values = rows.map(row => this.value(row, col.field));
+    if (typeof kind === 'function') return kind(values, rows);
+    if (kind === 'count') return rows.length;
+    const numbers = values.filter(v => v !== null && v !== undefined && v !== '').map(Number).filter(Number.isFinite);
+    if (!numbers.length) return null;
+    const sum = numbers.reduce((a, b) => a + b, 0);
+    return kind === 'sum' ? sum : kind === 'avg' ? sum / numbers.length : kind === 'min' ? Math.min(...numbers) : Math.max(...numbers);
+  }
+
+  /** A total, formatted like the column's own cells (currency stays currency). */
+  private summaryCell(col: GridColumn<T>, rows: T[]): Child {
+    const total = this.summarize(col, rows);
+    if (total === null || total === undefined) return <span class="muted">—</span>;
+    if (typeof total === 'string') return total;
+    const shown: any = {};
+    this.setValue(shown, String(col.field), total);
+    const type = col.summary !== 'count' && isNumeric(col) ? col.type : 'number';
+    return this.renderCell(shown, { ...col, type, renderer: undefined, formatter: undefined });
+  }
+
+  private renderSummaryRow(rows: T[], cols: GridColumn<T>[], checkbox: boolean, label: string, rowIndex?: number): HTMLElement {
+    const offsets = this.pinnedOffsets(cols, checkbox);
+    const anyPinned = offsets.size > 0;
+    return (
+      <tr class="summary-row" aria-rowindex={rowIndex === undefined ? undefined : String(rowIndex)}>
+        {checkbox && <td class={['check', { pinned: anyPinned }]} style={anyPinned ? { left: '0px' } : undefined} />}
+        {cols.map((col, n) => {
+          const left = offsets.get(String(col.field));
+          return (
+            <td class={[this.align(col), { pinned: left !== undefined }]} style={left !== undefined ? { left: `${left}px` } : undefined}>
+              {col.summary ? this.summaryCell(col, rows) : n === 0 ? <span class="summary-label">{label}</span> : null}
+            </td>
+          );
+        })}
+      </tr>
+    ) as HTMLElement;
+  }
+
   // ────────── Cell editing and the grid keyboard model ──────────
 
   private hasEditable(): boolean {
@@ -570,11 +671,22 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   }
 
   /** Make a cell the active one and move focus to it, scrolling a virtual grid to reach it. */
-  private focusCell(pos: number, col: number): void {
+  private focusCell(pos: number, col: number, dir = 1): void {
     const rows = this.rowSource();
     const cols = this.visibleColumns();
     if (!rows.length || !cols.length) return;
     pos = Math.max(0, Math.min(pos, rows.length - 1));
+    if (rows.group) {
+      // Group headers and summaries have no cells to focus: carry on in the direction of travel
+      const clear = (from: number, step: number) => {
+        let p = from;
+        while (p >= 0 && p < rows.length && rows.group!(p)) p += step;
+        return p >= 0 && p < rows.length ? p : -1;
+      };
+      const found = clear(pos, dir);
+      pos = found >= 0 ? found : clear(pos, -dir);
+      if (pos < 0) return;
+    }
     col = Math.max(0, Math.min(col, cols.length - 1));
     this.active = { pos, col };
 
@@ -694,7 +806,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     const page = 10;
     const go = (p: number, c: number) => {
       e.preventDefault();
-      this.focusCell(p, c);
+      this.focusCell(p, c, p < pos ? -1 : 1);
     };
     switch (e.key) {
       case 'ArrowDown': return go(pos + 1, col);
@@ -866,7 +978,47 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       return { length: store.getTotalCount(), at: i => store.getRecordAt(i)?.data };
     }
     const rows = this.renderedRows();
-    return { length: rows.length, at: i => rows[i] };
+    const field = this.getProp<string>('group-by', '');
+    if (!field) return { length: rows.length, at: i => rows[i] };
+
+    // Headers and data rows in one list, so virtualization and keyboard positions treat them alike
+    const items: Array<{ row: T } | { group: GroupItem<T> }> = [];
+    const hasSummary = this.columns.some(c => !c.hidden && c.summary);
+    for (const group of this.groupRows(rows, field)) {
+      const collapsed = this.collapsedGroups.has(group.key);
+      const base = { key: group.key, label: group.label, rows: group.rows, collapsed };
+      items.push({ group: { ...base, kind: 'header' } });
+      if (collapsed) continue;
+      for (const row of group.rows) items.push({ row });
+      if (hasSummary) items.push({ group: { ...base, kind: 'summary' } });
+    }
+    return {
+      length: items.length,
+      at: i => (items[i] && 'row' in items[i] ? (items[i] as { row: T }).row : undefined),
+      group: i => (items[i] && 'group' in items[i] ? (items[i] as { group: GroupItem<T> }).group : undefined)
+    };
+  }
+
+  /** Rows in groups, ordered by the group value (or as the sort left them when sorting by that field). */
+  private groupRows(rows: T[], field: string): Array<{ key: string; label: string; rows: T[] }> {
+    const groups = new Map<string, T[]>();
+    for (const row of rows) {
+      const value = this.value(row, field);
+      const key = value === null || value === undefined ? '' : String(value);
+      const list = groups.get(key);
+      if (list) list.push(row);
+      else groups.set(key, [row]);
+    }
+    const keys = [...groups.keys()];
+    if (this.sortField !== field) keys.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+    // First sight of a group applies "start collapsed" once; after that the user's choice wins
+    for (const key of keys) {
+      if (!this.seenGroups.has(key)) {
+        this.seenGroups.add(key);
+        if (this.getProp('group-collapsed', false)) this.collapsedGroups.add(key);
+      }
+    }
+    return keys.map(key => ({ key, label: key === '' ? '(none)' : key, rows: groups.get(key)! }));
   }
 
   private rowAtIndex(index: number): T | null {
@@ -1074,6 +1226,9 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
           </tr>
         </thead>
         {this.renderBodyFor(source, cols, virtual)}
+        {cols.some(c => c.summary) && this.getVisibleRows().length > 0 && (
+          <tfoot>{this.renderSummaryRow(this.getVisibleRows(), cols, checkbox, 'Total')}</tfoot>
+        )}
       </table>
     );
   }
@@ -1119,6 +1274,21 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
           spacer(virtual ? start : 0),
           ...Array.from({ length: end - start }, (_, n) => {
             const i = start + n;
+            const group = source.group?.(i);
+            if (group?.kind === 'summary') return this.renderSummaryRow(group.rows, cols, checkbox, 'Subtotal', virtual ? i + 2 : undefined);
+            if (group) {
+              return (
+                <tr class="group-row" aria-rowindex={virtual ? String(i + 2) : undefined}>
+                  <td colspan={span}>
+                    <button type="button" class="group-toggle" data-group={group.key} aria-expanded={String(!group.collapsed)}>
+                      <span class="group-chevron" aria-hidden="true" html={Icons.get(group.collapsed ? 'chevron-right' : 'chevron-down')} />
+                      <span class="group-label">{group.label}</span>
+                      <span class="group-count">{group.rows.length} {group.rows.length === 1 ? 'row' : 'rows'}</span>
+                    </button>
+                  </td>
+                </tr>
+              );
+            }
             const row = source.at(i);
             if (row === undefined) return placeholder(i);
             const isSelected = this.selected.has(row);
@@ -1242,6 +1412,12 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
   private onClick(e: MouseEvent): void {
     const target = e.target as HTMLElement;
+
+    const toggle = target.closest('.group-toggle') as HTMLElement | null;
+    if (toggle) {
+      this.toggleGroup(toggle.dataset.group ?? '');
+      return;
+    }
 
     // Clicking a cell makes it the one Tab returns to
     const cell = target.closest('td[data-pos]') as HTMLElement | null;
@@ -1380,6 +1556,36 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       }
 
       .dense th, .dense td { height: 2.25rem; padding: 0 0.75rem; }
+      .group-row td { padding: 0; background: var(--color-muted); }
+      .group-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+        min-height: 2.25rem;
+        height: 100%;
+        padding: 0 1rem;
+        border: 0;
+        background: transparent;
+        color: var(--color-text);
+        font: inherit;
+        font-weight: 600;
+        text-align: start;
+        cursor: pointer;
+      }
+      .group-toggle:focus-visible { outline: 2px solid var(--color-ring); outline-offset: -2px; }
+      .group-chevron { display: inline-flex; }
+      .group-count { color: var(--color-text-secondary); font-weight: 400; font-size: 0.8125rem; }
+      .summary-row td { background: color-mix(in srgb, var(--color-muted) 50%, var(--color-background)); color: var(--color-text); font-weight: 600; }
+      tfoot td {
+        position: sticky;
+        bottom: 0;
+        z-index: 1;
+        background: var(--color-muted);
+        border-top: 1px solid var(--color-border);
+        border-bottom: none;
+      }
+      tfoot td.pinned { z-index: 3; }
       .skeleton-bar {
         display: block;
         width: 60%;

@@ -90,14 +90,16 @@ const DashboardPage = () => (
 
     <Grid columns={3} gap={16}>
       <DataGrid
+        id="orders-grid"
         title="Recent orders"
         style="grid-column: span 2"
         data={orders}
+        groupBy="status"
         columns={[
           { field: 'id', header: 'Order', width: 90 },
           { field: 'customer', header: 'Customer' },
           { field: 'status', header: 'Status', type: 'badge', width: 110, badges: { Paid: 'success', Pending: 'warning', Refunded: 'neutral' } },
-          { field: 'total', header: 'Total', type: 'currency', width: 110 }
+          { field: 'total', header: 'Total', type: 'currency', width: 110, summary: 'sum' }
         ]}
       />
       <DataGrid

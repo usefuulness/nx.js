@@ -27,7 +27,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-divider>`](#nx-divider) | `Divider` | Horizontal rule, optionally with a label. |
 | [`<nx-drawer>`](#nx-drawer) | `Drawer` | Slide-in panel (a "sheet"), built on the native `<dialog>` element: focus trap, Escape, top layer and inert background come from the browser. |
 | [`<nx-form>`](#nx-form) | `Form` | Form container: collects values from named fields, validates, and fires `submit`. Works with nx fields and plain `<input>`/`<select>`/`<textarea>` elements. |
-| [`<nx-grid>`](#nx-grid) | `DataGrid` | Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, store binding. |
+| [`<nx-grid>`](#nx-grid) | `DataGrid` | Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, store binding. |
 | [`<nx-input>`](#nx-input) | `Input` | `<nx-input>`: the HTML name matching `<Input>` in JSX. |
 | [`<nx-loader>`](#nx-loader) | — | Loading indicator, optionally covering its container or the whole page. |
 | [`<nx-menu>`](#nx-menu) | `Menu` | A trigger button with a dropdown menu. |
@@ -257,6 +257,8 @@ Flex/grid layout box. Children are regular light-DOM elements.
 | `checkbox-selection` | `checkboxSelection` | `boolean` | A checkbox column for selecting rows |
 | `dense` | `dense` | `boolean` | Compact rows |
 | `empty-text` | `emptyText` | `string` | Shown when there are no rows |
+| `group-by` | `groupBy` | `string` | Group rows by this field: a header per group that collapses (Enter or Space on its button), with the column `summary` totals after each group. With `pageSize`, groups are made per page. Not available with a `buffered` store. |
+| `group-collapsed` | `groupCollapsed` | `boolean` | Start with every group collapsed |
 | `height` | `height` | `string \| number` | Height of the scrolling body, as a CSS size or px number (a `virtual` grid defaults to 24rem) |
 | `hoverable` | `hoverable` | `boolean` | Highlight the row under the pointer |
 | `page-size` | `pageSize` | `number` | Rows per page; omit for no paging |
@@ -366,7 +368,7 @@ Form container: collects values from named fields, validates, and fires `submit`
 
 `<nx-grid>` · JSX: `<DataGrid>` · [source](../src/data/grid.tsx)
 
-Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, store binding.
+Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, store binding.
 
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
@@ -374,6 +376,8 @@ Data grid: sorting, search, selection, paging, row virtualization, column resize
 | `checkbox-selection` | `checkboxSelection` | `boolean` | A checkbox column for selecting rows |
 | `dense` | `dense` | `boolean` | Compact rows |
 | `empty-text` | `emptyText` | `string` | Shown when there are no rows |
+| `group-by` | `groupBy` | `string` | Group rows by this field: a header per group that collapses (Enter or Space on its button), with the column `summary` totals after each group. With `pageSize`, groups are made per page. Not available with a `buffered` store. |
+| `group-collapsed` | `groupCollapsed` | `boolean` | Start with every group collapsed |
 | `height` | `height` | `string \| number` | Height of the scrolling body, as a CSS size or px number (a `virtual` grid defaults to 24rem) |
 | `hoverable` | `hoverable` | `boolean` | Highlight the row under the pointer |
 | `page-size` | `pageSize` | `number` | Rows per page; omit for no paging |
@@ -388,7 +392,7 @@ Data grid: sorting, search, selection, paging, row virtualization, column resize
 | `title` | `title` | `string` | Toolbar heading |
 | `virtual` | `virtual` | `boolean` | Render only the rows in view, so tens of thousands of rows stay fast. Rows must be a fixed height (`rowHeight`), the body scrolls (`height`), and paging is ignored. |
 
-**Events:** `row-click`, `row-dblclick`, `selection-change`, `sort-change`, `column-change`, `cell-change`
+**Events:** `row-click`, `row-dblclick`, `selection-change`, `sort-change`, `column-change`, `cell-change`, `group-toggle`
 
 ## nx-input
 
