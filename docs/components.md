@@ -45,6 +45,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-slider>`](#nx-slider) | `Slider` | Slider: pick a number in a range. A native range input underneath, so arrow keys, Page Up/Down, Home/End, touch and form posting all work. |
 | [`<nx-spacer>`](#nx-spacer) | `Spacer` | Flexible space. In a toolbar or hbox, pushes following items to the end. Shorthand in items arrays: `'->'`. |
 | [`<nx-spinner>`](#nx-spinner) | `Spinner` | Loading spinner. |
+| [`<nx-splitter>`](#nx-splitter) | `Splitter` | Resizable panes: put two or more elements inside, and a draggable divider appears between each pair. A pane's starting share comes from its `size` attribute (any number: shares are relative) and its smallest size, in pixels, from `min-size` (default 48). |
 | [`<nx-switch>`](#nx-switch) | `Switch` | `<nx-switch>`: a toggle switch, like `<Switch>` in JSX. |
 | [`<nx-tab>`](#nx-tab) | `Tab` | A tab inside `<nx-tabpanel>`: `<nx-tab title="Account" icon="user" closable>…</nx-tab>`. |
 | [`<nx-tabpanel>`](#nx-tabpanel) | — | Tabs. Each item is a tab: `title`/`icon`/`closable`/`disabled` configure the tab button, everything else (`xtype`, `items`, `html`) is the tab's content. |
@@ -696,6 +697,19 @@ Loading spinner.
 | `speed` | `speed` | `number` | Seconds per rotation (default 0.8) |
 | `text` | `text` | `string` | Visible caption under the spinner |
 | `thickness` | `thickness` | `number` | Stroke width (viewBox units, default 4) |
+
+## nx-splitter
+
+`<nx-splitter>` · JSX: `<Splitter>` · [source](../src/layout/splitter.tsx)
+
+Resizable panes: put two or more elements inside, and a draggable divider appears between each pair. A pane's starting share comes from its `size` attribute (any number: shares are relative) and its smallest size, in pixels, from `min-size` (default 48).
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `orientation` | `orientation` | `vertical` `horizontal` | `horizontal` puts panes side by side (default); `vertical` stacks them |
+| `state-key` | `stateKey` | `string` | Remember the sizes in localStorage under this key |
+
+**Events:** `resize`
 
 ## nx-switch
 

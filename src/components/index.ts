@@ -3,6 +3,7 @@
 // Layout
 import '@/layout/container';
 import '@/layout/panel';
+import '@/layout/splitter';
 import '@/layout/viewport';
 
 // UI

@@ -24,6 +24,7 @@ import type { Child, KnownProps, LooseProps } from '@/jsx/jsx-runtime';
 import type { ButtonConfig } from '@/components/ui/button';
 import type { BadgeConfig } from '@/components/ui/badge';
 import type { PaginationConfig } from '@/components/ui/pagination';
+import type { SplitterConfig } from '@/layout/splitter';
 import type { CardConfig } from '@/components/ui/card';
 import type { PanelConfig } from '@/layout/panel';
 import type { ToolbarConfig } from '@/components/ui/toolbar';
@@ -119,6 +120,7 @@ declare module './jsx-runtime' {
     'nx-button': Props<ButtonConfig>;
     'nx-badge': Props<BadgeConfig>;
     'nx-pagination': Props<PaginationConfig>;
+    'nx-splitter': Props<SplitterConfig>;
     'nx-card': Props<CardConfig>;
     'nx-panel': Props<PanelConfig>;
     'nx-container': Props<ContainerConfig>;
@@ -164,6 +166,7 @@ declare module './jsx-runtime' {
 export const Button = (props: Props<ButtonConfig>) => <nx-button {...props} />;
 export const Badge = (props: Props<BadgeConfig>) => <nx-badge {...props} />;
 export const Pagination = (props: Props<PaginationConfig>) => <nx-pagination {...props} />;
+export const Splitter = (props: Props<SplitterConfig>) => <nx-splitter {...props} />;
 export const Avatar = (props: Props<AvatarConfig>) => <nx-avatar {...props} />;
 export const Alert = (props: Props<AlertConfig>) => <nx-alert {...props} />;
 /** Inline command list; for the ⌘K dialog use `NX.command()` */

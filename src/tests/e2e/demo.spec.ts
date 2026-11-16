@@ -842,3 +842,58 @@ test('tag input in an enhanced form posts every tag as its own entry', async ({ 
   await expect.poll(() => body).not.toBe('');
   expect(new URLSearchParams(body).getAll('topics')).toEqual(['css', 'html', 'js']);
 });
+
+test('splitter: drag with the mouse, resize and collapse from the keyboard, nested stacks, and ARIA values', async ({ page }) => {
+  await page.goto('/#/components');
+  const splitter = page.locator('#demo-splitter');
+  await splitter.scrollIntoViewIfNeeded();
+  const outer = splitter.locator(':scope > .nx-gutter');
+  await expect(outer).toHaveCount(2);
+  const first = splitter.locator(':scope > div').first();
+  const width = async () => (await first.boundingBox())!.width;
+  const start = await width();
+
+  // Mouse: drag the first divider 120px to the right
+  const box = (await outer.first().boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+  expect(await width()).toBeGreaterThan(start + 100);
+
+  // Keyboard: it is a focusable separator with a value; Shift+Left shrinks the pane, Home collapses it to its minimum
+  await outer.first().focus();
+  await expect(outer.first()).toHaveAttribute('role', 'separator');
+  const before = Number(await outer.first().getAttribute('aria-valuenow'));
+  await page.keyboard.press('Shift+ArrowLeft');
+  expect(Number(await outer.first().getAttribute('aria-valuenow'))).toBeLessThan(before - 5);
+  await page.keyboard.press('Home');
+  await expect.poll(width).toBeLessThanOrEqual(100); // min-size is 96px
+  await page.keyboard.press('Enter'); // restores
+  await expect.poll(width).toBeGreaterThan(101); // back to its 25% share (about 105px here), clearly more than the 96px minimum
+
+  // The nested stack resizes vertically with Up/Down
+  const inner = splitter.locator('nx-splitter .nx-gutter');
+  await inner.focus();
+  expect(await inner.getAttribute('aria-orientation')).toBe('horizontal');
+  const top = splitter.locator('nx-splitter > div').first();
+  const h = (await top.boundingBox())!.height;
+  await page.keyboard.press('Shift+ArrowDown');
+  expect((await top.boundingBox())!.height).toBeGreaterThan(h + 5);
+});
+
+test('splitter: padded panes get exactly their share (padding must not skew the sizes)', async ({ page }) => {
+  await page.goto('/#/components');
+  const splitter = page.locator('#demo-splitter');
+  await splitter.scrollIntoViewIfNeeded();
+  const widths = await splitter.evaluate(el => {
+    const panes = Array.from(el.children).filter(c => !c.hasAttribute('data-nx-generated')) as HTMLElement[];
+    const box = el.getBoundingClientRect().width - 2; // the demo splitter has a 1px border
+    const gutters = el.querySelectorAll(':scope > [data-nx-generated]').length * 8;
+    return { share: panes.map(p => p.getBoundingClientRect().width / (box - gutters)) };
+  });
+  // size="25", the nested stack gets the rest (50), size="25"; each pane has padding
+  expect(widths.share[0]).toBeCloseTo(0.25, 2);
+  expect(widths.share[1]).toBeCloseTo(0.5, 2);
+  expect(widths.share[2]).toBeCloseTo(0.25, 2);
+});

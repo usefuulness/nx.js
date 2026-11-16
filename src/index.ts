@@ -58,6 +58,8 @@ export { NXViewport, NXRegion } from '@/layout/viewport';
 export { NXAccordion, NXAccordionItem } from '@/components/ui/accordion';
 export type { AccordionConfig, AccordionItem as AccordionItemConfig } from '@/components/ui/accordion';
 export { NXBreadcrumb } from '@/components/ui/breadcrumb';
+export { NXSplitter } from '@/layout/splitter';
+export type { SplitterConfig } from '@/layout/splitter';
 export { NXPagination, pageItems } from '@/components/ui/pagination';
 export type { PaginationConfig } from '@/components/ui/pagination';
 export { NXBadge } from '@/components/ui/badge';

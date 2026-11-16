@@ -17,6 +17,7 @@ i18n.extend('ar', {
   'upload.tooMany': { one: 'لم تتم إضافة {name}: يُسمح بملف واحد فقط', other: 'لم تتم إضافة {name}: يُسمح بـ {count} ملفات فقط' },
   'tags.placeholder': 'أضف وسمًا…', 'tags.remove': 'إزالة {tag}', 'tags.added': 'تمت إضافة {tag}', 'tags.removed': 'تمت إزالة {tag}', 'tags.duplicate': '{tag} مضاف بالفعل',
   'tags.max': { one: 'يُسمح بوسم واحد على الأكثر', other: 'يُسمح بـ {count} وسوم على الأكثر' }, 'tags.required': 'أضف وسمًا واحدًا على الأقل', 'tags.min': { one: 'أضف وسمًا واحدًا على الأقل', other: 'أضف {count} وسوم على الأقل' },
+  'splitter.resize': 'تغيير حجم اللوحات',
   'form.network': 'تعذّر الوصول إلى الخادم. تحقق من اتصالك وحاول مرة أخرى.',
   'form.server': 'تعذّر على الخادم معالجة النموذج ({status}).',
   'grid.search': 'بحث…', 'grid.searchRows': 'البحث في الصفوف', 'grid.selectAll': 'تحديد الكل', 'grid.selectRow': 'تحديد الصف',

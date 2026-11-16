@@ -39,6 +39,7 @@ export const en: Messages = {
   'panel.expand': 'Expand panel',
   'panel.collapse': 'Collapse panel',
   'panel.close': 'Close panel',
+  'splitter.resize': 'Resize panes',
 
   'pagination.label': 'Pagination',
   'pagination.previous': 'Previous page',

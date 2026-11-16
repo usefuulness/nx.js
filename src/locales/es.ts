@@ -17,6 +17,7 @@ i18n.extend('es', {
   'upload.tooMany': { one: '{name} no se añadió: solo se permite {count} archivo', other: '{name} no se añadió: solo se permiten {count} archivos' },
   'tags.placeholder': 'Añadir etiqueta…', 'tags.remove': 'Quitar {tag}', 'tags.added': 'Añadida {tag}', 'tags.removed': 'Quitada {tag}', 'tags.duplicate': '{tag} ya está añadida',
   'tags.max': { one: 'Máximo {count} etiqueta', other: 'Máximo {count} etiquetas' }, 'tags.required': 'Añada al menos una etiqueta', 'tags.min': { one: 'Añada al menos {count} etiqueta', other: 'Añada al menos {count} etiquetas' },
+  'splitter.resize': 'Cambiar el tamaño de los paneles',
   'form.network': 'No se pudo conectar con el servidor. Compruebe su conexión e inténtelo de nuevo.',
   'form.server': 'El servidor no pudo procesar el formulario ({status}).',
   'grid.search': 'Buscar…', 'grid.searchRows': 'Buscar filas', 'grid.selectAll': 'Seleccionar todo', 'grid.selectRow': 'Seleccionar fila',

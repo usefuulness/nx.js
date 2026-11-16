@@ -4,7 +4,7 @@
  */
 import {
   NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, FileUpload, Form, Grid,
-  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Switch, Tab, Tabs, TagInput,
+  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Splitter, Switch, Tab, Tabs, TagInput,
   Textarea, Toolbar, Tooltip, Tree,
   VStack, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
@@ -382,6 +382,17 @@ const ComponentsPage = () => (
           <Alert variant="warning" title="Trial ends soon">Upgrade to keep your projects.</Alert>
           <Alert variant="destructive" title="Payment failed">Your card was declined.</Alert>
         </VStack>
+      </Card>
+
+      <Card title="Splitter" subtitle="Drag the dividers, or focus one and use the arrow keys, Home, End and Enter.">
+        <Splitter id="demo-splitter" style="height: 11rem; border: 1px solid var(--color-border); border-radius: var(--radius-md)">
+          <div size="25" min-size="96" style="padding: 0.75rem">Navigation</div>
+          <Splitter orientation="vertical">
+            <div size="60" min-size="40" style="padding: 0.75rem">Content</div>
+            <div size="40" min-size="40" style="padding: 0.75rem">Console</div>
+          </Splitter>
+          <div size="25" min-size="96" style="padding: 0.75rem">Details</div>
+        </Splitter>
       </Card>
 
       <Card title="Pagination" subtitle="Numbered pages that keep their width, with a range and a page size.">

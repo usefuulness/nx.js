@@ -124,6 +124,25 @@ router: [{
 - **Columns:** `resizable` adds a handle to each header (drag it, or focus it and use **Left/Right**, **Shift** for bigger steps, **Enter** or double-click to reset). `reorderable` lets you drag headers or press **Alt+Left/Right** on a focused header. `pinned: 'left'` (with a px `width`) keeps a column at the left edge while the body scrolls sideways; pinned columns stay in front. Add `minWidth` or `resizable: false` per column. `stateKey: 'users'` remembers widths and order in `localStorage`. API: `getColumnState()`, `setColumnState()`, `resetColumns()`; event: `column-change`.
 - **Large data:** `virtual: true` renders only the rows in view (plus a small overscan), so 50,000+ rows scroll smoothly. Set `rowHeight` (px, default 48, or 36 when `dense`) and `height` (default `24rem`); rows must stay that height, and paging is ignored. The table reports its full size through `aria-rowcount`, but rows that are scrolled out of view are not in the DOM, so browser find-in-page won't see them. Use `search` for that.
 
+## Splitter
+
+`<Splitter>` makes the elements inside it resizable panes, with a draggable divider between each pair. A pane's starting share is its `size` attribute (relative numbers, not percentages) and its smallest size in pixels is `min-size` (default 48). Panes that give no `size` share what is left equally. Padding on a pane is fine: each pane is sized as its share of the space the dividers leave.
+
+```tsx
+<Splitter style="height: 24rem" stateKey="editor">
+  <nav size="25" min-size="160">Files</nav>
+  <Splitter orientation="vertical">          {/* splitters nest */}
+    <main size="70">Editor</main>
+    <section size="30" min-size="64">Console</section>
+  </Splitter>
+</Splitter>
+```
+
+- Each divider is a focusable `separator` with `aria-valuenow`, `aria-valuemin`, `aria-valuemax` and `aria-controls` (the pane before it). **←** **→** (**↑** **↓** when vertical) move it by 2%, **Shift** by 10%, **Home** and **End** collapse the pane before it to its minimum or grow it as far as the next pane allows, and **Enter** collapses it or restores it (to its remembered size, or the one in the markup). Double-click resets to the markup's sizes.
+- `stateKey` remembers the sizes in `localStorage`. `getSizes()` returns each pane's percentage, `setSizes([1, 3])` sets relative sizes, and `resize` (`detail.sizes`) fires when a drag or key press ends. Panes can be added or removed later; dividers follow.
+- The dividers are real elements in the light DOM, so server-rendered pages already contain them and nothing moves when the page upgrades.
+- In a right-to-left layout the horizontal keys and dragging follow the reading direction.
+
 ## Stores
 
 Stores hold records and notify the components bound to them:

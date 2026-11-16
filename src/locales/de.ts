@@ -17,6 +17,7 @@ i18n.extend('de', {
   'upload.tooMany': { one: '{name} wurde nicht hinzugefügt: nur {count} Datei erlaubt', other: '{name} wurde nicht hinzugefügt: nur {count} Dateien erlaubt' },
   'tags.placeholder': 'Tag hinzufügen…', 'tags.remove': '{tag} entfernen', 'tags.added': '{tag} hinzugefügt', 'tags.removed': '{tag} entfernt', 'tags.duplicate': '{tag} ist bereits vorhanden',
   'tags.max': { one: 'Höchstens {count} Tag erlaubt', other: 'Höchstens {count} Tags erlaubt' }, 'tags.required': 'Fügen Sie mindestens einen Tag hinzu', 'tags.min': { one: 'Fügen Sie mindestens {count} Tag hinzu', other: 'Fügen Sie mindestens {count} Tags hinzu' },
+  'splitter.resize': 'Größe der Bereiche ändern',
   'form.network': 'Der Server ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.',
   'form.server': 'Der Server konnte das Formular nicht verarbeiten ({status}).',
   'grid.search': 'Suchen…', 'grid.searchRows': 'Zeilen durchsuchen', 'grid.selectAll': 'Alle auswählen', 'grid.selectRow': 'Zeile auswählen',

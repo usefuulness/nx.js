@@ -17,6 +17,7 @@ i18n.extend('fr', {
   'upload.tooMany': { one: '{name} n’a pas été ajouté : {count} fichier seulement est autorisé', other: '{name} n’a pas été ajouté : {count} fichiers seulement sont autorisés' },
   'tags.placeholder': 'Ajouter une étiquette…', 'tags.remove': 'Retirer {tag}', 'tags.added': '{tag} ajoutée', 'tags.removed': '{tag} retirée', 'tags.duplicate': '{tag} est déjà ajoutée',
   'tags.max': { one: '{count} étiquette au maximum', other: '{count} étiquettes au maximum' }, 'tags.required': 'Ajoutez au moins une étiquette', 'tags.min': { one: 'Ajoutez au moins {count} étiquette', other: 'Ajoutez au moins {count} étiquettes' },
+  'splitter.resize': 'Redimensionner les panneaux',
   'form.network': 'Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.',
   'form.server': 'Le serveur n’a pas pu traiter le formulaire ({status}).',
   'grid.search': 'Rechercher…', 'grid.searchRows': 'Rechercher des lignes', 'grid.selectAll': 'Tout sélectionner', 'grid.selectRow': 'Sélectionner la ligne',
