@@ -14,6 +14,7 @@ import { alert, confirm, dialog, prompt, type ModalConfig } from '@/components/u
 import { showMenu } from '@/components/ui/menu';
 import { command } from '@/components/ui/command';
 import { hydrate } from '@/jsx/hydrate';
+import { i18n } from '@/core/i18n';
 
 export type { ComponentConfig, ItemConfig } from '@/core/registry';
 
@@ -483,6 +484,9 @@ export const NX = {
     extend: ThemeManager.createTheme.bind(ThemeManager),
     onChange: ThemeManager.subscribe.bind(ThemeManager)
   },
+
+  /** Language: `NX.i18n.setLanguage('ar')` sets `lang` and `dir`; `NX.i18n.extend('es', {...})` adds strings */
+  i18n,
 
   icons: Icons,
 

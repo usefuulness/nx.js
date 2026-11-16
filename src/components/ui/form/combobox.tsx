@@ -314,7 +314,7 @@ export class NXCombobox extends NXField {
             {option.text}
           </div>
         ) as HTMLElement)
-      : [<div class="empty" part="empty">{this.getProp('empty-text', 'No results.')}</div> as HTMLElement]));
+      : [<div class="empty" part="empty">{this.getProp('empty-text') || this.t('combobox.empty')}</div> as HTMLElement]));
 
     if (this.active >= 0 && this.filtered[this.active]) {
       input.setAttribute('aria-activedescendant', id(this.active));
@@ -345,7 +345,7 @@ export class NXCombobox extends NXField {
                onClick={() => this.open()}
                onKeyDown={(e: KeyboardEvent) => this.onKeyDown(e)}
                onBlur={() => this.commit()} />
-        <button type="button" class="toggle" part="toggle" tabindex={-1} aria-label="Show options"
+        <button type="button" class="toggle" part="toggle" tabindex={-1} aria-label={this.t('combobox.show')}
                 disabled={!!this.getProp('disabled', false)} html={Icons.get('chevron-down')}
                 onPointerDown={(e: PointerEvent) => e.preventDefault()}
                 onClick={() => {
@@ -356,7 +356,7 @@ export class NXCombobox extends NXField {
                   }
                 }} />
         <div id={listId} class="listbox" part="listbox" role="listbox" popover="manual"
-             aria-label={this.getProp<string>('label') || this.getProp<string>('placeholder') || 'Options'} />
+             aria-label={this.getProp<string>('label') || this.getProp<string>('placeholder') || this.t('combobox.options')} />
       </div>
     );
   }

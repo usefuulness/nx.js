@@ -76,7 +76,7 @@ export class NXProgress extends BaseComponent {
             {showValue && !indeterminate && <span class="value">{Math.round(percentage)}%</span>}
           </div>
         )}
-        <div class="track" part="track" role="progressbar" aria-label={label || 'Progress'}
+        <div class="track" part="track" role="progressbar" aria-label={label || this.t('progress.label')}
              aria-valuemin="0" aria-valuemax={max} aria-valuenow={indeterminate ? undefined : value}>
           <div part="bar" class={['bar', { striped: this.getProp('striped', false), animated: this.getProp('animated', false), indeterminate }]}
                style={indeterminate ? undefined : { width: `${percentage}%` }} />

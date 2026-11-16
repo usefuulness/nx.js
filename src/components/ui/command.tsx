@@ -179,7 +179,7 @@ export class NXCommand extends BaseComponent {
             })}
           </div>
         ) as HTMLElement)
-      : [<div class="empty" part="empty" role="status">{this.getProp('empty-text', 'No results found.')}</div> as HTMLElement]));
+      : [<div class="empty" part="empty" role="status">{this.getProp('empty-text') || this.t('command.empty')}</div> as HTMLElement]));
 
     if (this.visible[this.active]) {
       input.setAttribute('aria-activedescendant', id(this.active));
@@ -196,8 +196,8 @@ export class NXCommand extends BaseComponent {
           <span class="icon" aria-hidden="true" html={Icons.get('search')} />
           <input type="text" part="input" role="combobox" aria-expanded="true" aria-controls="list"
                  aria-autocomplete="list" autocomplete="off" spellcheck={false}
-                 aria-label={this.getProp('placeholder', 'Type a command or search…')}
-                 placeholder={this.getProp('placeholder', 'Type a command or search…')}
+                 aria-label={this.getProp('placeholder') || this.t('command.placeholder')}
+                 placeholder={this.getProp('placeholder') || this.t('command.placeholder')}
                  value={this.query}
                  onInput={(e: Event) => {
                    this.filter((e.target as HTMLInputElement).value);
@@ -205,7 +205,7 @@ export class NXCommand extends BaseComponent {
                  }}
                  onKeyDown={(e: KeyboardEvent) => this.onKeyDown(e)} />
         </div>
-        <div class="list" id="list" part="list" role="listbox" aria-label="Commands" />
+        <div class="list" id="list" part="list" role="listbox" aria-label={this.t('command.commands')} />
       </div>
     );
   }

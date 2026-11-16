@@ -501,7 +501,7 @@ export class NXMenu extends BaseComponent {
     return (
       <slot name="trigger">
         <nx-button part="trigger" variant={this.getProp('variant', 'outline')} size={this.getProp('size', 'md')}
-                   icon={icon || undefined} text={text || undefined} aria-label={text ? undefined : 'Open menu'}
+                   icon={icon || undefined} text={text || undefined} aria-label={text ? undefined : this.t('menu.open')}
                    disabled={this.getProp('disabled', false)} />
       </slot>
     );

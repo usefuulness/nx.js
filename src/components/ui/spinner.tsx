@@ -54,7 +54,7 @@ export class NXSpinner extends BaseComponent {
 
     return (
       <div part="container" class={spinner({ size: this.getProp('size') })} role="status"
-           aria-label={this.getProp('label', 'Loading')} style={color ? { '--spinner-color': color } : undefined}>
+           aria-label={this.getProp('label') || this.t('loading')} style={color ? { '--spinner-color': color } : undefined}>
         <svg class="ring" viewBox="0 0 50 50" style={{ animationDuration: `${this.getProp('speed', 0.8)}s` }}>
           <circle class="track" cx="25" cy="25" r="20" fill="none" stroke-width={thickness} />
           <circle class="arc" cx="25" cy="25" r="20" fill="none" stroke-width={thickness} />

@@ -532,3 +532,22 @@ test('tree grid: Right opens, Left closes and climbs to the parent, with treegri
   await expect(grid.locator('tbody tr')).toHaveCount(3);
   await expect(grid.locator('tfoot')).toContainText('75'); // 30+7+3+12+21+2
 });
+
+test('switching the page language redraws components in it, live', async ({ page }) => {
+  await page.goto('/#/users');
+  const grid = page.locator('#users-grid');
+  await expect(grid.locator('.nx-grid-search input')).toHaveAttribute('placeholder', 'Search…');
+  await expect(grid.locator('.pager .info')).toHaveText('Page 1 of 5');
+
+  await page.evaluate(async () => {
+    const entry = '/src/index.ts';
+    const locale = '/src/locales/es.ts';
+    const { NX } = await import(/* @vite-ignore */ entry);
+    await import(/* @vite-ignore */ locale);
+    NX.i18n.setLanguage('es');
+  });
+  await expect(grid.locator('.nx-grid-search input')).toHaveAttribute('placeholder', 'Buscar…');
+  await expect(grid.locator('.pager .info')).toHaveText('Página 1 de 5');
+  await expect(grid.getByRole('button', { name: 'Página siguiente' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'es');
+});

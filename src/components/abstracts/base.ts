@@ -16,9 +16,20 @@ export const ComponentState = Symbol('ComponentState');
 export const ComponentProps = Symbol('ComponentProps');
 
 import '@/core/require-dom';
+import { i18n } from '@/core/i18n';
 import { ATTRIBUTE_NAMES, HOST_KEYS, NX_COMPONENT, applyStyle, escapeHTML, eventName, hooks, toKebab } from '@/core/dom-utils';
 
 export { applyStyle, escapeHTML, eventName, toKebab };
+
+/** Components on the page, so a change of `lang` or `dir` can redraw the ones it affects. */
+const liveComponents = new Set<{ refreshLanguage(): void }>();
+let languageObserver: MutationObserver | null = null;
+
+function watchLanguage(): void {
+  if (languageObserver || typeof MutationObserver === 'undefined' || typeof document === 'undefined') return;
+  languageObserver = new MutationObserver(() => liveComponents.forEach(component => component.refreshLanguage()));
+  languageObserver.observe(document, { attributes: true, attributeFilter: ['lang', 'dir'], subtree: true });
+}
 
 /**
  * Styles shared by every component's shadow root.
@@ -181,6 +192,9 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
    * Performs initialization and triggers initial render.
    */
   connectedCallback(): void {
+    liveComponents.add(this);
+    watchLanguage();
+    this.languageKey = this.currentLanguageKey();
     if (!this.initialized) {
       this.initialized = true;
       this.hydrateFromMarkup();
@@ -199,6 +213,7 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
    * Performs cleanup to prevent memory leaks.
    */
   disconnectedCallback(): void {
+    liveComponents.delete(this);
     this.beforeDisconnect();
     
     // Cancel any pending updates
@@ -214,6 +229,35 @@ export abstract class BaseComponent extends HTMLElement implements ComponentLife
     
     // Custom cleanup
     this.cleanup();
+  }
+
+  private languageKey = '';
+
+  private currentLanguageKey(): string {
+    return `${i18n.localeOf(this)}|${typeof getComputedStyle === 'function' ? getComputedStyle(this).direction : ''}`;
+  }
+
+  /** @internal Redraw when the language or direction around this component changed. */
+  refreshLanguage(): void {
+    const key = this.currentLanguageKey();
+    if (key === this.languageKey) return;
+    this.languageKey = key;
+    if (this.initialized) this.scheduleUpdate();
+  }
+
+  /** The language this component is in: the nearest `lang` above it, else the browser's. */
+  protected locale(): string {
+    return i18n.localeOf(this);
+  }
+
+  /** A built-in string in this component's language (`this.t('close')`, `this.t('grid.range', { from, to, total })`). */
+  protected t(key: string, params?: Record<string, unknown>): string {
+    return i18n.t(key, params, this.locale());
+  }
+
+  /** Whether this component is laid out right to left. */
+  protected isRtl(): boolean {
+    return typeof getComputedStyle === 'function' && getComputedStyle(this).direction === 'rtl';
   }
 
   /**

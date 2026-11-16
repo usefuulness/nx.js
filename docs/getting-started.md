@@ -71,6 +71,7 @@ Server apps (Laravel, Django, Rails, Symfony…) write the tags in their templat
 | --- | --- |
 | `nx.js` | Every component, the `NX` facade, the JSX components and `hydrate()` |
 | `nx.js/components/<name>` | One component and what it needs, e.g. `nx.js/components/badge` (see below) |
+| `nx.js/locales/<code>` | A translation of the built-in strings (`es`, `fr`, `de`, `ar`); see [Internationalization](internationalization.md) |
 | `nx.js/jsx-runtime` | The JSX runtime (used by your compiler via `jsxImportSource`) |
 | `nx.js/ssr` | Server rendering in Node: `renderToString`, `renderHTML`, `renderDocument`, the proxy |
 | `nx.js/ssr/register` | Installs the server DOM; for `node --import nx.js/ssr/register` |

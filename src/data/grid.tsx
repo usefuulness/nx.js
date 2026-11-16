@@ -730,7 +730,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
         {expandable ? (
           // Mouse and touch use this; the keyboard uses Right and Left on the cell
           <button type="button" class="tree-toggle" tabindex="-1" aria-expanded={String(node.open)}
-                  aria-label={`${node.open ? 'Collapse' : 'Expand'} ${label}`}
+                  aria-label={this.t(node.open ? 'grid.collapse' : 'grid.expand', { label })}
                   html={Icons.get(node.open ? 'chevron-down' : 'chevron-right')} />
         ) : (
           <span class="tree-gap" aria-hidden="true" />
@@ -877,7 +877,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     let value: unknown = ed.draft;
     if (this.editorType(col) === 'number') {
       value = ed.draft === '' || ed.draft === null ? null : Number(ed.draft);
-      if (Number.isNaN(value)) return this.rejectEdit('Enter a number');
+      if (Number.isNaN(value)) return this.rejectEdit(this.t('grid.enterNumber'));
     }
     const verdict = col.validate?.(value, ed.row);
     if (typeof verdict === 'string') return this.rejectEdit(verdict);
@@ -979,7 +979,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   private renderEditor(col: GridColumn<T>): Node {
     const ed = this.editing!;
     const type = this.editorType(col);
-    const label = `Edit ${this.headerText(col)}`;
+    const label = this.t('grid.edit', { label: this.headerText(col) });
     const common = {
       class: 'cell-editor',
       'aria-label': label,
@@ -1260,7 +1260,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
             {search && (
               <label class="nx-grid-search">
                 <span html={Icons.get('search')} />
-                <input type="search" placeholder="Search…" value={this.query} aria-label="Search rows"
+                <input type="search" placeholder={this.t('grid.search')} value={this.query} aria-label={this.t('grid.searchRows')}
                        onInput={(e: Event) => this.setFilter((e.target as HTMLInputElement).value)} />
               </label>
             )}
@@ -1312,7 +1312,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
           <tr>
             {checkbox && (
               <th class={['check', { pinned: anyPinned }]} style={anyPinned ? { left: '0px' } : undefined}>
-                <input type="checkbox" class="check-all" aria-label="Select all" checked={allChecked} indeterminate={someChecked && !allChecked} />
+                <input type="checkbox" class="check-all" aria-label={this.t('grid.selectAll')} checked={allChecked} indeterminate={someChecked && !allChecked} />
               </th>
             )}
             {cols.map((col, ci) => {
@@ -1350,7 +1350,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
                   )}
                   {canResize && (
                     <span class="resize-handle" role="separator" aria-orientation="vertical" tabindex="0"
-                          aria-label={`Resize ${this.headerText(col)} column`}
+                          aria-label={this.t('grid.resize', { label: this.headerText(col) })}
                           aria-valuenow={Math.round(parseFloat(cssSize(col.width))) || this.minColumnWidth(field)}
                           aria-valuemin={this.minColumnWidth(field)} aria-valuemax={1000}
                           onClick={(e: Event) => e.stopPropagation()}
@@ -1377,7 +1377,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
         </thead>
         {this.renderBodyFor(source, cols, virtual)}
         {cols.some(c => c.summary) && this.getVisibleRows().length > 0 && (
-          <tfoot>{this.renderSummaryRow(this.getVisibleRows(), cols, checkbox, 'Total')}</tfoot>
+          <tfoot>{this.renderSummaryRow(this.getVisibleRows(), cols, checkbox, this.t('grid.total'))}</tfoot>
         )}
       </table>
     );
@@ -1412,7 +1412,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
         {cols.map((col, n) => (
           <td class={this.align(col)}>
             <span class="skeleton-bar" aria-hidden="true" />
-            {n === 0 && <span class="sr-only">Loading</span>}
+            {n === 0 && <span class="sr-only">{this.t('loading')}</span>}
           </td>
         ))}
       </tr>
@@ -1427,7 +1427,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
           ...Array.from({ length: end - start }, (_, n) => {
             const i = start + n;
             const group = source.group?.(i);
-            if (group?.kind === 'summary') return this.renderSummaryRow(group.rows, cols, checkbox, 'Subtotal', virtual ? i + 2 : undefined);
+            if (group?.kind === 'summary') return this.renderSummaryRow(group.rows, cols, checkbox, this.t('grid.subtotal'), virtual ? i + 2 : undefined);
             if (group) {
               return (
                 <tr class="group-row" aria-rowindex={virtual ? String(i + 2) : undefined}>
@@ -1435,7 +1435,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
                     <button type="button" class="group-toggle" data-group={group.key} aria-expanded={String(!group.collapsed)}>
                       <span class="group-chevron" aria-hidden="true" html={Icons.get(group.collapsed ? 'chevron-right' : 'chevron-down')} />
                       <span class="group-label">{group.label}</span>
-                      <span class="group-count">{group.rows.length} {group.rows.length === 1 ? 'row' : 'rows'}</span>
+                      <span class="group-count">{this.t('grid.rows', { count: group.rows.length })}</span>
                     </button>
                   </td>
                 </tr>
@@ -1451,7 +1451,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
                   aria-rowindex={virtual ? String(i + 2) : undefined}
                   aria-level={node ? String(node.depth + 1) : undefined}
                   aria-expanded={node?.children.length ? String(node.open) : undefined}>
-                {checkbox && <td class={['check', { pinned: anyPinned }]} style={anyPinned ? { left: '0px' } : undefined}><input type="checkbox" class="check-row" aria-label="Select row" checked={isSelected} /></td>}
+                {checkbox && <td class={['check', { pinned: anyPinned }]} style={anyPinned ? { left: '0px' } : undefined}><input type="checkbox" class="check-row" aria-label={this.t('grid.selectRow')} checked={isSelected} /></td>}
                 {cols.map((col, ci) => {
                   const field = String(col.field);
                   const left = offsets.get(field);
@@ -1476,7 +1476,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
             <td colspan={span}>
               <div class="nx-grid-empty">
                 <span html={Icons.get(this.query ? 'search' : 'table')} />
-                <span>{buffered && this.store?.isLoading() ? 'Loading…' : this.query ? `No results for “${this.query}”` : this.getProp('empty-text', 'No data to display')}</span>
+                <span>{buffered && this.store?.isLoading() ? this.t('grid.loading') : this.query ? this.t('grid.noResults', { query: this.query }) : this.getProp('empty-text') || this.t('grid.empty')}</span>
               </div>
             </td>
           </tr>
@@ -1497,19 +1497,19 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
     switch (col.type) {
       case 'number':
-        return Number(value).toLocaleString();
+        return Number(value).toLocaleString(this.locale());
       case 'currency':
-        return Number(value).toLocaleString(undefined, { style: 'currency', currency: col.currency ?? 'USD' });
+        return Number(value).toLocaleString(this.locale(), { style: 'currency', currency: col.currency ?? 'USD' });
       case 'percent':
-        return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+        return `${Number(value).toLocaleString(this.locale(), { maximumFractionDigits: 1 })}%`;
       case 'date': {
         const date = value instanceof Date ? value : new Date(value);
-        return isNaN(date.getTime()) ? String(value) : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        return isNaN(date.getTime()) ? String(value) : date.toLocaleDateString(this.locale(), { year: 'numeric', month: 'short', day: 'numeric' });
       }
       case 'boolean':
         return value
-          ? <span class="bool yes" aria-label="Yes" html={Icons.get('check')} />
-          : <span class="bool no" aria-label="No" html={Icons.get('minus')} />;
+          ? <span class="bool yes" aria-label={this.t('grid.yes')} html={Icons.get('check')} />
+          : <span class="bool no" aria-label={this.t('grid.no')} html={Icons.get('minus')} />;
       case 'badge':
         return <span class={['badge', `tone-${col.badges?.[String(value)] ?? 'neutral'}`]}>{String(value)}</span>;
       default:
@@ -1523,7 +1523,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     const total = buffered ? this.store!.getTotalCount() : this.getVisibleRows().length;
     const selectedCount = this.selected.size;
     if (buffered && !selectedCount) {
-      return <div class="nx-grid-footer" part="footer"><span class="info">{total.toLocaleString()} {total === 1 ? 'row' : 'rows'}</span></div>;
+      return <div class="nx-grid-footer" part="footer"><span class="info">{this.t('grid.rows', { count: total })}</span></div>;
     }
     if (!perPage && !selectedCount) return <div class="nx-grid-footer" hidden />;
 
@@ -1533,13 +1533,13 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
     return (
       <div class="nx-grid-footer" part="footer">
-        <span class="info">{selectedCount ? `${selectedCount} of ${this.rows.length} selected` : `${from}–${to} of ${total}`}</span>
+        <span class="info">{selectedCount ? this.t('grid.selected', { count: selectedCount, total: this.rows.length }) : this.t('grid.range', { from, to, total })}</span>
         {perPage > 0 && (
           <span class="pager">
-            <span class="info">Page {this.page} of {pages}</span>
-            <button class="page-btn" aria-label="Previous page" disabled={this.page <= 1} html={Icons.get('chevron-left')}
+            <span class="info">{this.t('grid.page', { page: this.page, pages })}</span>
+            <button class="page-btn" aria-label={this.t('grid.previousPage')} disabled={this.page <= 1} html={Icons.get('chevron-left')}
                     onClick={() => this.setPage(this.page - 1)} />
-            <button class="page-btn" aria-label="Next page" disabled={this.page >= pages} html={Icons.get('chevron-right')}
+            <button class="page-btn" aria-label={this.t('grid.nextPage')} disabled={this.page >= pages} html={Icons.get('chevron-right')}
                     onClick={() => this.setPage(this.page + 1)} />
           </span>
         )}

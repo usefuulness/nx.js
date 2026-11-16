@@ -58,7 +58,7 @@ export class NXBreadcrumb extends BaseComponent {
       : <span class="sep" part="separator" aria-hidden="true">{separator}</span>;
 
     return (
-      <nav part="container" aria-label="Breadcrumb">
+      <nav part="container" aria-label={this.t('breadcrumb.label')}>
         <ol part="list">
           {this.items.map((item, i) => {
             const last = i === this.items.length - 1;

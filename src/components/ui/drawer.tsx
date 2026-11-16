@@ -76,7 +76,7 @@ export class NXDrawer extends BaseComponent {
     const hasFooter = !!this.querySelector(':scope > [slot="footer"]');
 
     return (
-      <dialog part="drawer" class={sheet({ position: this.getProp('position') })} aria-label={title || 'Panel'}
+      <dialog part="drawer" class={sheet({ position: this.getProp('position') })} aria-label={title || this.t('drawer.label')}
               style={size ? { '--drawer-size': typeof size === 'number' || /^\d+$/.test(String(size)) ? `${size}px` : String(size) } : undefined}
               onCancel={(e: Event) => {
                 e.preventDefault();
@@ -94,7 +94,7 @@ export class NXDrawer extends BaseComponent {
               {title && <h2 class="title" part="title">{title}</h2>}
               {description && <p class="description" part="description">{description}</p>}
             </div>
-            {!persistent && <button class="close" part="close" type="button" aria-label="Close" html={Icons.get('close')} onClick={() => this.close()} />}
+            {!persistent && <button class="close" part="close" type="button" aria-label={this.t('close')} html={Icons.get('close')} onClick={() => this.close()} />}
           </header>
         )}
         <div class="content" part="content"><slot /></div>

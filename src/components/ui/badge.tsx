@@ -66,7 +66,7 @@ export class NXBadge extends BaseComponent {
         {icon && <span class="icon" html={Icons.get(icon)} />}
         <slot />
         {this.getProp('removable', false) && (
-          <button class="remove" aria-label="Remove" html={Icons.get('close')} onClick={() => this.emit('remove')} />
+          <button class="remove" aria-label={this.t('remove')} html={Icons.get('close')} onClick={() => this.emit('remove')} />
         )}
       </span>
     );

@@ -159,7 +159,7 @@ export class NXSelect extends NXField {
     this.readChildOptions();
 
     const multiple = this.getProp('multiple', false);
-    const placeholder = this.getProp<string>('placeholder', multiple ? '' : 'Select…');
+    const placeholder = this.getProp<string>('placeholder', multiple ? '' : this.t('select.placeholder'));
     const icon = this.getProp<string>('icon');
     const values = new Set(Array.isArray(this.currentValue) ? this.currentValue : [this.currentValue]);
 

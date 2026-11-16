@@ -120,11 +120,11 @@ export class NXPanel extends BaseComponent {
             <div class="nx-panel-tools" part="tools">
               <slot name="tools" />
               {collapsible && (
-                <button class="nx-panel-tool" part="toggle" aria-label={`${collapsed ? 'Expand' : 'Collapse'} panel`}
+                <button class="nx-panel-tool" part="toggle" aria-label={this.t(collapsed ? 'panel.expand' : 'panel.collapse')}
                         aria-expanded={String(!collapsed)} html={Icons.get(toggleIcon)} onClick={() => this.toggle()} />
               )}
               {closable && (
-                <button class="nx-panel-tool" part="close" aria-label="Close panel" html={Icons.get('close')} onClick={() => this.close()} />
+                <button class="nx-panel-tool" part="close" aria-label={this.t('panel.close')} html={Icons.get('close')} onClick={() => this.close()} />
               )}
             </div>
           </div>

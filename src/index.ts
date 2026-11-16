@@ -34,6 +34,8 @@ export type { ComponentConfig as BaseComponentConfig } from '@/components/abstra
 export { ComponentRegistry, define } from '@/core/registry';
 export type { ComponentConfig, ItemConfig, ItemsAware } from '@/core/registry';
 export { ThemeManager } from '@/core/theme';
+export { i18n } from '@/core/i18n';
+export type { Message, Messages } from '@/core/i18n';
 export type { ThemeConfig, ThemeColors } from '@/core/theme';
 export { Icons, icon } from '@/core/icons';
 export { Router, routeDataScript } from '@/core/router';

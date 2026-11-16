@@ -128,7 +128,7 @@ export class NXTextField extends NXField {
           : <input {...common} type={this.getProp('type', 'text')} min={this.getProp('min')} max={this.getProp('max')}
                    step={this.getProp('step')} pattern={this.getProp('pattern')} />}
         {this.getProp('clearable', false) && (
-          <button type="button" class="nx-clear" part="clear" tabindex={-1} aria-label="Clear" hidden
+          <button type="button" class="nx-clear" part="clear" tabindex={-1} aria-label={this.t('clear')} hidden
                   html={Icons.get('close')} onClick={() => this.clear()} />
         )}
         <slot name="suffix" />

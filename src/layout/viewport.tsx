@@ -285,7 +285,7 @@ export class NXRegion extends BaseComponent {
           <div class="nx-region-header" part="header">
             <h3 class="nx-region-title" part="title">{title}</h3>
             {this.getProp('collapsible', false) && (
-              <button class="nx-region-toggle" part="toggle" aria-label="Toggle region" aria-expanded={String(!collapsed)}
+              <button class="nx-region-toggle" part="toggle" aria-label={this.t('region.toggle')} aria-expanded={String(!collapsed)}
                       html={Icons.get('chevron-down')} onClick={() => this.toggle()} />
             )}
           </div>

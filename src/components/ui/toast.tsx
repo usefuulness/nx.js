@@ -84,7 +84,7 @@ export class NXToast extends BaseComponent {
             close();
           }}>{options.action.text}</button>
         )}
-        <button class="close" type="button" aria-label="Dismiss" html={Icons.get('close')} onClick={close} />
+        <button class="close" type="button" aria-label={this.t('dismiss')} html={Icons.get('close')} onClick={close} />
       </div>
     ) as HTMLElement;
 

@@ -44,6 +44,11 @@
       "import": "./dist/entries/*.js",
       "require": "./dist/entries/*.cjs"
     },
+    "./locales/*": {
+      "types": "./dist/locales/*.d.ts",
+      "import": "./dist/locales/*.js",
+      "require": "./dist/locales/*.cjs"
+    },
     "./nx.css": "./dist/nx.css",
     "./custom-elements.json": "./dist/custom-elements.json",
     "./html-custom-data.json": "./dist/html-custom-data.json"

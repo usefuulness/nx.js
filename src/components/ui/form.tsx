@@ -346,7 +346,7 @@ export class NXForm extends BaseComponent {
       this.inFlight = null;
       this.setBusy(false);
       if (controller.signal.aborted) return;
-      this.setFormError("Couldn't reach the server. Check your connection and try again.");
+      this.setFormError(this.t('form.network'));
       this.emit('error', { error, status: 0, errors: {} });
       return;
     }
@@ -374,7 +374,7 @@ export class NXForm extends BaseComponent {
 
     const { fields, general } = this.readErrors(body);
     const shown = this.showServerErrors(fields);
-    const message = general || (shown ? '' : `The server couldn't process the form (${response.status}).`);
+    const message = general || (shown ? '' : this.t('form.server', { status: response.status }));
     this.setFormError(message);
     this.emit('error', { status: response.status, errors: fields, data: body });
   }

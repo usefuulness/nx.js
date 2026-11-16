@@ -7,6 +7,7 @@ import { BaseComponent } from '@/components/abstracts/base';
 import { ComponentRegistry, define, type ItemConfig } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { Overlays } from '@/core/overlays';
+import { i18n } from '@/core/i18n';
 
 export interface ModalButton {
   text: string;
@@ -96,7 +97,7 @@ export class NXModal extends BaseComponent {
 
     return (
       <dialog class={['nx-modal', `size-${this.getProp('size', 'md')}`]} part="dialog"
-              aria-labelledby={title ? 'title' : undefined} aria-label={title ? undefined : this.getProp('label', 'Dialog')}
+              aria-labelledby={title ? 'title' : undefined} aria-label={title ? undefined : this.getProp('label') || this.t('dialog.label')}
               onCancel={(e: Event) => {
                 e.preventDefault();
                 if (this.getProp('close-on-escape', true)) this.close();
@@ -109,7 +110,7 @@ export class NXModal extends BaseComponent {
               {description && <p class="nx-modal-description" part="description">{description}</p>}
             </div>
             {closable && (
-              <button type="button" class="nx-modal-close" part="close" aria-label="Close" html={Icons.get('close')} onClick={() => this.close()} />
+              <button type="button" class="nx-modal-close" part="close" aria-label={this.t('close')} html={Icons.get('close')} onClick={() => this.close()} />
             )}
           </header>
         )}
@@ -361,13 +362,16 @@ export function dialog(config: ModalConfig): Promise<any> {
   return modal.open();
 }
 
+/** A built-in string for the dialog helpers below, which have no element: the page's language. */
+const say = (key: string): string => i18n.t(key, undefined, i18n.localeOf(typeof document !== 'undefined' ? document.body : null));
+
 /** Show a message with an OK button. */
 export function alert(message: string, options: { title?: string; okText?: string } = {}): Promise<void> {
   return dialog({
-    title: options.title ?? 'Notice',
+    title: options.title ?? say('dialog.notice'),
     items: [<p style="margin: 0">{message}</p>],
     size: 'sm',
-    buttons: [{ text: options.okText ?? 'OK', variant: 'primary' }]
+    buttons: [{ text: options.okText ?? say('ok'), variant: 'primary' }]
   });
 }
 
@@ -377,12 +381,12 @@ export async function confirm(
   options: { title?: string; confirmText?: string; cancelText?: string; danger?: boolean } = {}
 ): Promise<boolean> {
   const result = await dialog({
-    title: options.title ?? 'Are you sure?',
+    title: options.title ?? say('dialog.confirmTitle'),
     description: message,
     size: 'sm',
     buttons: [
-      { text: options.cancelText ?? 'Cancel', variant: 'outline', value: false },
-      { text: options.confirmText ?? 'Confirm', variant: options.danger ? 'danger' : 'primary', value: true }
+      { text: options.cancelText ?? say('cancel'), variant: 'outline', value: false },
+      { text: options.confirmText ?? say('confirm'), variant: options.danger ? 'danger' : 'primary', value: true }
     ]
   });
   return result === true;
@@ -410,9 +414,9 @@ export async function prompt(
       }
     }],
     buttons: [
-      { text: 'Cancel', variant: 'outline', value: null },
+      { text: say('cancel'), variant: 'outline', value: null },
       {
-        text: options.okText ?? 'OK',
+        text: options.okText ?? say('ok'),
         variant: 'primary',
         handler: modal => {
           const field = modal.querySelector('nx-textfield') as (HTMLElement & { value: string }) | null;
