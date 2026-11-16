@@ -10,6 +10,7 @@ All notable changes to Nexaro (nx.js). The format follows [Keep a Changelog](htt
 - **Data:** `buffered` stores page rows in as a virtual grid scrolls (LRU page cache, shared and stale-proof requests, server sort and search, skeleton rows).
 - **Forms:** `<nx-form enhance>` posts with `fetch`, shows server validation errors on the named fields, and follows redirects; `success`/`error` events, `isSubmitting()`, `abort()`.
 - **Per-component imports:** `nx.js/components/<name>` (34 entries, with types) loads one component and the runtime it needs: `badge` is 13.6 kB gzipped, `form` 17.4 kB, `grid` 28.0 kB, against about 70 kB for everything.
+- `llms.txt` and `llms-full.txt` (and the docs as plain Markdown) are published with the site, built from `docs/*.md` so they cannot drift.
 - `pnpm size`: a bundle-size budget checked in CI, including each entry's real cost.
 
 ### Changed
