@@ -34,7 +34,7 @@ let toastSeq = 0;
  * NX.toast.error('Upload failed', { action: { text: 'Retry', handler: retry } });
  * ```
  *
- * @attr position - Where toasts stack: `top-left`, `top-center`, `top-right`, `bottom-left`, `bottom-center` or `bottom-right` (default)
+ * @attr position - Where toasts stack: `top-left`, `top-center`, `top-right`, `bottom-left`, `bottom-center` or `bottom-right` (default); `start` and `end` in place of `left` and `right` (`top-end`) follow the reading direction
  */
 export class NXToast extends BaseComponent {
   static get observedAttributes(): string[] {
@@ -110,7 +110,7 @@ export class NXToast extends BaseComponent {
       .list {
         position: fixed;
         ${vertical === 'top' ? 'top' : 'bottom'}: 1rem;
-        ${horizontal === 'left' ? 'left: 1rem;' : horizontal === 'center' ? 'left: 50%; transform: translateX(-50%);' : 'right: 1rem;'}
+        ${horizontal === 'left' ? 'left: 1rem;' : horizontal === 'start' ? 'inset-inline-start: 1rem;' : horizontal === 'end' ? 'inset-inline-end: 1rem;' : horizontal === 'center' ? 'left: 50%; transform: translateX(-50%);' : 'right: 1rem;'}
         z-index: 2147483000;
         display: flex;
         flex-direction: ${vertical === 'top' ? 'column' : 'column-reverse'};
@@ -123,7 +123,8 @@ export class NXToast extends BaseComponent {
         display: flex;
         align-items: flex-start;
         gap: 0.75rem;
-        padding: 0.875rem 0.875rem 0.875rem 1rem;
+        padding-block: 0.875rem;
+        padding-inline: 1rem 0.875rem;
         border: 1px solid var(--color-border);
         border-radius: var(--radius-lg);
         background: var(--color-surface);

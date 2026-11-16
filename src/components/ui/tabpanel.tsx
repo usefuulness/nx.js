@@ -5,6 +5,7 @@
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
 import { ComponentRegistry, define, type ComponentConfig, type ItemConfig, type ItemsAware } from '@/core/registry';
 import { Icons } from '@/core/icons';
+import { inlineStep } from '@/core/dom-utils';
 
 export interface TabConfig {
   id?: string;
@@ -233,7 +234,7 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
 
     const enabled = Array.from(this.$$('.nx-tab:not(.disabled)')) as HTMLElement[];
     const current = enabled.indexOf(target);
-    const next = { ArrowRight: current + 1, ArrowDown: current + 1, ArrowLeft: current - 1, ArrowUp: current - 1, Home: 0, End: enabled.length - 1 }[e.key];
+    const next = { ArrowRight: current + inlineStep('ArrowRight', this), ArrowDown: current + 1, ArrowLeft: current + inlineStep('ArrowLeft', this), ArrowUp: current - 1, Home: 0, End: enabled.length - 1 }[e.key];
     if (next === undefined) return;
     e.preventDefault();
     const to = Number(enabled[(next + enabled.length) % enabled.length].dataset.index);
@@ -297,8 +298,8 @@ export class NXTabPanel extends BaseComponent implements ItemsAware {
         align-items: center;
       }
 
-      .nx-tab-item.closable .nx-tab { padding-right: 0.25rem; }
-      .nx-tab-item.closable .nx-tab-close { margin-right: 0.5rem; }
+      .nx-tab-item.closable .nx-tab { padding-inline-end: 0.25rem; }
+      .nx-tab-item.closable .nx-tab-close { margin-inline-end: 0.5rem; }
 
       .nx-tab {
         position: relative;

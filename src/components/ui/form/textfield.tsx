@@ -190,7 +190,7 @@ export class NXTextField extends NXField {
         justify-content: center;
         width: 1.25rem;
         height: 1.25rem;
-        margin-right: -0.25rem;
+        margin-inline-end: -0.25rem;
         padding: 0;
         border: none;
         border-radius: 9999px;

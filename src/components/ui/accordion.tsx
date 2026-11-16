@@ -166,7 +166,7 @@ export class NXAccordion extends BaseComponent {
         background: transparent;
         font-size: 0.875rem;
         font-weight: 500;
-        text-align: left;
+        text-align: start;
         cursor: pointer;
       }
 

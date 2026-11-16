@@ -7,10 +7,12 @@ import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { Overlays } from '@/core/overlays';
 import { variants } from '@/core/variants';
+import { DIRECTION_CSS } from '@/core/dom-utils';
 
 export interface DrawerConfig {
   /** Edge the drawer slides in from */
-  position?: 'left' | 'right' | 'top' | 'bottom';
+  /** `start` and `end` follow the reading direction (right and left in right-to-left layouts); `left` and `right` are fixed */
+  position?: 'left' | 'right' | 'start' | 'end' | 'top' | 'bottom';
   /** Width (left/right) or height (top/bottom): CSS length or px number. Default 24rem */
   size?: string | number;
   /** Drawer heading */
@@ -31,7 +33,7 @@ export interface DrawerConfig {
 
 const sheet = variants({
   base: 'sheet',
-  variants: { position: { left: 'left', right: 'right', top: 'top', bottom: 'bottom' } },
+  variants: { position: { left: 'left', right: 'right', start: 'start', end: 'end', top: 'top', bottom: 'bottom' } },
   defaultVariants: { position: 'right' }
 });
 
@@ -166,6 +168,8 @@ export class NXDrawer extends BaseComponent {
 
   protected styles(): string {
     return `
+      ${DIRECTION_CSS}
+
       :host { display: contents; }
 
       .sheet {
@@ -185,10 +189,12 @@ export class NXDrawer extends BaseComponent {
 
       .sheet[open] { display: flex; }
 
-      .left, .right { top: 0; bottom: 0; height: 100dvh; width: min(var(--drawer-size), 90vw); }
+      .left, .right, .start, .end { top: 0; bottom: 0; height: 100dvh; width: min(var(--drawer-size), 90vw); }
       .top, .bottom { left: 0; right: 0; width: 100vw; height: min(var(--drawer-size), 90dvh); }
       .left { left: 0; right: auto; border-right-width: 1px; --from: translateX(-100%); }
       .right { right: 0; left: auto; border-left-width: 1px; --from: translateX(100%); }
+      .start { inset-inline: 0 auto; border-inline-end-width: 1px; --from: translateX(calc(-100% * var(--nx-dir))); }
+      .end { inset-inline: auto 0; border-inline-start-width: 1px; --from: translateX(calc(100% * var(--nx-dir))); }
       .top { top: 0; bottom: auto; border-bottom-width: 1px; --from: translateY(-100%); }
       .bottom { bottom: 0; top: auto; border-top-width: 1px; --from: translateY(100%); }
 
@@ -209,7 +215,8 @@ export class NXDrawer extends BaseComponent {
         display: flex;
         align-items: flex-start;
         gap: 1rem;
-        padding: 1.25rem 1.25rem 0 1.5rem;
+        padding-block: 1.25rem 0;
+        padding-inline: 1.5rem 1.25rem;
       }
 
       .heading { flex: 1; padding-top: 0.25rem; }
@@ -222,7 +229,7 @@ export class NXDrawer extends BaseComponent {
         justify-content: center;
         width: 2rem;
         height: 2rem;
-        margin-left: auto;
+        margin-inline-start: auto;
         padding: 0;
         border: none;
         border-radius: var(--radius-sm);

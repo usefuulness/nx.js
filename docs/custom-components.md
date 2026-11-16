@@ -90,3 +90,7 @@ A component that follows the rules above already renders on the server. A few mo
 - Keep state that matters in the DOM (attributes, children), so the server's HTML carries it.
 - Don't rebuild server-rendered light-DOM children on connect; check what is already there.
 - Form fields extend `NXField`, which provides form association, validation, and the native stand-ins that make forms work before JavaScript.
+
+## Languages and right-to-left
+
+Use `this.t('key')` for any string you show, `this.locale()` for number and date formats, logical CSS properties (`margin-inline-start`, not `margin-left`), and `inlineStep(event.key, this)` for horizontal arrow keys. See [Internationalization](internationalization.md#in-your-own-components).

@@ -551,3 +551,103 @@ test('switching the page language redraws components in it, live', async ({ page
   await expect(grid.getByRole('button', { name: 'Página siguiente' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'es');
 });
+
+
+test.describe('right to left (Arabic)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/#/users');
+    await expect(page.locator('#users-grid')).toBeVisible();
+    await page.evaluate(async () => {
+      const entry = '/src/index.ts';
+      const locale = '/src/locales/ar.ts';
+      const { NX } = await import(/* @vite-ignore */ entry);
+      await import(/* @vite-ignore */ locale);
+      NX.i18n.setLanguage('ar');
+    });
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  });
+
+  test('the layout mirrors: side nav on the right, columns and checkboxes reversed', async ({ page }) => {
+    const view = page.viewportSize()!;
+    const nav = await page.locator('nx-tree').first().boundingBox();
+    expect(nav!.x).toBeGreaterThan(view.width / 2); // the west region sits at the start, which is the right
+    const grid = page.locator('#users-grid');
+    const x = async (selector: string) => (await grid.locator(selector).first().boundingBox())!.x;
+    expect(await x('th.check')).toBeGreaterThan(await x('th[data-field="name"]'));
+    expect(await x('th[data-field="name"]')).toBeGreaterThan(await x('th[data-field="email"]'));
+    expect(await x('th[data-field="email"]')).toBeGreaterThan(await x('th[data-field="joined"]'));
+  });
+
+  test('built-in strings are Arabic and numbers follow the locale', async ({ page }) => {
+    const grid = page.locator('#users-grid');
+    await expect(grid.locator('.nx-grid-search input')).toHaveAttribute('placeholder', 'بحث…');
+    await expect(grid.locator('.pager .info')).toContainText('صفحة');
+    await expect(grid.getByRole('button', { name: 'الصفحة التالية' })).toBeVisible();
+  });
+
+  test('next-page chevron points left, and the previous-page one points right', async ({ page }) => {
+    const grid = page.locator('#users-grid');
+    const flipped = (name: string) => grid.getByRole('button', { name }).evaluate(el => getComputedStyle(el).transform);
+    expect(await flipped('الصفحة التالية')).toBe('matrix(-1, 0, 0, 1, 0, 0)'); // scaleX(-1)
+  });
+
+  test('a pinned column stays at the start (the right) edge', async ({ page }) => {
+    await page.goto('/#/');
+    await page.evaluate(async () => {
+      const entry = '/src/index.ts';
+      const { NX } = await import(/* @vite-ignore */ entry);
+      NX.i18n.setLanguage('ar');
+    });
+    const pinned = (await page.locator('#events-grid th[data-field="id"]').boundingBox())!;
+    const other = (await page.locator('#events-grid th[data-field="source"]').boundingBox())!;
+    expect(pinned.x).toBeGreaterThan(other.x);
+    const body = page.locator('#events-grid .nx-grid-body');
+    const edge = (await body.boundingBox())!;
+    expect(Math.abs(pinned.x + pinned.width - (edge.x + edge.width))).toBeLessThan(24);
+  });
+
+  test('keyboard: in a tree grid Left opens a node and Right closes it', async ({ page }) => {
+    await page.goto('/#/components');
+    await page.evaluate(async () => {
+      const entry = '/src/index.ts';
+      const { NX } = await import(/* @vite-ignore */ entry);
+      NX.i18n.setLanguage('ar');
+    });
+    const grid = page.locator('#files-grid');
+    await expect(grid.locator('tbody tr')).toHaveCount(3);
+    await grid.locator('td[data-pos="0"][data-col="0"]').focus();
+    await page.keyboard.press('ArrowLeft'); // the reading direction runs right to left: Left is "forward"
+    await expect(grid.locator('tbody tr')).toHaveCount(5);
+    await page.keyboard.press('ArrowRight');
+    await expect(grid.locator('tbody tr')).toHaveCount(3);
+  });
+
+  test('the switch thumb moves toward the end (left) when turned on', async ({ page }) => {
+    await page.goto('/#/forms');
+    await page.evaluate(async () => {
+      const entry = '/src/index.ts';
+      const { NX } = await import(/* @vite-ignore */ entry);
+      NX.i18n.setLanguage('ar');
+    });
+    const sw = page.locator('nx-switch').first();
+    const thumb = sw.locator('.thumb');
+    const before = (await thumb.boundingBox())!.x;
+    await sw.click();
+    await expect.poll(async () => (await thumb.boundingBox())!.x).toBeLessThan(before - 8);
+  });
+
+  test('a menu opens at the start edge of its button', async ({ page }) => {
+    await page.goto('/#/components');
+    await page.evaluate(async () => {
+      const entry = '/src/index.ts';
+      const { NX } = await import(/* @vite-ignore */ entry);
+      NX.i18n.setLanguage('ar');
+    });
+    const trigger = page.locator('nx-menu[text="Actions"]');
+    await trigger.click();
+    const button = (await trigger.boundingBox())!;
+    const list = (await page.locator('nx-menu-popup [role="menu"]').first().boundingBox())!;
+    // 'bottom-start' in RTL lines the menu's right edge up with the button's right edge
+    expect(Math.abs(list.x + list.width - (button.x + button.width))).toBeLessThan(12);
+  });
+});

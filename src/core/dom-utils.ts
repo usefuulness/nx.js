@@ -78,6 +78,29 @@ export function applyStyle(el: HTMLElement | SVGElement, value: unknown, replace
   }
 }
 
+/**
+ * `--nx-dir` is 1 left to right and -1 right to left, so a shadow-DOM stylesheet can mirror a
+ * movement with `calc(1rem * var(--nx-dir))`. Add it to a component's `styles()` where needed.
+ */
+export const DIRECTION_CSS = ':host { --nx-dir: 1; } :host(:dir(rtl)) { --nx-dir: -1; }';
+
+/** Chevrons and arrows that point along the reading direction (`class="mirror"`) flip in right-to-left layouts. */
+export const MIRROR_CSS = ':host(:dir(rtl)) .mirror { transform: scaleX(-1); }';
+
+/** Whether `el` is laid out right to left (read from its computed `direction`, so it follows `dir` and `lang`). */
+export function isRtl(el: Element): boolean {
+  return typeof getComputedStyle === 'function' && getComputedStyle(el).direction === 'rtl';
+}
+
+/**
+ * ArrowRight and ArrowLeft as a step along the reading direction: +1 is "next", -1 is "previous".
+ * In a right-to-left layout ArrowLeft goes forward. Any other key is 0.
+ */
+export function inlineStep(key: string, el: Element): 1 | -1 | 0 {
+  if (key !== 'ArrowRight' && key !== 'ArrowLeft') return 0;
+  return (key === 'ArrowRight') !== isRtl(el) ? 1 : -1;
+}
+
 /** Config keys that live on the host or in light DOM (serialized as markup, not config). */
 export const HOST_KEYS = new Set(['xtype', 'items', 'id', 'cls', 'className', 'style', 'flex', 'hidden', 'region', 'html', 'listeners', 'handler']);
 

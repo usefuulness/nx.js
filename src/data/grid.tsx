@@ -8,7 +8,7 @@ import type { Child } from '@/jsx/jsx-runtime';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { keepInView } from '@/core/position';
-import { escapeHTML } from '@/core/dom-utils';
+import { escapeHTML, MIRROR_CSS } from '@/core/dom-utils';
 import type { XlsxCell } from '@/core/xlsx';
 import { Store } from '@/data/store';
 
@@ -729,7 +729,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       <span class="tree-cell" style={{ paddingInlineStart: `${node.depth * 1.25}rem` }}>
         {expandable ? (
           // Mouse and touch use this; the keyboard uses Right and Left on the cell
-          <button type="button" class="tree-toggle" tabindex="-1" aria-expanded={String(node.open)}
+          <button type="button" class="tree-toggle mirror" tabindex="-1" aria-expanded={String(node.open)}
                   aria-label={this.t(node.open ? 'grid.collapse' : 'grid.expand', { label })}
                   html={Icons.get(node.open ? 'chevron-down' : 'chevron-right')} />
         ) : (
@@ -745,11 +745,11 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     const anyPinned = offsets.size > 0;
     return (
       <tr class="summary-row" aria-rowindex={rowIndex === undefined ? undefined : String(rowIndex)}>
-        {checkbox && <td class={['check', { pinned: anyPinned }]} style={anyPinned ? { left: '0px' } : undefined} />}
+        {checkbox && <td class={['check', { pinned: anyPinned }]} style={anyPinned ? { '--nx-pin': '0px' } : undefined} />}
         {cols.map((col, n) => {
           const left = offsets.get(String(col.field));
           return (
-            <td class={[this.align(col), { pinned: left !== undefined }]} style={left !== undefined ? { left: `${left}px` } : undefined}>
+            <td class={[this.align(col), { pinned: left !== undefined }]} style={left !== undefined ? { '--nx-pin': `${left}px` } : undefined}>
               {col.summary ? this.summaryCell(col, rows) : n === 0 ? <span class="summary-label">{label}</span> : null}
             </td>
           );
@@ -1311,7 +1311,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
         <thead>
           <tr>
             {checkbox && (
-              <th class={['check', { pinned: anyPinned }]} style={anyPinned ? { left: '0px' } : undefined}>
+              <th class={['check', { pinned: anyPinned }]} style={anyPinned ? { '--nx-pin': '0px' } : undefined}>
                 <input type="checkbox" class="check-all" aria-label={this.t('grid.selectAll')} checked={allChecked} indeterminate={someChecked && !allChecked} />
               </th>
             )}
@@ -1324,7 +1324,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
               const left = offsets.get(field);
               return (
                 <th class={[this.align(col), { sortable, sorted: active, pinned: left !== undefined }]} data-field={field}
-                    style={left !== undefined ? { left: `${left}px` } : undefined}
+                    style={left !== undefined ? { '--nx-pin': `${left}px` } : undefined}
                     aria-sort={active ? (this.sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
                     draggable={canMove}
                     onDragStart={canMove ? (e: DragEvent) => e.dataTransfer?.setData('text/x-nx-column', field) : undefined}
@@ -1433,7 +1433,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
                 <tr class="group-row" aria-rowindex={virtual ? String(i + 2) : undefined}>
                   <td colspan={span}>
                     <button type="button" class="group-toggle" data-group={group.key} aria-expanded={String(!group.collapsed)}>
-                      <span class="group-chevron" aria-hidden="true" html={Icons.get(group.collapsed ? 'chevron-right' : 'chevron-down')} />
+                      <span class="group-chevron mirror" aria-hidden="true" html={Icons.get(group.collapsed ? 'chevron-right' : 'chevron-down')} />
                       <span class="group-label">{group.label}</span>
                       <span class="group-count">{this.t('grid.rows', { count: group.rows.length })}</span>
                     </button>
@@ -1451,7 +1451,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
                   aria-rowindex={virtual ? String(i + 2) : undefined}
                   aria-level={node ? String(node.depth + 1) : undefined}
                   aria-expanded={node?.children.length ? String(node.open) : undefined}>
-                {checkbox && <td class={['check', { pinned: anyPinned }]} style={anyPinned ? { left: '0px' } : undefined}><input type="checkbox" class="check-row" aria-label={this.t('grid.selectRow')} checked={isSelected} /></td>}
+                {checkbox && <td class={['check', { pinned: anyPinned }]} style={anyPinned ? { '--nx-pin': '0px' } : undefined}><input type="checkbox" class="check-row" aria-label={this.t('grid.selectRow')} checked={isSelected} /></td>}
                 {cols.map((col, ci) => {
                   const field = String(col.field);
                   const left = offsets.get(field);
@@ -1459,7 +1459,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
                   const isEditing = !!this.editing && this.editing.row === row && this.editing.field === field;
                   return (
                     <td class={[this.align(col), { pinned: left !== undefined, editing: isEditing, editable }]}
-                        style={left !== undefined ? { left: `${left}px` } : undefined}
+                        style={left !== undefined ? { '--nx-pin': `${left}px` } : undefined}
                         data-pos={String(i)} data-col={String(ci)}
                         tabindex={grid ? (this.active.pos === i && this.active.col === ci ? '0' : '-1') : undefined}
                         aria-readonly={grid && !editable ? 'true' : undefined}>
@@ -1537,9 +1537,9 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
         {perPage > 0 && (
           <span class="pager">
             <span class="info">{this.t('grid.page', { page: this.page, pages })}</span>
-            <button class="page-btn" aria-label={this.t('grid.previousPage')} disabled={this.page <= 1} html={Icons.get('chevron-left')}
+            <button class="page-btn mirror" aria-label={this.t('grid.previousPage')} disabled={this.page <= 1} html={Icons.get('chevron-left')}
                     onClick={() => this.setPage(this.page - 1)} />
-            <button class="page-btn" aria-label={this.t('grid.nextPage')} disabled={this.page >= pages} html={Icons.get('chevron-right')}
+            <button class="page-btn mirror" aria-label={this.t('grid.nextPage')} disabled={this.page >= pages} html={Icons.get('chevron-right')}
                     onClick={() => this.setPage(this.page + 1)} />
           </span>
         )}
@@ -1670,7 +1670,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
         gap: 0.5rem;
         height: 2.25rem;
         width: min(16rem, 100%);
-        margin-left: auto;
+        margin-inline-start: auto;
         padding: 0 0.75rem;
         border: 1px solid var(--color-border);
         border-radius: var(--radius-md);
@@ -1711,7 +1711,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       th, td {
         height: 3rem;
         padding: 0 1rem;
-        text-align: left;
+        text-align: start;
         border-bottom: 1px solid var(--color-border);
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1719,6 +1719,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       }
 
       .dense th, .dense td { height: 2.25rem; padding: 0 0.75rem; }
+      ${MIRROR_CSS}
       .tree-cell { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
       .tree-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
       .tree-toggle, .tree-gap { flex: none; width: 1.5rem; height: 1.5rem; }
@@ -1812,7 +1813,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
         font-size: 0.75rem;
         white-space: nowrap;
       }
-      th.pinned, td.pinned { position: sticky; z-index: 1; background: var(--color-background); }
+      th.pinned, td.pinned { position: sticky; inset-inline-start: var(--nx-pin, 0); z-index: 1; background: var(--color-background); }
       th.pinned { z-index: 3; background: var(--color-muted); }
       tr.striped td.pinned { background: color-mix(in srgb, var(--color-muted) 50%, var(--color-background)); }
       tr.hoverable:hover td.pinned, tr.selected td.pinned { background: var(--color-accent); }
@@ -1888,13 +1889,14 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       th.sortable:hover .sort-icon, .sort-btn:focus-visible .sort-icon { opacity: 0.5; }
       th.sorted .sort-icon { opacity: 1; }
 
-      .align-right { text-align: right; }
+      .align-right { text-align: end; }
       .align-center { text-align: center; }
       .align-right .th { flex-direction: row-reverse; }
 
       .check {
         width: 3rem;
-        padding: 0 0 0 1rem;
+        padding: 0;
+        padding-inline-start: 1rem;
       }
 
       input[type="checkbox"] {
@@ -1958,7 +1960,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
         justify-content: space-between;
         gap: 1rem;
         min-height: 3rem;
-        padding: 0 0.75rem 0 1rem;
+        padding-block: 0;
+        padding-inline: 1rem 0.75rem;
         border-top: 1px solid var(--color-border);
         color: var(--color-text-secondary);
         font-size: 0.8125rem;
@@ -1972,7 +1975,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
         gap: 0.25rem;
       }
 
-      .pager .info { margin-right: 0.5rem; }
+      .pager .info { margin-inline-end: 0.5rem; }
 
       .page-btn {
         display: inline-flex;

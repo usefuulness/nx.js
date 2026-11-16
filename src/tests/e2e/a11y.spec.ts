@@ -81,3 +81,34 @@ for (const theme of themes) {
     await audit(page);
   });
 }
+
+
+// Right to left, in Arabic: every page and the overlays, since layout, focus order and the
+// translated labels all change. (One theme: the colours don't depend on direction.)
+async function openRtl(page: Page, path: string) {
+  await open(page, path, 'light');
+  await page.evaluate(async () => {
+    const entry = '/src/index.ts';
+    const locale = '/src/locales/ar.ts';
+    const { NX } = await import(/* @vite-ignore */ entry);
+    await import(/* @vite-ignore */ locale);
+    NX.i18n.setLanguage('ar');
+  });
+  await page.waitForTimeout(400);
+}
+
+for (const path of pages) {
+  test(`a11y: ${path} (rtl, ar)`, async ({ page }) => {
+    await openRtl(page, path);
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+    await audit(page);
+  });
+}
+
+test('a11y: open menu, toast and combobox (rtl, ar)', async ({ page }) => {
+  await openRtl(page, '/components');
+  await page.locator('nx-button', { hasText: 'Success' }).click();
+  await page.locator('nx-menu[text="Actions"]').click();
+  await page.waitForTimeout(250);
+  await audit(page);
+});

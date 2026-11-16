@@ -372,7 +372,7 @@ export class NXCombobox extends NXField {
 
       .toggle {
         display: inline-flex;
-        margin-right: -0.25rem;
+        margin-inline-end: -0.25rem;
         padding: 0.25rem;
         border: 0;
         background: none;

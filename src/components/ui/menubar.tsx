@@ -6,6 +6,7 @@ import { BaseComponent } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { showMenu, type MenuItem, type NXMenuPopup } from '@/components/ui/menu';
+import { inlineStep } from '@/core/dom-utils';
 
 export interface MenuBarConfig {
   /** Top-level entries; each has `items` (alias `submenu`) for its dropdown */
@@ -110,8 +111,8 @@ export class NXMenuBar extends BaseComponent {
       else entries[next].focus();
     };
     switch (e.key) {
-      case 'ArrowRight': move(current + 1); break;
-      case 'ArrowLeft': move(current - 1); break;
+      case 'ArrowRight':
+      case 'ArrowLeft': move(current + inlineStep(e.key, this)); break;
       case 'ArrowDown':
       case 'Enter':
       case ' ':

@@ -6,6 +6,7 @@ import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { place } from '@/core/position';
 import { NXField, type FieldConfig, type Validator } from '@/components/ui/form/field';
+import { inlineStep, MIRROR_CSS } from '@/core/dom-utils';
 
 export interface DatePickerConfig extends FieldConfig {
   /** `YYYY-MM-DD` */
@@ -257,8 +258,9 @@ export class NXDatePicker extends NXField {
     const firstDay = this.firstDay();
     const weekday = (d.getDay() - firstDay + 7) % 7;
     const moves: Record<string, () => Date> = {
-      ArrowLeft: () => addDays(d, -1),
-      ArrowRight: () => addDays(d, 1),
+      // Left and Right follow the reading direction: the previous day is on the right in RTL
+      ArrowLeft: () => addDays(d, inlineStep('ArrowLeft', this)),
+      ArrowRight: () => addDays(d, inlineStep('ArrowRight', this)),
       ArrowUp: () => addDays(d, -7),
       ArrowDown: () => addDays(d, 7),
       Home: () => addDays(d, -weekday),
@@ -307,12 +309,12 @@ export class NXDatePicker extends NXField {
 
     container.replaceChildren(
       <div class="calendar-head">
-        <button type="button" class="nav" part="nav" aria-label={this.t('datepicker.previousMonth')} disabled={prevDisabled}
+        <button type="button" class="nav mirror" part="nav" aria-label={this.t('datepicker.previousMonth')} disabled={prevDisabled}
                 html={Icons.get('chevron-left')} onClick={() => this.moveFocus(addMonths(focus, -1))} />
         <div class="month" part="month" aria-live="polite" id={`${this.fieldId}-month`}>
           {this.format(focus, { month: 'long', year: 'numeric' })}
         </div>
-        <button type="button" class="nav" part="nav" aria-label={this.t('datepicker.nextMonth')} disabled={nextDisabled}
+        <button type="button" class="nav mirror" part="nav" aria-label={this.t('datepicker.nextMonth')} disabled={nextDisabled}
                 html={Icons.get('chevron-right')} onClick={() => this.moveFocus(addMonths(focus, 1))} />
       </div> as HTMLElement,
       <table role="grid" part="grid" aria-labelledby={`${this.fieldId}-month`} onKeyDown={(e: KeyboardEvent) => this.onGridKey(e)}>
@@ -380,6 +382,8 @@ export class NXDatePicker extends NXField {
 
   protected styles(): string {
     return `
+      ${MIRROR_CSS}
+
       ${this.fieldStyles()}
 
       .nx-control { padding: 0; }
@@ -396,7 +400,7 @@ export class NXDatePicker extends NXField {
         background: transparent;
         color: inherit;
         font: inherit;
-        text-align: left;
+        text-align: start;
         cursor: pointer;
       }
 

@@ -235,12 +235,12 @@ Flex/grid layout box. Children are regular light-DOM elements.
 
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
-| `align` | `align` | `start` `center` `end` `stretch` `baseline` | Cross-axis alignment of the children |
+| `align` | `align` | `start` `end` `center` `stretch` `baseline` | Cross-axis alignment of the children |
 | `columns` | `columns` | `number` | grid layout: fixed column count |
 | `gap` | `gap` | `string \| number` | Space between children (px number or CSS length) |
 | `layout` | `layout` | `vbox` `hbox` `grid` `fit` | `hbox` (row), `vbox` (column), `grid`, or `fit` (one child fills it) |
 | `min-column-width` | `minColumnWidth` | `string \| number` | grid layout: responsive columns of at least this width |
-| `pack` | `pack` | `start` `center` `end` `between` `around` `evenly` | Main-axis distribution of the children |
+| `pack` | `pack` | `start` `end` `center` `between` `around` `evenly` | Main-axis distribution of the children |
 | `padding` | `padding` | `string \| number` | Inner padding (px number or CSS length) |
 | `scrollable` | `scrollable` | `boolean` | Scroll when the content overflows |
 | `wrap` | `wrap` | `boolean` | Let children wrap onto new lines |
@@ -344,7 +344,7 @@ Slide-in panel (a "sheet"), built on the native `<dialog>` element: focus trap, 
 | `description` | `description` | `string` | Text under the heading |
 | `open` | `open` | `boolean` | Initially open |
 | `persistent` | `persistent` | `boolean` | Can't be dismissed by the user (no ×, Escape or backdrop) |
-| `position` | `position` | `left` `right` `top` `bottom` | Edge the drawer slides in from |
+| `position` | `position` | `left` `right` `top` `bottom` `start` `end` | `start` and `end` follow the reading direction (right and left in right-to-left layouts); `left` and `right` are fixed |
 | `size` | `size` | `string \| number` | Width (left/right) or height (top/bottom): CSS length or px number. Default 24rem |
 | `title` | `title` | `string` | Drawer heading |
 
@@ -785,7 +785,7 @@ Toast notifications: short messages that stack in a corner and dismiss themselve
 
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
-| `position` | `position` |  | Where toasts stack: `top-left`, `top-center`, `top-right`, `bottom-left`, `bottom-center` or `bottom-right` (default) |
+| `position` | `position` |  | Where toasts stack: `top-left`, `top-center`, `top-right`, `bottom-left`, `bottom-center` or `bottom-right` (default); `start` and `end` in place of `left` and `right` (`top-end`) follow the reading direction |
 
 ## nx-toolbar
 

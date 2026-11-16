@@ -98,7 +98,7 @@ export class NXBadge extends BaseComponent {
       .warning { background: color-mix(in srgb, var(--color-warning) 16%, transparent); color: var(--color-warning-text); }
       .info { background: color-mix(in srgb, var(--color-info) 14%, transparent); color: var(--color-info-text); }
 
-      .icon { display: inline-flex; font-size: 0.875rem; margin-left: -0.125rem; }
+      .icon { display: inline-flex; font-size: 0.875rem; margin-inline-start: -0.125rem; }
 
       .remove {
         display: inline-flex;

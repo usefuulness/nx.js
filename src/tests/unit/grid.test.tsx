@@ -231,7 +231,7 @@ describe('NXGrid JSX renderers', () => {
       expect(headers(grid)).toEqual([null, 'age', 'name', 'role']);
       const th = grid.shadowRoot!.querySelector('th[data-field="age"]') as HTMLElement;
       expect(th.classList.contains('pinned')).toBe(true);
-      expect(th.style.left).toBe('48px');
+      expect(th.style.getPropertyValue('--nx-pin')).toBe('48px'); // the stylesheet turns it into inset-inline-start
     });
 
     it('persists widths and order under state-key', () => {

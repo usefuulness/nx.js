@@ -297,7 +297,7 @@ export abstract class NXField extends BaseComponent {
       }
 
       .required {
-        margin-left: 0.125rem;
+        margin-inline-start: 0.125rem;
         color: var(--color-error);
       }
 

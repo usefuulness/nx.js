@@ -206,11 +206,11 @@ export class NXSelect extends NXField {
     return `
       ${this.fieldStyles()}
 
-      .nx-control { position: relative; padding-right: 0; }
+      .nx-control { position: relative; padding-inline-end: 0; }
 
       select {
         appearance: none;
-        padding-right: 2.25rem !important;
+        padding-inline-end: 2.25rem !important;
         cursor: pointer;
       }
 
@@ -219,7 +219,7 @@ export class NXSelect extends NXField {
 
       .chevron {
         position: absolute;
-        right: 0.75rem;
+        inset-inline-end: 0.75rem;
         display: inline-flex;
         color: var(--color-text-secondary);
         pointer-events: none;

@@ -53,3 +53,35 @@ const html = await renderDocument(<Page />, { lang: 'es' });   // <html lang="es
 ```
 
 `renderToString(…, { lang })` and `renderHTML(…, { lang })` take the same option; `renderHTML` of a full document uses its own `<html lang>`. For right-to-left languages `renderDocument` also writes `dir="rtl"`. Hydration keeps the server's text, and the browser's `lang` takes over from there.
+
+## Right to left
+
+Set `dir="rtl"` (with the language) and the whole interface mirrors: `NX.i18n.setLanguage('ar')` does both. `renderDocument` writes `dir="rtl"` for right-to-left languages.
+
+- **Layout:** component styles use logical properties (`margin-inline-start`, `inset-inline-end`, `text-align: start`…), so padding, borders, icons and positions follow the reading direction. In an app shell the `west` region sits at the start (the right in RTL) and `east` at the end; their borders, resize handles and off-canvas drawers follow.
+- **Tables:** columns run right to left; pinned columns stick to the start edge; numeric columns align to the end.
+- **Keys:** Left and Right follow the reading direction. In RTL, Left moves to the *next* tab, menubar item, toolbar button or calendar day, opens a submenu or tree node, and opens a tree-grid node; Right goes back, closes, or climbs to the parent. Up, Down, Home, End and the others are unchanged.
+- **Floating UI:** menus, popovers and listboxes line up with the `start` or `end` edge of what they open from, so a `bottom-start` menu hangs from the right edge of its button in RTL.
+- **Icons:** chevrons that point along the reading direction (next page, submenu, tree expander, breadcrumb separator) flip.
+- **Fixed sides:** a few options name a physical side on purpose and do not mirror: a drawer's `position="left"`, a toast's `top-left`, tab `position`. Use `start` and `end` (`position="start"`, `top-end`) to follow the direction.
+- Text direction inside your own content (an English quote in an Arabic page, say) is up to the browser's bidi rules; mark it with `dir` or `<bdi>` where the order looks wrong.
+
+## In your own components
+
+```ts
+import { DIRECTION_CSS, MIRROR_CSS, inlineStep, isRtl } from 'nx.js';
+
+protected styles() {
+  return `
+    ${DIRECTION_CSS}   /* --nx-dir: 1, or -1 in RTL, for  translateX(calc(1rem * var(--nx-dir)))  */
+    ${MIRROR_CSS}      /* <span class="mirror"> flips in RTL */
+    .row { padding-inline: 1rem 0.5rem; margin-inline-start: auto; text-align: start; }
+  `;
+}
+
+// Arrow keys along the reading direction: +1 is next, -1 is previous
+const step = inlineStep(event.key, this);   // 0 for any other key
+```
+
+Write `inline-start`/`inline-end`, never `left`/`right`, unless the option really means a physical side. Use `this.t('key')` for strings and `this.locale()` when you format numbers or dates. Test it with `lang="ar" dir="rtl"`: the repository's Playwright suite does this for every demo page.
+

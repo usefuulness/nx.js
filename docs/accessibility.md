@@ -38,6 +38,8 @@ Every component is built to work with a keyboard and a screen reader, in every t
 | Data grid | sortable headers are buttons (**Enter Space** sort) · selection checkboxes and paging buttons are native · resize handles are focusable separators (**←** **→**, **Shift** for bigger steps, **Enter** resets) · **Alt+←** **Alt+→** on a header moves the column · with editable columns it is an ARIA grid: **←** **→** **↑** **↓** **Home** **End** **Ctrl+Home** **Ctrl+End** **PageUp** **PageDown** move between cells, **Enter** **F2** edit, **Escape** cancels, **Tab** saves and moves on, **Space** toggles a boolean · group headers are buttons (**Enter** **Space**) with `aria-expanded`, and arrow keys skip them · a tree grid is an ARIA `treegrid`: **→** opens a node, **←** closes it or climbs to the parent |
 | Radio group, Slider, Checkbox, Switch, Select | the browser's native keys (arrows, Space, Home/End, Page Up/Down) |
 
+In a right-to-left layout (`dir="rtl"`) **←** and **→** follow the reading direction: **←** is "next" in tabs, menubars, toolbars and calendars, and opens submenus and tree nodes, while **→** goes back, closes or climbs to the parent. See [Internationalization](internationalization.md#right-to-left).
+
 ## Testing a new component
 
 Show it on the demo's Components page (`src/main.tsx`) and it is audited automatically in every theme. If it opens something (a menu, a panel), add the open state to `src/tests/e2e/a11y.spec.ts`, as is done for the date picker and the command palette.

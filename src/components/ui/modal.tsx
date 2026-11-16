@@ -273,7 +273,8 @@ export class NXModal extends BaseComponent {
         display: flex;
         align-items: flex-start;
         gap: 1rem;
-        padding: 1.25rem 1.25rem 0 1.5rem;
+        padding-block: 1.25rem 0;
+        padding-inline: 1.5rem 1.25rem;
       }
 
       .nx-modal-heading { flex: 1; padding-top: 0.25rem; }
