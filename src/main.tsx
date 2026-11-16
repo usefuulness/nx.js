@@ -111,8 +111,9 @@ const DashboardPage = () => (
         search
         columns={[
           { field: 'id', header: 'Event', width: 100, type: 'number', pinned: 'left' },
-          { field: 'source', header: 'Source' },
-          { field: 'level', header: 'Level', type: 'badge', width: 110, badges: { Info: 'info', Warn: 'warning', Error: 'error' } }
+          { field: 'source', header: 'Source', editable: true, validate: v => (String(v).trim() ? true : 'Source is required') },
+          { field: 'level', header: 'Level', type: 'badge', width: 110, badges: { Info: 'info', Warn: 'warning', Error: 'error' },
+            editable: true, editor: 'select', options: ['Info', 'Warn', 'Error'] }
         ]}
       />
       <Card title="Goals" subtitle="Q2 progress">

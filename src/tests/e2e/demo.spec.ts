@@ -259,3 +259,56 @@ test('grid columns reorder with Alt+Arrow and a pinned column stays put while sc
   await page.locator('#events-grid .nx-grid-body').evaluate(el => (el.scrollLeft = 50));
   expect(Math.abs((await pinned.boundingBox())!.x - x)).toBeLessThan(1);
 });
+
+test('grid cells edit from the keyboard: Enter, type, Enter saves; Escape cancels; errors are announced', async ({ page }) => {
+  await page.goto('/#/');
+  const cell = (pos: number, col: number) => page.locator(`#events-grid td[data-pos="${pos}"][data-col="${col}"]`);
+  await cell(0, 1).focus();
+  await page.keyboard.press('Enter');
+  const editor = page.locator('#events-grid .cell-editor');
+  await expect(editor).toBeFocused();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type('gateway');
+  await page.keyboard.press('Enter');
+  await expect(cell(0, 1)).toHaveText('gateway');
+  await expect(cell(1, 1)).toBeFocused();
+
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type('nope');
+  await page.keyboard.press('Escape');
+  await expect(cell(1, 1)).toHaveText('worker');
+  await expect(cell(1, 1)).toBeFocused();
+
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#events-grid [role="alert"]')).toHaveText('Source is required');
+  await expect(editor).toHaveAttribute('aria-invalid', 'true');
+  await expect(editor).toBeFocused();
+  await page.keyboard.press('Escape');
+
+  // Level is a select: choose with the keyboard
+  await cell(1, 2).focus();
+  await page.keyboard.press('Enter');
+  const select = page.locator('#events-grid select.cell-editor');
+  await expect(select).toBeFocused();
+  await select.selectOption('Error');
+  await page.keyboard.press('Enter');
+  await expect(cell(1, 2)).toContainText('Error');
+});
+
+test('a virtual grid edits and navigates to the last row without losing the cell', async ({ page }) => {
+  await page.goto('/#/');
+  await page.locator('#events-grid td[data-pos="0"][data-col="1"]').focus();
+  await page.keyboard.press('Control+End');
+  const last = page.locator('#events-grid td[data-pos="19999"][data-col="2"]');
+  await expect(last).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type('tail');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#events-grid td[data-pos="19999"][data-col="1"]')).toHaveText('tail');
+});

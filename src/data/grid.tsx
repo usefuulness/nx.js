@@ -7,6 +7,7 @@ import { BaseComponent } from '@/components/abstracts/base';
 import type { Child } from '@/jsx/jsx-runtime';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
+import { keepInView } from '@/core/position';
 import { Store } from '@/data/store';
 
 export type BadgeTone = 'neutral' | 'info' | 'success' | 'warning' | 'error';
@@ -23,6 +24,17 @@ export interface GridColumn<T = any> {
   /** Defaults to true */
   sortable?: boolean;
   hidden?: boolean;
+  /**
+   * Let users edit this column's cells: focus a cell, then press Enter, F2 or double-click.
+   * Enter saves, Escape cancels, Tab saves and moves on. A function decides per row.
+   */
+  editable?: boolean | ((row: T) => boolean);
+  /** Editor control (default follows `type`: number, date and boolean cells get matching editors) */
+  editor?: 'text' | 'number' | 'date' | 'select' | 'checkbox';
+  /** Choices for `editor: 'select'`: strings or `{ value, text }` */
+  options?: Array<string | { value: string | number; text: string }>;
+  /** Return an error message to reject an edit (it stays open and the message is announced) */
+  validate?: (value: any, row: T) => string | true | void;
   /** Smallest width in px when resizing (default 60) */
   minWidth?: number;
   /** Set `false` to stop this column being resized or moved when the grid allows it */
@@ -94,7 +106,7 @@ const isNumeric = (col: GridColumn): boolean =>
   col.type === 'number' || col.type === 'currency' || col.type === 'percent';
 
 /**
- * Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, store binding.
+ * Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, store binding.
  *
  * @example
  * ```typescript
@@ -114,7 +126,7 @@ const isNumeric = (col: GridColumn): boolean =>
  * }
  * ```
  *
- * Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`, `column-change`.
+ * Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`, `column-change`, `cell-change`.
  */
 export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   static get observedAttributes(): string[] {
@@ -137,6 +149,9 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   private widths = new Map<string, number>();
   private order: string[] = [];
   private stateLoaded = false;
+  /** The cell that is in the tab order (roving tabindex), as a row position and column index */
+  private active = { pos: 0, col: 0 };
+  private editing: { row: T; field: string; draft: unknown; error?: string } | null = null;
   private readonly onStoreChange = () => {
     if (this.store) this.setRowsInternal(this.store.getData());
   };
@@ -389,6 +404,232 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     if (emit) this.emit('column-change', this.getColumnState());
   }
 
+  // ────────── Cell editing and the grid keyboard model ──────────
+
+  private hasEditable(): boolean {
+    return this.columns.some(c => !c.hidden && !!c.editable);
+  }
+
+  private canEdit(col: GridColumn<T>, row: T): boolean {
+    return typeof col.editable === 'function' ? !!col.editable(row) : !!col.editable;
+  }
+
+  private editorType(col: GridColumn<T>): NonNullable<GridColumn<T>['editor']> {
+    if (col.editor) return col.editor;
+    if (col.type === 'number' || col.type === 'currency' || col.type === 'percent') return 'number';
+    if (col.type === 'date') return 'date';
+    if (col.type === 'boolean') return 'checkbox';
+    return 'text';
+  }
+
+  private renderedRows(): T[] {
+    const all = this.getVisibleRows();
+    return this.isVirtual() ? all : this.currentPageRows(all);
+  }
+
+  private setValue(row: T, field: string, value: unknown): void {
+    const path = field.split('.');
+    const last = path.pop()!;
+    const target = path.reduce<any>((obj, key) => (obj[key] ??= {}), row);
+    target[last] = value;
+  }
+
+  private cell(pos: number, col: number): HTMLElement | null {
+    const tds = this.shadow?.querySelectorAll('tbody td[data-pos]') ?? [];
+    return (Array.from(tds) as HTMLElement[]).find(td => td.dataset.pos === String(pos) && td.dataset.col === String(col)) ?? null;
+  }
+
+  /** Make a cell the active one and move focus to it, scrolling a virtual grid to reach it. */
+  private focusCell(pos: number, col: number): void {
+    const rows = this.renderedRows();
+    const cols = this.visibleColumns();
+    if (!rows.length || !cols.length) return;
+    pos = Math.max(0, Math.min(pos, rows.length - 1));
+    col = Math.max(0, Math.min(col, cols.length - 1));
+    this.active = { pos, col };
+
+    const body = this.$('.nx-grid-body') as HTMLElement | null;
+    let td = this.cell(pos, col);
+    if (!td && this.isVirtual() && body) {
+      const rh = this.rowHeight();
+      const header = (this.$('thead') as HTMLElement | null)?.offsetHeight ?? 0;
+      const viewport = body.clientHeight || 400;
+      if (pos * rh < body.scrollTop) body.scrollTop = pos * rh;
+      else body.scrollTop = Math.max(0, header + (pos + 1) * rh - viewport);
+      this.refresh();
+      td = this.cell(pos, col);
+    }
+    this.shadow?.querySelectorAll('tbody td[tabindex="0"]').forEach(el => el.setAttribute('tabindex', '-1'));
+    if (!td) return;
+    td.setAttribute('tabindex', '0');
+    td.focus();
+    if (body && !this.isVirtual()) keepInView(body, td.parentElement as HTMLElement);
+  }
+
+  private beginEdit(pos: number, colIndex: number): void {
+    const row = this.renderedRows()[pos];
+    const col = this.visibleColumns()[colIndex];
+    if (!row || !col || !this.canEdit(col, row)) return;
+    this.active = { pos, col: colIndex };
+    const field = String(col.field);
+    if (this.editorType(col) === 'checkbox') {
+      // Nothing to type into: toggling is the edit
+      this.editing = { row, field, draft: !this.value(row, field) };
+      this.commitEdit(null);
+      return;
+    }
+    const current = this.value(row, field);
+    this.editing = { row, field, draft: current ?? '' };
+    this.refresh();
+    this.focusEditor();
+  }
+
+  private focusEditor(): void {
+    const el = this.$('.cell-editor') as HTMLInputElement | null;
+    el?.focus();
+    if (el && 'select' in el && el.type !== 'date') (el as HTMLInputElement).select?.();
+  }
+
+  private cancelEdit(): void {
+    if (!this.editing) return;
+    this.editing = null;
+    this.refresh();
+    this.focusCell(this.active.pos, this.active.col);
+  }
+
+  /** Save the open editor. `move` picks where focus goes next; returns false if validation refused it. */
+  private commitEdit(move: 'down' | 'next' | 'prev' | null): boolean {
+    const ed = this.editing;
+    if (!ed) return true;
+    const col = this.columns.find(c => String(c.field) === ed.field);
+    if (!col) return true;
+
+    let value: unknown = ed.draft;
+    if (this.editorType(col) === 'number') {
+      value = ed.draft === '' || ed.draft === null ? null : Number(ed.draft);
+      if (Number.isNaN(value)) return this.rejectEdit('Enter a number');
+    }
+    const verdict = col.validate?.(value, ed.row);
+    if (typeof verdict === 'string') return this.rejectEdit(verdict);
+
+    const old = this.value(ed.row, ed.field);
+    this.editing = null;
+    if (old !== value) {
+      this.writeValue(ed.row, ed.field, value);
+      this.emit('cell-change', { row: ed.row, field: ed.field, value, oldValue: old, index: this.rows.indexOf(ed.row) });
+    }
+    this.refresh();
+
+    const { pos, col: c } = this.active;
+    const last = this.visibleColumns().length - 1;
+    if (move === 'down') this.focusCell(pos + 1, c);
+    else if (move === 'next') this.focusCell(c < last ? pos : pos + 1, c < last ? c + 1 : 0);
+    else if (move === 'prev') this.focusCell(c > 0 ? pos : pos - 1, c > 0 ? c - 1 : last);
+    else this.focusCell(pos, c);
+    return true;
+  }
+
+  private rejectEdit(message: string): false {
+    if (this.editing) this.editing.error = message;
+    this.refresh();
+    this.focusEditor();
+    return false;
+  }
+
+  /** Write through the bound store (so it tracks dirty records and can sync) or straight to the row. */
+  private writeValue(row: T, field: string, value: unknown): void {
+    const record = this.store?.findBy(r => r.data === row)[0];
+    if (!record || !this.store) {
+      this.setValue(row, field, value);
+      return;
+    }
+    const top = field.split('.')[0];
+    if (field === top) {
+      this.store.update(record, { [top]: value } as Partial<T>);
+    } else {
+      // Nested path: replace the top-level object so the store sees a change
+      const copy = structuredClone(row[top]);
+      this.setValue(copy as any, field.split('.').slice(1).join('.'), value);
+      this.store.update(record, { [top]: copy } as Partial<T>);
+    }
+  }
+
+  private onCellKeyDown(e: KeyboardEvent): void {
+    const td = e.target as HTMLElement;
+    if (td.tagName !== 'TD' || td.dataset.pos === undefined) return;
+    const pos = Number(td.dataset.pos);
+    const col = Number(td.dataset.col);
+    const rtl = getComputedStyle(this).direction === 'rtl';
+    const last = this.renderedRows().length - 1;
+    const page = 10;
+    const go = (p: number, c: number) => {
+      e.preventDefault();
+      this.focusCell(p, c);
+    };
+    switch (e.key) {
+      case 'ArrowDown': return go(pos + 1, col);
+      case 'ArrowUp': return go(pos - 1, col);
+      case 'ArrowRight': return go(pos, col + (rtl ? -1 : 1));
+      case 'ArrowLeft': return go(pos, col + (rtl ? 1 : -1));
+      case 'PageDown': return go(pos + page, col);
+      case 'PageUp': return go(pos - page, col);
+      case 'Home': return go(e.ctrlKey ? 0 : pos, 0);
+      case 'End': return go(e.ctrlKey ? last : pos, this.visibleColumns().length - 1);
+      case 'Enter':
+      case 'F2':
+        e.preventDefault();
+        this.beginEdit(pos, col);
+        return;
+      case ' ': {
+        const column = this.visibleColumns()[col];
+        if (column && this.editorType(column) === 'checkbox') {
+          e.preventDefault();
+          this.beginEdit(pos, col);
+        }
+      }
+    }
+  }
+
+  private renderEditor(col: GridColumn<T>): Node {
+    const ed = this.editing!;
+    const type = this.editorType(col);
+    const label = `Edit ${this.headerText(col)}`;
+    const common = {
+      class: 'cell-editor',
+      'aria-label': label,
+      'aria-invalid': ed.error ? 'true' : undefined,
+      'aria-describedby': ed.error ? 'nx-cell-error' : undefined,
+      onInput: (e: Event) => { ed.draft = (e.target as HTMLInputElement).value; },
+      onKeyDown: (e: KeyboardEvent) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); this.commitEdit('down'); }
+        else if (e.key === 'Escape') { e.preventDefault(); this.cancelEdit(); }
+        else if (e.key === 'Tab') { e.preventDefault(); this.commitEdit(e.shiftKey ? 'prev' : 'next'); }
+      },
+      onFocusOut: (e: FocusEvent) => {
+        // Clicking away saves; a rejected value keeps the editor open
+        if (this.editing === ed && !(e.relatedTarget as Node | null)?.isSameNode?.(e.target as Node)) this.commitEdit(null);
+      }
+    };
+    let control: Node;
+    if (type === 'select') {
+      const opts = (col.options ?? []).map(o => (typeof o === 'string' ? { value: o, text: o } : o));
+      control = (
+        <select {...common} onChange={(e: Event) => { ed.draft = (e.target as HTMLSelectElement).value; }}>
+          {opts.map(o => <option value={String(o.value)} selected={String(o.value) === String(ed.draft)}>{o.text}</option>)}
+        </select>
+      );
+    } else {
+      control = <input {...common} type={type === 'checkbox' ? 'text' : type} value={String(ed.draft ?? '')} />;
+    }
+    return (
+      <span class="cell-editing">
+        {control}
+        {ed.error && <span id="nx-cell-error" class="cell-error" role="alert">{ed.error}</span>}
+      </span>
+    );
+  }
+
   /** Handles announce their real pixel width, which is only known after layout. */
   private syncHandleValues(): void {
     this.shadow?.querySelectorAll('th[data-field] .resize-handle').forEach(handle => {
@@ -555,8 +796,11 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
            onDblClick={(e: MouseEvent) => {
              const row = this.rowFromEvent(e);
              if (row) this.emit('row-dblclick', { row, index: this.rows.indexOf(row) });
+             const td = (e.target as HTMLElement).closest('td[data-pos]') as HTMLElement | null;
+             if (td && !this.editing) this.beginEdit(Number(td.dataset.pos), Number(td.dataset.col));
            }}
-           onChange={(e: Event) => this.onCheckboxChange(e)}>
+           onChange={(e: Event) => this.onCheckboxChange(e)}
+           onKeyDown={(e: KeyboardEvent) => this.onCellKeyDown(e)}>
         {hasToolbar && (
           <div class="nx-grid-toolbar" part="toolbar">
             {title && <div class="nx-grid-title" part="title">{title}</div>}
@@ -608,6 +852,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
     return (
       <table class="nx-grid-table" part="table" style={{ minWidth }}
+             role={this.hasEditable() ? 'grid' : undefined}
              aria-rowcount={virtual ? String(all.length + 1) : undefined}>
         <colgroup>
           {checkbox && <col style="width: 3rem" />}
@@ -698,6 +943,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     const span = cols.length + (checkbox ? 1 : 0);
     const offsets = this.pinnedOffsets(cols, checkbox);
     const anyPinned = offsets.size > 0;
+    const grid = this.hasEditable();
     const spacer = (count: number) =>
       count > 0 ? <tr class="spacer" aria-hidden="true"><td colspan={span} style={{ height: `${count * rh}px`, padding: '0', border: '0' }} /></tr> : null;
 
@@ -713,9 +959,20 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
                   data-index={this.rows.indexOf(row)} aria-selected={selectable ? String(isSelected) : undefined}
                   aria-rowindex={virtual ? String(i + 2) : undefined}>
                 {checkbox && <td class={['check', { pinned: anyPinned }]} style={anyPinned ? { left: '0px' } : undefined}><input type="checkbox" class="check-row" aria-label="Select row" checked={isSelected} /></td>}
-                {cols.map(col => {
-                  const left = offsets.get(String(col.field));
-                  return <td class={[this.align(col), { pinned: left !== undefined }]} style={left !== undefined ? { left: `${left}px` } : undefined}>{this.renderCell(row, col)}</td>;
+                {cols.map((col, ci) => {
+                  const field = String(col.field);
+                  const left = offsets.get(field);
+                  const editable = this.canEdit(col, row);
+                  const isEditing = !!this.editing && this.editing.row === row && this.editing.field === field;
+                  return (
+                    <td class={[this.align(col), { pinned: left !== undefined, editing: isEditing, editable }]}
+                        style={left !== undefined ? { left: `${left}px` } : undefined}
+                        data-pos={String(i)} data-col={String(ci)}
+                        tabindex={grid ? (this.active.pos === i && this.active.col === ci ? '0' : '-1') : undefined}
+                        aria-readonly={grid && !editable ? 'true' : undefined}>
+                      {isEditing ? this.renderEditor(col) : this.renderCell(row, col)}
+                    </td>
+                  );
                 })}
               </tr>
             );
@@ -813,6 +1070,14 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
   private onClick(e: MouseEvent): void {
     const target = e.target as HTMLElement;
+
+    // Clicking a cell makes it the one Tab returns to
+    const cell = target.closest('td[data-pos]') as HTMLElement | null;
+    if (cell && this.hasEditable() && !this.editing) {
+      this.shadow?.querySelectorAll('tbody td[tabindex="0"]').forEach(el => el.setAttribute('tabindex', '-1'));
+      this.active = { pos: Number(cell.dataset.pos), col: Number(cell.dataset.col) };
+      cell.setAttribute('tabindex', '0');
+    }
 
     const th = target.closest('th.sortable') as HTMLElement | null;
     if (th) {
@@ -943,6 +1208,36 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       }
 
       .dense th, .dense td { height: 2.25rem; padding: 0 0.75rem; }
+      td[tabindex]:focus-visible { outline: 2px solid var(--color-ring); outline-offset: -2px; }
+      td.editing { padding: 0 0.25rem; overflow: visible; }
+      .cell-editing { position: relative; display: block; }
+      .cell-editor {
+        width: 100%;
+        height: 2rem;
+        box-sizing: border-box;
+        padding: 0 0.5rem;
+        border: 1px solid var(--color-ring);
+        border-radius: var(--radius-sm);
+        background: var(--color-background);
+        color: var(--color-text);
+        font: inherit;
+        outline: none;
+      }
+      .cell-editor[aria-invalid='true'] { border-color: var(--color-error); }
+      .cell-error {
+        position: absolute;
+        inset-inline-start: 0;
+        top: 100%;
+        z-index: 4;
+        margin-top: 2px;
+        padding: 0.125rem 0.5rem;
+        border-radius: var(--radius-sm);
+        background: var(--color-background);
+        box-shadow: var(--shadow-md);
+        color: var(--color-error-text);
+        font-size: 0.75rem;
+        white-space: nowrap;
+      }
       th.pinned, td.pinned { position: sticky; z-index: 1; background: var(--color-background); }
       th.pinned { z-index: 3; background: var(--color-muted); }
       tr.striped td.pinned { background: color-mix(in srgb, var(--color-muted) 50%, var(--color-background)); }
