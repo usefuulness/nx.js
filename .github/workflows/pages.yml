@@ -21,7 +21,8 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Pinned: Playwright (browser tests) doesn't support the newest `ubuntu-latest` image until it is upgraded
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
