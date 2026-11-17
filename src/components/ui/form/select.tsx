@@ -225,6 +225,58 @@ export class NXSelect extends NXField {
         pointer-events: none;
       }
 
+      /*
+       * Browsers with customizable selects (Chromium 135+) let us style the dropdown itself: it matches
+       * the theme and the field's width instead of showing the operating system's list. Elsewhere the
+       * native popup is used, unchanged: nothing depends on this.
+       */
+      @supports (appearance: base-select) {
+        select:not([multiple]),
+        select:not([multiple])::picker(select) { appearance: base-select; }
+
+        select:not([multiple])::picker-icon { display: none; }
+
+        /* A base-select field lays out its value as flex content: centre it like the other fields */
+        select:not([multiple]) { display: flex; align-items: center; }
+
+        /* The list lines up with the field, not with the padding inside it: the select fills the whole control */
+        .nx-control:not(.multiple):not(:has(.nx-control-icon)) { padding-inline-start: 0; }
+        .nx-control:not(.multiple):not(:has(.nx-control-icon)) select { padding-inline-start: 0.75rem !important; }
+
+        select:not([multiple])::picker(select) {
+          box-sizing: border-box;
+          min-width: anchor-size(width);
+          margin-block: 0.25rem;
+          padding: 0.25rem;
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-md);
+          background: var(--color-background);
+          color: var(--color-text);
+          box-shadow: var(--shadow-lg);
+          font: inherit;
+        }
+
+        select:not([multiple]) option {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          min-height: 2rem;
+          padding: 0.25rem 0.5rem;
+          border-radius: var(--radius-sm);
+          background: transparent;
+          color: var(--color-text);
+          font: inherit;
+          cursor: pointer;
+        }
+
+        select:not([multiple]) option:hover,
+        select:not([multiple]) option:focus-visible { background: var(--color-accent); outline: none; }
+        select:not([multiple]) option:checked { font-weight: 600; }
+        select:not([multiple]) option:disabled { color: var(--color-text-secondary); cursor: default; }
+        select:not([multiple]) option:disabled:hover { background: transparent; }
+        select:not([multiple]) option::checkmark { color: var(--color-primary); }
+      }
+
       .multiple { padding: 0.25rem; }
       .multiple select { padding: 0 !important; min-height: 6rem; }
       .multiple option { padding: 0.375rem 0.5rem; border-radius: var(--radius-sm); }
