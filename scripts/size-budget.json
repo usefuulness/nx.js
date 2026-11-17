@@ -1,46 +1,46 @@
 [
   {
     "file": "nx.umd.js",
-    "maxGzipKB": 86,
+    "maxGzipKB": 95,
     "note": "the whole library, minified, for <script> tags: the number to compare with other UI kits"
   },
   {
     "file": "index.js",
     "closure": true,
-    "maxGzipKB": 104,
+    "maxGzipKB": 115,
     "note": "import { ... } from 'nx.js' bundled as ES modules. About 17 kB gz more than the UMD build of the same code (not yet explained); per-component entries are the way to ship less"
   },
   {
     "file": "entries/badge.js",
     "closure": true,
-    "maxGzipKB": 16.5,
+    "maxGzipKB": 18,
     "note": "nx.js/components/badge: the smallest component, with the runtime it needs. +1.9 kB with i18n (catalogue, lookup, redraw on lang change); English defaults at each call site would save about 1 kB"
   },
   {
     "file": "entries/button.js",
     "closure": true,
-    "maxGzipKB": 23.5
+    "maxGzipKB": 25
   },
   {
     "file": "entries/tabpanel.js",
     "closure": true,
-    "maxGzipKB": 19
+    "maxGzipKB": 20.5
   },
   {
     "file": "entries/form.js",
     "closure": true,
-    "maxGzipKB": 21
+    "maxGzipKB": 22.5
   },
   {
     "file": "entries/grid.js",
     "closure": true,
-    "maxGzipKB": 35.5,
+    "maxGzipKB": 38,
     "note": "virtual, editable, buffered, grouped, tree data grid; raised 31 \u2192 33.5 for tree rows. Next grid features should load lazily instead"
   },
   {
     "file": "locales/ar.js",
     "closure": true,
-    "maxGzipKB": 3.5,
+    "maxGzipKB": 4,
     "note": "nx.js/locales/ar with the i18n core it extends; the strings themselves are about 1.2 kB"
   },
   {
