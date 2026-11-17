@@ -1,14 +1,32 @@
 {
   "name": "nx.js",
-  "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "type": "module",
   "description": "Declarative, zero-dependency web components with an ExtJS-style config API and a shadcn-style look.",
+  "keywords": [
+    "web-components",
+    "custom-elements",
+    "ui",
+    "components",
+    "shadow-dom",
+    "ssr",
+    "declarative-shadow-dom",
+    "accessibility",
+    "data-grid",
+    "jsx",
+    "typescript"
+  ],
   "homepage": "https://usefuulness.github.io/nx.js/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/usefuulness/nx.js.git"
   },
-  "type": "module",
+  "bugs": {
+    "url": "https://github.com/usefuulness/nx.js/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -51,19 +69,24 @@
     },
     "./nx.css": "./dist/nx.css",
     "./custom-elements.json": "./dist/custom-elements.json",
-    "./html-custom-data.json": "./dist/html-custom-data.json"
+    "./html-custom-data.json": "./dist/html-custom-data.json",
+    "./package.json": "./package.json"
   },
   "bin": {
     "nx-ssr": "./dist/ssr-cli.js"
   },
   "customElements": "./dist/custom-elements.json",
   "files": [
-    "dist"
+    "dist",
+    "CHANGELOG.md"
   ],
   "sideEffects": true,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && vite build --mode umd && node dist/ssr-cli.js --css > dist/nx.css && tsx scripts/custom-elements.ts",
+    "build": "tsc --noEmit && vite build && vite build --mode umd && node dist/ssr-cli.js --css > dist/nx.css && tsx scripts/fix-dts.ts && tsx scripts/custom-elements.ts",
     "build:demo": "vite build --mode demo",
     "preview": "vite build --mode demo && vite preview --outDir dist-demo",
     "typecheck": "tsc --noEmit",
@@ -77,7 +100,8 @@
     "docs:reference": "tsx scripts/custom-elements.ts dist --reference docs/components.md",
     "site": "tsx scripts/site.tsx",
     "size": "tsx scripts/size.ts",
-    "bench": "tsx scripts/bench.ts"
+    "bench": "tsx scripts/bench.ts",
+    "prepublishOnly": "pnpm check && pnpm build && pnpm size"
   },
   "peerDependencies": {
     "happy-dom": ">=17"
