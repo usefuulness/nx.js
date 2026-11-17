@@ -3,7 +3,7 @@ import { i18n } from '@/core/i18n';
 
 i18n.extend('es', {
   close: 'Cerrar', dismiss: 'Descartar', clear: 'Borrar', remove: 'Quitar', ok: 'Aceptar', cancel: 'Cancelar', confirm: 'Confirmar', loading: 'Cargando',
-  'breadcrumb.label': 'Ruta de navegación', 'chart.label': 'Gráfico', 'chart.value': 'Valor', 'chart.empty': 'No hay datos que mostrar', 'rating.value': '{n} de {max}', 'rating.none': 'Sin valorar', 'timeline.label': 'Cronología', 'timeline.success': 'completado', 'timeline.warning': 'advertencia', 'timeline.error': 'falló', 'timeline.info': 'información', 'progress.label': 'Progreso', 'drawer.label': 'Panel', 'dialog.label': 'Diálogo',
+  'breadcrumb.label': 'Ruta de navegación', 'chart.label': 'Gráfico', 'chart.value': 'Valor', 'chart.empty': 'No hay datos que mostrar', 'rating.value': '{n} de {max}', 'rating.none': 'Sin valorar', 'timeline.label': 'Cronología', 'timeline.success': 'completado', 'timeline.warning': 'advertencia', 'timeline.error': 'falló', 'timeline.info': 'información', 'calendar.label': 'Calendario', 'calendar.none': 'Nada este día', 'calendar.events': { one: '{count} evento', other: '{count} eventos' }, 'progress.label': 'Progreso', 'drawer.label': 'Panel', 'dialog.label': 'Diálogo',
   'dialog.notice': 'Aviso', 'dialog.confirmTitle': '¿Está seguro?',
   'datepicker.previousMonth': 'Mes anterior', 'datepicker.nextMonth': 'Mes siguiente', 'datepicker.choose': 'Elegir fecha',
   'combobox.empty': 'Sin resultados.', 'combobox.show': 'Mostrar opciones', 'combobox.options': 'Opciones',

@@ -1056,3 +1056,30 @@ test.describe('rating', () => {
     expect(paint.bg).not.toBe('rgba(0, 0, 0, 0)');
   });
 });
+
+test.describe('calendar', () => {
+  test('is a keyboard-operated grid that keeps focus while it selects and pages', async ({ page }) => {
+    await page.goto('/#/components');
+    const cal = page.locator('#demo-calendar');
+    await cal.scrollIntoViewIfNeeded();
+    const focused = () => cal.evaluate((el: any) => (el.shadowRoot.activeElement as HTMLElement | null)?.dataset.date ?? null);
+    await expect(cal.getByRole('button', { name: /March 4, 2026, 2 events/ })).toBeVisible();
+    await cal.getByRole('button', { name: /March 4, 2026/ }).focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowDown');
+    expect(await focused()).toBe('2026-03-12');
+    await page.keyboard.press('Enter');
+    // The value changed and the page redrew, but the focus is still on that day
+    await expect.poll(() => cal.evaluate((el: any) => el.value)).toBe('2026-03-12');
+    await expect.poll(focused).toBe('2026-03-12');
+    await expect(cal.locator('.none')).toBeVisible();
+    // Paging by month keeps focus too
+    await page.keyboard.press('PageDown');
+    await expect(cal.locator('.month')).toContainText('April 2026');
+    await expect.poll(focused).toBe('2026-04-12');
+    // Choosing a day with events lists them
+    await page.keyboard.press('PageUp');
+    await cal.getByRole('button', { name: /March 10, 2026/ }).click();
+    await expect(cal.locator('.ev-title')).toHaveText('Design review');
+  });
+});
