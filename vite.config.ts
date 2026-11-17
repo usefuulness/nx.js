@@ -41,7 +41,7 @@ export default defineConfig(({ command, mode }) => {
     build: lib
       ? {
           lib: umd
-            ? { entry: path.resolve(__dirname, 'src/index.ts'), name: 'Nexaro', formats: ['umd'], fileName: () => 'nx.umd.js' }
+            ? { entry: path.resolve(__dirname, 'src/index.ts'), name: 'nxjs', formats: ['umd'], fileName: () => 'nx.umd.js' }
             : {
                 entry: {
                   index: path.resolve(__dirname, 'src/index.ts'),

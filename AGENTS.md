@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Instructions for coding agents working on Nexaro (nx.js). People should start with [README.md](README.md), [docs/](docs/README.md) and [CONTRIBUTING.md](CONTRIBUTING.md); this file adds what an agent needs to change the code safely.
+Instructions for coding agents working on nx.js. People should start with [README.md](README.md), [docs/](docs/README.md) and [CONTRIBUTING.md](CONTRIBUTING.md); this file adds what an agent needs to change the code safely.
 
 ## What this is
 

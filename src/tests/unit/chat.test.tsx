@@ -275,8 +275,8 @@ describe('<nx-chat>', () => {
   });
 
   it('shows who is speaking, with custom names', async () => {
-    const el = await mount({ userName: 'Ada', assistantName: 'Nexa', messages: [{ role: 'user', content: 'hi' }, { role: 'assistant', content: 'hello' }] });
-    expect(msgs(el).map(m => m.querySelector('.who')!.textContent)).toEqual(['Ada', 'Nexa']);
+    const el = await mount({ userName: 'Ada', assistantName: 'Bot', messages: [{ role: 'user', content: 'hi' }, { role: 'assistant', content: 'hello' }] });
+    expect(msgs(el).map(m => m.querySelector('.who')!.textContent)).toEqual(['Ada', 'Bot']);
     expect(msgs(el)[0].getAttribute('aria-label')).toBe('Ada');
     expect(msgs(el)[0].querySelector('.avatar')!.textContent).toBe('A');
   });

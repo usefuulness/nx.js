@@ -1,6 +1,6 @@
 # Server rendering
 
-Nexaro renders to HTML on the server with [Declarative Shadow DOM](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTemplateElement/shadowRootMode). Pages arrive complete: styled, themed, and with working forms before any JavaScript runs. When `nx.js` loads, the elements upgrade in place, with nothing re-created and no flash.
+nx.js renders to HTML on the server with [Declarative Shadow DOM](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTemplateElement/shadowRootMode). Pages arrive complete: styled, themed, and with working forms before any JavaScript runs. When `nx.js` loads, the elements upgrade in place, with nothing re-created and no flash.
 
 Server rendering runs the real components on [happy-dom](https://github.com/capricorn86/happy-dom), an optional peer dependency: `pnpm add -D happy-dom`.
 

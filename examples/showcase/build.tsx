@@ -21,8 +21,8 @@ await mkdir(outDir, { recursive: true });
 const body = await renderToString(<Showcase />, { onDropped: () => {} });
 const css = await readFile(path.join(here, 'showcase.css'), 'utf8');
 
-const html = `<title>Nexaro Showcase</title>
-<meta name="description" content="Every Nexaro component, live: server-rendered, hydrated, themeable.">
+const html = `<title>nx.js Showcase</title>
+<meta name="description" content="Every nx.js component, live: server-rendered, hydrated, themeable.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap">

@@ -367,7 +367,7 @@ const ComponentsPage = () => (
             </Tooltip>
           </HStack>
           <Combobox name="framework" label="Framework" placeholder="Search frameworks…" options={[
-            'Nexaro', 'Astro', 'Next.js', 'Nuxt', 'Remix', 'SvelteKit', 'Laravel', 'Django', 'Rails', 'Phoenix'
+            'nx.js', 'Astro', 'Next.js', 'Nuxt', 'Remix', 'SvelteKit', 'Laravel', 'Django', 'Rails', 'Phoenix'
           ]} />
         </VStack>
       </Card>
@@ -546,13 +546,13 @@ NX.command.bind('mod+k', commands);
 
 const app = NX.app({
   el: '#app',
-  title: 'Nexaro',
+  title: 'nx.js',
   stores: { users: { data: users } },
 
   items: [
     <Toolbar region="north" style="border-bottom: 1px solid var(--color-border)">
       <Button icon="menu" tooltip="Menu" class="nx-mobile-only" onClick={() => app.toggleRegion('west')} />
-      <span class="brand" html={`${NX.icons.get('box')} Nexaro`} />
+      <span class="brand" html={`${NX.icons.get('box')} nx.js`} />
       <Spacer />
       <Input
         type="search" icon="search" clearable placeholder="Search users…" class="nx-desktop-only" style="width: 16rem"

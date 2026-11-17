@@ -1,4 +1,4 @@
-# Nexaro
+# nx.js
 
 **[Website, live showcase and docs](https://usefuulness.github.io/nx.js/)** · [Demo app](https://usefuulness.github.io/nx.js/demo/) · [Component reference](https://usefuulness.github.io/nx.js/docs/components.html)
 
@@ -18,7 +18,7 @@ Accessible, themeable UI components you write like HTML: shadcn-style, as standa
 </nx-card>
 ```
 
-## Why Nexaro
+## Why nx.js
 
 - **Write it like HTML.** JSX creates real elements: `<Button>` is an `<nx-button>`, `<div onClick>` is a `div` with a listener. No virtual DOM and no framework to learn.
 - **Any stack.** The same tags work in JSX, plain HTML, and every server template language. Editors autocomplete every tag, attribute and allowed value.
@@ -30,9 +30,9 @@ Accessible, themeable UI components you write like HTML: shadcn-style, as standa
 
 ## Quick start
 
-> Nexaro is not on npm yet. Build it from this repository (`pnpm install && pnpm build`) and use `dist/`.
+> nx.js is not on npm yet. Build it from this repository (`pnpm install && pnpm build`) and use `dist/`.
 
-Point your compiler's JSX at Nexaro:
+Point your compiler's JSX at nx.js:
 
 ```jsonc
 // tsconfig.json

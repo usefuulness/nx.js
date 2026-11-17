@@ -31,7 +31,7 @@ export const guides: Guide[] = [
   { file: 'components.md', title: 'Component reference', summary: 'Every tag with its attributes, values and events (generated from the source)' }
 ];
 
-const name = 'Nexaro (nx.js)';
+const name = 'nx.js';
 const blurb =
   'Accessible, themeable UI components as standard custom elements (`<nx-*>`, shadow DOM), with no runtime dependencies. ' +
   'Write them as JSX, as plain HTML (including from Twig, Blade and Jinja templates) or as `{ xtype }` config objects; ' +

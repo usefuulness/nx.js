@@ -43,10 +43,10 @@ console.log('  demo/');
 const description = 'Accessible, themeable web components you write like HTML: JSX, plain HTML or any server template, rendered on the server and hydrated in the browser.';
 const showcaseCss = await readFile(path.join(root, 'examples/showcase/showcase.css'), 'utf8');
 const landing = await renderDocument(<div id="app"><Showcase site /></div>, {
-  title: 'Nexaro — web components you write like HTML',
+  title: 'nx.js — web components you write like HTML',
   head: [
     `<meta name="description" content="${escape(description)}">`,
-    '<meta property="og:title" content="Nexaro">',
+    '<meta property="og:title" content="nx.js">',
     `<meta property="og:description" content="${escape(description)}">`,
     '<meta property="og:type" content="website">',
     '<link rel="icon" href="favicon.svg" type="image/svg+xml">',
@@ -134,7 +134,7 @@ for (const file of docFiles) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escape(title)} · Nexaro docs</title>
+<title>${escape(title)} · nx.js docs</title>
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <meta name="description" content="${escape(description)}">
 <script>${themeScript()}</script>
@@ -145,7 +145,7 @@ ${fonts}
 <body>
 <header class="site-header">
   <div class="site-header-inner">
-    <a class="site-brand" href="../"><code>&lt;nx/&gt;</code>Nexaro</a>
+    <a class="site-brand" href="../"><code>&lt;nx/&gt;</code>nx.js</a>
     <nav aria-label="Site">
       <a href="index.html" aria-current="page">Docs</a>
       <a href="../demo/">Demo</a>
@@ -162,7 +162,7 @@ ${fonts}
   <main class="doc">
 ${body}
     <footer class="doc-footer">
-      <span>Nexaro is open source.</span>
+      <span>nx.js is open source.</span>
       <a href="${repo}/edit/${branch}/docs/${file}">Edit this page on GitHub</a>
     </footer>
   </main>

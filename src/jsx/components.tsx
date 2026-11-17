@@ -121,7 +121,7 @@ export interface TabProps {
 // ────────── Typed <nx-*> tags ──────────
 
 declare module './jsx-runtime' {
-  interface NexaroElements {
+  interface NxElements {
     'nx-button': Props<ButtonConfig>;
     'nx-badge': Props<BadgeConfig>;
     'nx-pagination': Props<PaginationConfig>;

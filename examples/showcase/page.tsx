@@ -1,14 +1,14 @@
 /**
- * Nexaro showcase — a kitchen-sink page for stakeholders.
+ * nx.js showcase — a kitchen-sink page for stakeholders.
  *
- * Every control here is a Nexaro component. build.tsx renders this JSX to HTML
+ * Every control here is a nx.js component. build.tsx renders this JSX to HTML
  * at build time (Declarative Shadow DOM, so it paints before JavaScript), and
  * client.tsx hydrates the same JSX so the inline handlers attach.
  */
 import {
   NX, Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardFooter, Checkbox, Combobox,
   Command, DataGrid, DatePicker, Dialog, DialogFooter, Drawer, DrawerFooter, Form, Input, Menu, MenuBar, Popover,
-  PopoverTrigger, Chat, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
+  PopoverTrigger, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
   type CommandItem, type Child, type NXChat
 } from 'nx.js';
 
@@ -199,7 +199,7 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
   <div class="sc-page">
     <header class="sc-header">
       <div class="sc-wrap">
-        <a class="sc-brand" href="#top"><code>{'<nx/>'}</code>Nexaro</a>
+        <a class="sc-brand" href="#top"><code>{'<nx/>'}</code>nx.js</a>
         <nav class="sc-nav" aria-label="Sections">
           <a href="#components">Components</a>
           <a href="#theming">Theming</a>
@@ -227,7 +227,7 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
               Write the interface as HTML. Ship it from any stack. <span class="sc-tag">{'<nx-*>'}</span>
             </h1>
             <p class="sc-lead">
-              Nexaro is a library of accessible, themeable UI components. Teams use them as JSX in a web app, as plain
+              nx.js is a library of accessible, themeable UI components. Teams use them as JSX in a web app, as plain
               tags in Twig, Blade or Jinja templates, or pre-rendered on a server, and they look and behave the same in each.
             </p>
             <div class="sc-actions">
@@ -243,8 +243,8 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
             <Card title="Create project" subtitle="Deploy a new project in one click.">
               <div style="display: grid; gap: 0.875rem">
                 <Input name="project" label="Name" value="acme-web" />
-                <Combobox name="framework" label="Framework" value="nexaro" placeholder="Search frameworks…"
-                          options={{ nexaro: 'Nexaro', astro: 'Astro', laravel: 'Laravel', django: 'Django', rails: 'Rails', symfony: 'Symfony' }} />
+                <Combobox name="framework" label="Framework" value="nxjs" placeholder="Search frameworks…"
+                          options={{ nxjs: 'nx.js', astro: 'Astro', laravel: 'Laravel', django: 'Django', rails: 'Rails', symfony: 'Symfony' }} />
                 <DatePicker name="launch" label="Launch date" value="2025-10-01" locale="en-US" />
               </div>
               <CardFooter>
@@ -498,9 +498,60 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
             </Specimen>
 
             <Specimen tag="nx-chat" span>
-              <Chat style="height: 22rem" suggestions="Explain streaming|Write a haiku" assistantName="Nexa"
+              <Chat style="height: 22rem" suggestions="Explain streaming|Write a haiku"
                     onSend={(e: CustomEvent) => (e.target as NXChat).respond(signal => fakeReply(e.detail.text, signal))} />
               <p class="sc-note">Streams, renders Markdown safely (try the suggestions), and Stop ends a reply early. This one answers with a canned reply: connect your own model.</p>
+            </Specimen>
+
+            <Specimen tag="nx-stepper">
+              <Stepper current={1} clickable>
+                <Step title="Account" description="Your details" />
+                <Step title="Plan" description="Pick a tier" />
+                <Step title="Payment" status="error" description="Card declined" />
+                <Step title="Done" />
+              </Stepper>
+              <p class="sc-note">The current step is an attribute, so server HTML carries it. Each state is written out for screen readers.</p>
+            </Specimen>
+
+            <Specimen tag="nx-timeline">
+              <Timeline label="Order history">
+                <TimelineItem title="Delivered" time="2026-03-04" status="success">Left at the front door.</TimelineItem>
+                <TimelineItem title="Payment retried" time="2026-03-02T14:10" status="warning" />
+                <TimelineItem title="Order placed" time="2026-03-01T09:30" />
+              </Timeline>
+            </Specimen>
+
+            <Specimen tag="nx-chart" span>
+              <div style="display: flex; flex-wrap: wrap; gap: 1.5rem">
+                <div style="flex: 1 1 16rem"><Chart type="bar" label="Signups per month" data={[{ label: 'Jan', value: 12 }, { label: 'Feb', value: 19 }, { label: 'Mar', value: 8 }, { label: 'Apr', value: 24 }]} /></div>
+                <div style="flex: 1 1 16rem"><Chart type="line" label="Visits and orders" labels={['Mon', 'Tue', 'Wed', 'Thu', 'Fri']} series={[{ name: 'Visits', data: [30, 42, 38, 55, 61] }, { name: 'Orders', data: [4, 9, 7, 12, 15] }]} /></div>
+                <div style="flex: 1 1 12rem"><Chart type="donut" label="Traffic" data={[{ label: 'Search', value: 52 }, { label: 'Direct', value: 31 }, { label: 'Social', value: 17 }]} /></div>
+              </div>
+              <p class="sc-note">Bars, lines, areas and donuts in SVG, themed. The data is also a hidden table for screen readers.</p>
+            </Specimen>
+
+            <Specimen tag="nx-rating">
+              <Rating name="stars" label="How was it?" value={4} />
+              <Rating label="Average" value={3.5} readonly />
+              <p class="sc-note">Native radios underneath, so the keys and form posting are the browser's own.</p>
+            </Specimen>
+
+            <Specimen tag="nx-toolbar">
+              <Toolbar items={[
+                { xtype: 'button', text: 'New', icon: 'plus', variant: 'primary' },
+                '-',
+                { xtype: 'button', icon: 'refresh', ariaLabel: 'Refresh' },
+                '->',
+                { xtype: 'textfield', placeholder: 'Search…', icon: 'search', ariaLabel: 'Search' }
+              ]} />
+            </Specimen>
+
+            <Specimen tag="nx-panel">
+              <Panel title="Details" icon="info" collapsible style="border: 1px solid var(--color-border); border-radius: var(--radius-md)">
+                <div style="padding: 0.75rem">A titled region that can collapse.</div>
+              </Panel>
+              <Divider label="or" />
+              <p class="sc-note"><code>nx-divider</code> separates content, with an optional label.</p>
             </Specimen>
 
             <Specimen tag="nx-splitter">
@@ -642,7 +693,7 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
 
     <footer class="sc-footer">
       <div class="sc-wrap">
-        <span>This page is built with Nexaro: server-rendered with <span class="sc-inline-code">nx.js/ssr</span>, then hydrated.</span>
+        <span>This page is built with nx.js: server-rendered with <span class="sc-inline-code">nx.js/ssr</span>, then hydrated.</span>
         <a href="https://github.com/usefuulness/nx.js">github.com/usefuulness/nx.js</a>
       </div>
     </footer>
