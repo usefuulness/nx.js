@@ -5,7 +5,7 @@
  */
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
-  Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Chart, Timeline, TimelineItem, Rating, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
+  Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Chart, Calendar, Timeline, TimelineItem, Rating, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
   Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
 
@@ -120,6 +120,10 @@ export const Components = () => (
           <Progress value={64} label="Storage" showValue />
           <HStack gap={12} align="center"><Spinner /><Skeleton width="60%" /></HStack>
         </VStack>
+      </Card>
+
+      <Card title="Calendar">
+        <div style="max-width: 24rem"><Calendar value="2026-03-04" firstDay={1} events={[{ date: '2026-03-04', title: 'Standup', time: '09:30' }, { date: '2026-03-04', title: 'Deploy', status: 'error' }, { date: '2026-03-10', title: 'Design review', time: '14:00', status: 'success' }, { date: '2026-03-18', title: 'Release', status: 'info' }]} /></div>
       </Card>
 
       <Card title="Timeline">

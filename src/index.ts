@@ -66,6 +66,8 @@ export { readText, readSSE } from '@/core/stream';
 export type { ServerEvent } from '@/core/stream';
 export { NXChart, niceScale } from '@/components/ui/chart';
 export type { ChartConfig, ChartSeries } from '@/components/ui/chart';
+export { NXCalendar } from '@/components/ui/calendar';
+export type { CalendarConfig, CalendarEvent } from '@/components/ui/calendar';
 export { NXTimeline } from '@/components/ui/timeline';
 export type { TimelineConfig, TimelineItemProps } from '@/components/ui/timeline';
 export { NXStepper } from '@/components/ui/stepper';

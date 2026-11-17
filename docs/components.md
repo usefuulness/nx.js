@@ -16,6 +16,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-badge>`](#nx-badge) | `Badge` | Small status label. |
 | [`<nx-breadcrumb>`](#nx-breadcrumb) | `Breadcrumb` | Breadcrumb trail. The last item is the current page. |
 | [`<nx-button>`](#nx-button) | `Button` | Button. |
+| [`<nx-calendar>`](#nx-calendar) | `Calendar` | A month calendar that is always on the page: pick a day, and see what is on it. Use it for schedules, bookings and availability; for a date field in a form use `<nx-datepicker>`. |
 | [`<nx-card>`](#nx-card) | `Card` | Card with optional header, body and footer. |
 | [`<nx-chart>`](#nx-chart) | `Chart` | A chart drawn as SVG: bars, lines, areas or a donut. Colours come from the theme, so it follows light and dark mode, and every chart also carries its data as a real (visually hidden) table for screen readers. Hovering or focusing a mark shows its value. |
 | [`<nx-chat>`](#nx-chat) | `Chat` | A chat window for talking to an AI (or a person): a conversation, streaming replies, and a message box. You decide where replies come from; the component handles the interface. |
@@ -165,6 +166,25 @@ Button.
 | `type` | `type` | `button` `submit` `reset` | `submit`/`reset` work inside `<nx-form>` and native `<form>` alike |
 | `value` | `value` | `string` | Submitted with `name` when this button submits a form |
 | `variant` | `variant` | `secondary` `outline` `primary` `ghost` `danger` `link` | Visual style; `danger` for destructive actions |
+
+## nx-calendar
+
+`<nx-calendar>` · JSX: `<Calendar>` · [source](../src/components/ui/calendar.tsx)
+
+A month calendar that is always on the page: pick a day, and see what is on it. Use it for schedules, bookings and availability; for a date field in a form use `<nx-datepicker>`.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `events` | `events` |  | Days with something on them: dots on the grid, and the list under it for the selected day |
+| `first-day` | `firstDay` | `number` | First day of the week, 0 (Sunday) to 6 (default: from the language) |
+| `hide-agenda` | `hideAgenda` | `boolean` | Hide the list of the selected day's events |
+| `label` | `label` | `string` | Accessible name of the calendar (default "Calendar") |
+| `max` | `max` | `string` | Latest day that can be selected, `YYYY-MM-DD` |
+| `min` | `min` | `string` | Earliest day that can be selected, `YYYY-MM-DD` |
+| `month` | `month` | `string` | The month to show first, as any `YYYY-MM-DD` date in it (default: the selected day, or today) |
+| `value` | `value` | `string` | The selected day, `YYYY-MM-DD` |
+
+**Events:** `select`, `month-change`
 
 ## nx-card
 

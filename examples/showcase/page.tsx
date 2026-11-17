@@ -8,7 +8,7 @@
 import {
   NX, Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardFooter, Checkbox, Combobox,
   Command, DataGrid, DatePicker, Dialog, DialogFooter, Drawer, DrawerFooter, Form, Input, Menu, MenuBar, Popover,
-  PopoverTrigger, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
+  PopoverTrigger, Calendar, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
   type CommandItem, type Child, type NXChat
 } from 'nx.js';
 
@@ -511,6 +511,11 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
                 <Step title="Done" />
               </Stepper>
               <p class="sc-note">The current step is an attribute, so server HTML carries it. Each state is written out for screen readers.</p>
+            </Specimen>
+
+            <Specimen tag="nx-calendar">
+              <Calendar value="2026-03-04" firstDay={1} events={[{ date: '2026-03-04', title: 'Standup', time: '09:30' }, { date: '2026-03-04', title: 'Deploy', status: 'error' }, { date: '2026-03-10', title: 'Design review', time: '14:00', status: 'success' }, { date: '2026-03-18', title: 'Release', status: 'info' }]} />
+              <p class="sc-note">An always-visible month: dots for days with events, and the list for the selected day.</p>
             </Specimen>
 
             <Specimen tag="nx-timeline">
