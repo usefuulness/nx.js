@@ -1,6 +1,6 @@
 # Forms
 
-Nexaro's fields are **form-associated custom elements**. They behave like native inputs: they post their values with a `<form>`, take part in the browser's validation, reset with the form, and restore on back/forward. On top of that they draw a label, helper text and error messages, and support custom validators.
+nx.js's fields are **form-associated custom elements**. They behave like native inputs: they post their values with a `<form>`, take part in the browser's validation, reset with the form, and restore on back/forward. On top of that they draw a label, helper text and error messages, and support custom validators.
 
 ## Fields
 

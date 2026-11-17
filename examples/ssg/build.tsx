@@ -16,7 +16,7 @@ await mkdir(outDir, { recursive: true });
 
 for (const [name, Page] of Object.entries(pages)) {
   const html = await renderDocument(<Page />, {
-    title: `${name} · Nexaro SSG`,
+    title: `${name} · nx.js SSG`,
     scripts: ['./client.js'],
     bodyAttributes: { 'data-page': name },
     // Handlers (onClick…) can't be written into HTML; client.tsx's hydrate() attaches them

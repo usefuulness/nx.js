@@ -185,7 +185,7 @@ test.describe('with JavaScript', () => {
     expect(posts).toHaveLength(0);
 
     await contact.getByLabel('Email').fill('ada@example.com');
-    await contact.getByLabel('Message').fill('Hello there, Nexaro!');
+    await contact.getByLabel('Message').fill('Hello there, nx.js!');
     await contact.getByLabel('Topic').selectOption('support');
     await contact.getByText('Send me the newsletter').click();
     await expect(contact.getByRole('checkbox', { name: 'Send me the newsletter' })).toBeChecked();
@@ -197,7 +197,7 @@ test.describe('with JavaScript', () => {
     expect(Object.fromEntries(posts[0].body)).toEqual({
       email: 'ada@example.com',
       topic: 'support',
-      message: 'Hello there, Nexaro!',
+      message: 'Hello there, nx.js!',
       newsletter: 'on',
       intent: 'send'
     });
@@ -303,7 +303,7 @@ for (const name of ['index', 'components', 'contact']) {
   });
 }
 
-/** Box and visible text of every Nexaro element, in document order (native stand-ins excluded). */
+/** Box and visible text of every nx.js element, in document order (native stand-ins excluded). */
 async function layout(page: Page) {
   await page.waitForTimeout(600); // entrance animations
   return page.evaluate(() => {

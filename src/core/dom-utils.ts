@@ -8,7 +8,7 @@
  * had a chance to install its DOM (see nx.js/ssr).
  */
 
-/** Brand on Nexaro components (checked instead of `instanceof BaseComponent`). */
+/** Brand on nx.js components (checked instead of `instanceof BaseComponent`). */
 export const NX_COMPONENT = Symbol.for('nx.component');
 
 /** Late-bound hooks, filled in by modules that do need the DOM. */

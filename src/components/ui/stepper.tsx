@@ -134,11 +134,29 @@ export class NXStepper extends BaseComponent {
   }
 
   protected styles(): string {
+    // The stacked layout, used for `orientation="vertical"` and whenever the container is too narrow for a row
+    const stacked = (sel: string) => `
+      ${sel} .stepper { flex-direction: column; gap: 0; }
+      ${sel} .step { flex: none; padding-bottom: 1.25rem; }
+      ${sel} .step:last-child { padding-bottom: 0; }
+      ${sel} .step:not(:last-child)::after {
+        position: absolute;
+        flex: none;
+        min-width: 0;
+        inset-block: 1.75rem 0;
+        inset-inline-start: calc(0.875rem - 1px);
+        width: 2px;
+        height: auto;
+        margin: 0;
+      }
+      ${sel} .step:not(:last-child) .text { padding-inline-end: 0; }
+    `;
     return `
-      :host { display: block; font-size: 0.875rem; }
+      :host { display: block; font-size: 0.875rem; container-type: inline-size; }
 
-      .stepper { display: flex; margin: 0; padding: 0; list-style: none; gap: 0.5rem; }
-      .step { position: relative; display: flex; flex: 1; min-width: 0; }
+      .stepper { display: flex; margin: 0; padding: 0; list-style: none; }
+      .step { position: relative; display: flex; align-items: flex-start; flex: 1 1 0; min-width: 0; }
+      .step:last-child { flex: 0 1 auto; }
       .step-button, .step-static { display: flex; align-items: flex-start; gap: 0.75rem; min-width: 0; padding: 0; border: none; background: transparent; color: inherit; font: inherit; text-align: start; }
       .step-button { cursor: pointer; border-radius: var(--radius-md); }
       .step-button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px var(--color-ring); }
@@ -165,44 +183,29 @@ export class NXStepper extends BaseComponent {
       .error .marker { border-color: var(--color-error); background: color-mix(in srgb, var(--color-error) 12%, var(--color-background)); color: var(--color-error-text); }
 
       .text { display: flex; flex-direction: column; min-width: 0; padding-top: 0.125rem; }
-      .title { font-weight: 500; color: var(--color-text); overflow-wrap: anywhere; }
+      .title { font-weight: 500; color: var(--color-text); overflow-wrap: break-word; }
       .upcoming .title { color: var(--color-text-secondary); }
       .error .title { color: var(--color-error-text); }
-      .description { color: var(--color-text-secondary); font-size: 0.8125rem; overflow-wrap: anywhere; }
+      .description { color: var(--color-text-secondary); font-size: 0.8125rem; overflow-wrap: break-word; }
 
-      /* The connector between steps */
+      /* The connector is a flex item after the text, so it never runs through it */
       .step:not(:last-child)::after {
         content: '';
-        position: absolute;
-        inset-block-start: 0.875rem;
-        inset-inline-start: calc(1.75rem + 0.5rem);
-        inset-inline-end: -0.25rem;
+        flex: 1 1 1rem;
+        min-width: 1rem;
         height: 2px;
+        margin: 0.8125rem 0.75rem 0;
         background: var(--color-border);
-        transform: translateY(-50%);
       }
 
       .step.complete:not(:last-child)::after { background: var(--color-primary); }
-      .step:not(:last-child) .text { padding-inline-end: 0.75rem; }
 
-      :host([orientation="vertical"]) .stepper { flex-direction: column; gap: 0; }
-      :host([orientation="vertical"]) .step { flex: none; padding-bottom: 1.25rem; }
-      :host([orientation="vertical"]) .step:last-child { padding-bottom: 0; }
-      :host([orientation="vertical"]) .step:not(:last-child)::after {
-        inset-block-start: 1.75rem;
-        inset-block-end: 0;
-        inset-inline-start: calc(0.875rem - 1px);
-        inset-inline-end: auto;
-        width: 2px;
-        height: auto;
-        transform: none;
+      ${stacked(':host([orientation="vertical"])')}
+      @container (max-width: 34rem) {
+        ${stacked(':host')}
       }
 
       .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-
-      @media (max-width: 36rem) {
-        :host(:not([orientation="vertical"])) .description { display: none; }
-      }
     `;
   }
 }

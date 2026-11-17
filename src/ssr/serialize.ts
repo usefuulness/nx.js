@@ -4,7 +4,7 @@
  *
  * DOM → HTML with Declarative Shadow DOM: every shadow root is written as
  * `<template shadowrootmode="open">`, so browsers render components before any
- * JavaScript runs. Nexaro components also get an `nx-ssr` attribute and, when
+ * JavaScript runs. nx.js components also get an `nx-ssr` attribute and, when
  * they hold rich config (data, columns, items…), a
  * `<script type="application/json" data-nx-config>` child that restores it
  * when the element upgrades in the browser.

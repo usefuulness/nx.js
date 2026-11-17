@@ -2,7 +2,7 @@
  * @file @/ssr/cli.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  *
- * `nx-ssr` — pre-render Nexaro tags in HTML from any template engine.
+ * `nx-ssr` — pre-render nx.js tags in HTML from any template engine.
  *
  *   nx-ssr --proxy http://127.0.0.1:8000 --port 3000   render a running app (SSR)
  *   nx-ssr public/index.html public/docs/*.html        render files in place (SSG)
@@ -14,7 +14,7 @@ import { renderHTML, stylesheet } from '@/ssr/index';
 import { createProxy } from '@/ssr/proxy';
 import { readFile, writeFile } from 'node:fs/promises';
 
-const HELP = `nx-ssr — pre-render Nexaro components in HTML from any template engine
+const HELP = `nx-ssr — pre-render nx.js components in HTML from any template engine
 
 Usage:
   nx-ssr --proxy <upstream> [--port 3000] [--host 127.0.0.1]

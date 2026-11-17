@@ -1,10 +1,10 @@
 # Contributing
 
-User documentation lives in [docs/](docs/README.md); coding agents also read [AGENTS.md](AGENTS.md). This file is for changing Nexaro itself.
+User documentation lives in [docs/](docs/README.md); coding agents also read [AGENTS.md](AGENTS.md). This file is for changing nx.js itself.
 
 ## House style
 
-Nexaro follows the shadcn approach: every component is a small, readable file you own and can copy. New UI code is written in **JSX that reads like HTML**.
+nx.js follows the shadcn approach: every component is a small, readable file you own and can copy. New UI code is written in **JSX that reads like HTML**.
 
 - **JSX creates real DOM.** There is no virtual DOM. `<div onClick={fn}>` is a `div` with a listener, and `<Button>` is an `<nx-button>`.
 - **Components are custom elements** (`<nx-*>`, shadow DOM) with a typed **PascalCase wrapper** for JSX (`Button`, `Card`, …).
@@ -75,7 +75,7 @@ Nexaro follows the shadcn approach: every component is a small, readable file yo
 
    ```tsx
    export const Chip = (props: Props<ChipConfig>) => <nx-chip {...props} />;
-   // and inside `interface NexaroElements`:
+   // and inside `interface NxElements`:
    'nx-chip': Props<ChipConfig>;
    ```
 

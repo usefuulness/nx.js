@@ -16,7 +16,7 @@ describe('llms.txt', () => {
 
   it('follows the llmstxt.org shape: title, summary quote, then link lists', () => {
     const lines = index.split('\n');
-    expect(lines[0]).toMatch(/^# Nexaro/);
+    expect(lines[0]).toMatch(/^# nx.js/);
     expect(lines[2]).toMatch(/^> /);
     expect(index).toContain('## Docs');
     for (const guide of guides) expect(index).toContain(`- [${guide.title}](${url}/docs/${guide.file}): ${guide.summary}`);

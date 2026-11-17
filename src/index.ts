@@ -1,5 +1,5 @@
 /**
- * Nexaro — declarative web components.
+ * nx.js — declarative web components.
  *
  * ```typescript
  * import { NX } from 'nx.js';

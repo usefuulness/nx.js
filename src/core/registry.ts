@@ -42,7 +42,7 @@ export interface ComponentFactory {
 }
 
 /**
- * Central registry for all Nexaro components
+ * Central registry for all nx.js components
  */
 export class ComponentRegistry {
   private static components = new Map<string, ComponentDefinition>();
@@ -364,7 +364,7 @@ export function define(tagName: string, component: CustomElementConstructor): vo
 }
 
 /**
- * Apply a config object to a plain (non-Nexaro) element.
+ * Apply a config object to a plain (non-nx.js) element.
  */
 function applyToElement(element: HTMLElement, config: Record<string, any>): void {
   Object.entries(config).forEach(([key, value]) => {

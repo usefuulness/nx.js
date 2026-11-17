@@ -2,7 +2,7 @@
  * @file @/ssr/index.ts
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  *
- * `nx.js/ssr` — render Nexaro components to HTML in Node (SSG, SSR).
+ * `nx.js/ssr` — render nx.js components to HTML in Node (SSG, SSR).
  *
  * The real components run on a server DOM (happy-dom, an optional dependency)
  * and are written out with Declarative Shadow DOM, so pages are fully rendered
@@ -96,7 +96,7 @@ export async function renderToString(input: Renderable, options: RenderOptions =
 }
 
 /**
- * Pre-render every Nexaro tag inside an HTML string — a fragment or a full
+ * Pre-render every nx.js tag inside an HTML string — a fragment or a full
  * document — produced by any template engine.
  */
 export async function renderHTML(html: string, options: RenderHTMLOptions = {}): Promise<string> {

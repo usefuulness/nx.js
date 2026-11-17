@@ -71,7 +71,7 @@ export interface ComponentConfig {
 }
 
 /**
- * Abstract base class for all Nexaro components.
+ * Abstract base class for all nx.js components.
  * Provides core functionality including state management, lifecycle hooks,
  * property handling, and DOM utilities.
  * 

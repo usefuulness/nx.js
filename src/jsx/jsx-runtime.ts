@@ -91,7 +91,7 @@ function setRef<T>(ref: Ref<T> | undefined, el: T): void {
   else ref.current = el;
 }
 
-/** Apply props to a plain (non-Nexaro) element. */
+/** Apply props to a plain (non-nx.js) element. */
 function applyDomProps(el: HTMLElement | SVGElement, props: Record<string, any>, svg: boolean): void {
   for (const [key, value] of Object.entries(props)) {
     if (RESERVED.has(key)) continue;
@@ -136,7 +136,7 @@ function applyDomProps(el: HTMLElement | SVGElement, props: Record<string, any>,
   }
 }
 
-/** Apply props to a Nexaro component (same semantics as `{ xtype }` configs). */
+/** Apply props to a nx.js component (same semantics as `{ xtype }` configs). */
 function applyComponentProps(el: ConfigurableElement, props: Record<string, any>): void {
   const config: Record<string, any> = {};
   for (const [key, value] of Object.entries(props)) {
@@ -277,7 +277,7 @@ export namespace JSX {
     [K in keyof HTMLElementTagNameMap]: ElementProps<HTMLElementTagNameMap[K]>;
   } & {
     [K in Exclude<keyof SVGElementTagNameMap, keyof HTMLElementTagNameMap>]: BaseProps<SVGElementTagNameMap[K]>;
-  } & NexaroElements & {
+  } & NxElements & {
     [tag: `${string}-${string}`]: BaseProps;
   };
 }
@@ -285,4 +285,4 @@ export namespace JSX {
 /**
  * Typed `<nx-*>` tags. Extended via declaration merging in `@/jsx/components`.
  */
-export interface NexaroElements {}
+export interface NxElements {}

@@ -35,7 +35,7 @@ const Layout = ({ title, children }: { title: string; children?: any }) => (
 );
 
 export const Home = () => (
-  <Layout title="Nexaro, pre-rendered">
+  <Layout title="nx.js, pre-rendered">
     <Card title="Rendered at build time" subtitle="Declarative Shadow DOM: this card is visible before any JavaScript loads.">
       <p>The client bundle only upgrades the elements; nothing is re-created.</p>
       <CardFooter>
@@ -196,7 +196,7 @@ export const Components = () => (
           <Button id="open-drawer" variant="outline" onClick={() => drawer.current?.open()}>Open drawer</Button>
           <Popover label="Share">
             <PopoverTrigger><Button variant="outline" icon="send">Share</Button></PopoverTrigger>
-            <Input name="link" label="Link" value="https://nexaro.dev/ssg" readonly />
+            <Input name="link" label="Link" value="https://example.com/ssg" readonly />
           </Popover>
           <Avatar alt="Ada Lovelace" status="online" />
           <Button variant="outline" icon="settings" tooltip="Settings" />

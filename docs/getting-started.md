@@ -1,12 +1,12 @@
 # Getting started
 
-Nexaro is a set of UI components that are standard custom elements (`<nx-button>`, `<nx-grid>`…). You can write them in JSX, as plain HTML, or as config objects, and they render the same way in each.
+nx.js is a set of UI components that are standard custom elements (`<nx-button>`, `<nx-grid>`…). You can write them in JSX, as plain HTML, or as config objects, and they render the same way in each.
 
-> Nexaro is not published to npm yet (`"private": true` in `package.json`). Until it is, build it from this repository (`pnpm build`) and use `dist/`, or depend on the repository directly.
+> nx.js is not published to npm yet (`"private": true` in `package.json`). Until it is, build it from this repository (`pnpm build`) and use `dist/`, or depend on the repository directly.
 
 ## With a bundler and JSX
 
-Point your compiler's JSX runtime at Nexaro. TypeScript, esbuild, Vite and Bun all read this:
+Point your compiler's JSX runtime at nx.js. TypeScript, esbuild, Vite and Bun all read this:
 
 ```jsonc
 // tsconfig.json
