@@ -2,7 +2,7 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
-## Unreleased
+## 0.4.0 - 2026-11-17
 
 ### Added
 - **Calendar:** `<nx-calendar>`: an always-visible month with `events` (dots on the grid, the selected day's list below), `min`/`max`, `first-day`, an ARIA grid keyboard model, `select` and `month-change` events, `showMonth()`. The date helpers the date picker used now live in `src/core/dates.ts`.
