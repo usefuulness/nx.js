@@ -20,6 +20,7 @@ export const en: Messages = {
   // Components
   'breadcrumb.label': 'Breadcrumb',
   'progress.label': 'Progress',
+  'timeline.label': 'Timeline', 'timeline.success': 'succeeded', 'timeline.warning': 'warning', 'timeline.error': 'failed', 'timeline.info': 'information',
   'rating.value': '{n} of {max}', 'rating.none': 'Not rated',
   'chart.label': 'Chart', 'chart.value': 'Value', 'chart.empty': 'No data to show',
   'stepper.label': 'Progress',
