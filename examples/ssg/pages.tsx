@@ -5,7 +5,7 @@
  */
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
-  Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
+  Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
   Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
 
@@ -120,6 +120,19 @@ export const Components = () => (
           <Progress value={64} label="Storage" showValue />
           <HStack gap={12} align="center"><Spinner /><Skeleton width="60%" /></HStack>
         </VStack>
+      </Card>
+
+      <Card title="Stepper">
+        <Stepper current={1}>
+          <Step title="Account" /><Step title="Plan" /><Step title="Done" />
+        </Stepper>
+      </Card>
+
+      <Card title="Chat">
+        <Chat style="height: 15rem" messages={[
+          { role: 'user', content: 'What does server rendering do for a chat?' },
+          { role: 'assistant', content: 'The conversation arrives **already rendered**: no empty box, then a flash of text. Replies are shown as safe Markdown.' }
+        ]} />
       </Card>
 
       <Card title="Splitter">

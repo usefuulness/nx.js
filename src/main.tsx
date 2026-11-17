@@ -4,7 +4,7 @@
  */
 import {
   NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, FileUpload, Form, Grid,
-  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Splitter, Switch, Tab, Tabs, TagInput,
+  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Splitter, Switch, Tab, Tabs, TagInput, Chat, Stepper, Step, type NXChat,
   Textarea, Toolbar, Tooltip, Tree,
   VStack, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
@@ -47,6 +47,26 @@ const files = [
   { name: 'src', kind: 'Folder', size: 0, children: [{ name: 'index.ts', kind: 'TypeScript', size: 12 }, { name: 'app.ts', kind: 'TypeScript', size: 21 }] },
   { name: 'README.md', kind: 'Markdown', size: 2 }
 ];
+
+/** A stand-in for a model: streams a Markdown reply word by word, and stops when the signal aborts. */
+async function* fakeReply(prompt: string, signal: AbortSignal): AsyncGenerator<string> {
+  const reply = `Here is a short answer to **${prompt.replace(/[*_`<>]/g, '').slice(0, 60)}**.
+
+- Replies stream in as they are written
+- Press **Stop** to end one early
+- Markdown is shown safely: <script>alert(1)</script> stays text
+
+\`\`\`ts
+const reply = await chat.respond(signal => stream(prompt, signal));
+\`\`\`
+
+Read the [chat guide](https://usefuulness.github.io/nx.js/docs/chat.html) for the details.`;
+  for (const word of reply.split(/(?<=\s)/)) {
+    await new Promise(resolve => setTimeout(resolve, 45));
+    if (signal.aborted) return;
+    yield word;
+  }
+}
 
 // ────────── Small building blocks (plain function components) ──────────
 
@@ -382,6 +402,20 @@ const ComponentsPage = () => (
           <Alert variant="warning" title="Trial ends soon">Upgrade to keep your projects.</Alert>
           <Alert variant="destructive" title="Payment failed">Your card was declined.</Alert>
         </VStack>
+      </Card>
+
+      <Card title="Stepper" subtitle="Progress through steps. Click a completed step to go back.">
+        <Stepper id="demo-stepper" current={1} clickable>
+          <Step title="Account" description="Your details" />
+          <Step title="Plan" description="Pick a tier" />
+          <Step title="Payment" status="error" description="Card declined" />
+          <Step title="Done" />
+        </Stepper>
+      </Card>
+
+      <Card title="Chat" subtitle="A chat window for talking to an AI: streaming, safe Markdown, Stop. This one answers with a canned reply.">
+        <Chat id="demo-chat" style="height: 26rem" suggestions="Explain streaming|Write a haiku"
+              onSend={(e: CustomEvent) => (e.target as NXChat).respond(signal => fakeReply(e.detail.text, signal))} />
       </Card>
 
       <Card title="Splitter" subtitle="Drag the dividers, or focus one and use the arrow keys, Home, End and Enter.">

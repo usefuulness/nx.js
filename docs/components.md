@@ -17,6 +17,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-breadcrumb>`](#nx-breadcrumb) | `Breadcrumb` | Breadcrumb trail. The last item is the current page. |
 | [`<nx-button>`](#nx-button) | `Button` | Button. |
 | [`<nx-card>`](#nx-card) | `Card` | Card with optional header, body and footer. |
+| [`<nx-chat>`](#nx-chat) | `Chat` | A chat window for talking to an AI (or a person): a conversation, streaming replies, and a message box. You decide where replies come from; the component handles the interface. |
 | [`<nx-checkbox>`](#nx-checkbox) | `Checkbox` | Checkbox or toggle switch. |
 | [`<nx-combobox>`](#nx-combobox) | `Combobox` | Combobox: a text input that filters a list of options — a searchable select. |
 | [`<nx-command>`](#nx-command) | `Command` | Command menu: a search box over a list of actions (shadcn's Command / ⌘K). Type to filter, arrow keys to move, Enter to run. |
@@ -46,6 +47,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-spacer>`](#nx-spacer) | `Spacer` | Flexible space. In a toolbar or hbox, pushes following items to the end. Shorthand in items arrays: `'->'`. |
 | [`<nx-spinner>`](#nx-spinner) | `Spinner` | Loading spinner. |
 | [`<nx-splitter>`](#nx-splitter) | `Splitter` | Resizable panes: put two or more elements inside, and a draggable divider appears between each pair. A pane's starting share comes from its `size` attribute (any number: shares are relative) and its smallest size, in pixels, from `min-size` (default 48). |
+| [`<nx-stepper>`](#nx-stepper) | `Stepper` | Progress through a sequence of steps. Steps are `<nx-step>` children; the current step is the `current` attribute, so server HTML carries it. It shows progress; the content of each step is yours. |
 | [`<nx-switch>`](#nx-switch) | `Switch` | `<nx-switch>`: a toggle switch, like `<Switch>` in JSX. |
 | [`<nx-tab>`](#nx-tab) | `Tab` | A tab inside `<nx-tabpanel>`: `<nx-tab title="Account" icon="user" closable>…</nx-tab>`. |
 | [`<nx-tabpanel>`](#nx-tabpanel) | — | Tabs. Each item is a tab: `title`/`icon`/`closable`/`disabled` configure the tab button, everything else (`xtype`, `items`, `html`) is the tab's content. |
@@ -174,6 +176,26 @@ Card with optional header, body and footer.
 | `padding` | `padding` | `boolean` | Pad the body (default true) |
 | `subtitle` | `subtitle` | `string` | Secondary line under the title |
 | `title` | `title` | `string` | Card heading |
+
+## nx-chat
+
+`<nx-chat>` · JSX: `<Chat>` · [source](../src/components/ui/chat.tsx)
+
+A chat window for talking to an AI (or a person): a conversation, streaming replies, and a message box. You decide where replies come from; the component handles the interface.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `assistant-name` | `assistantName` | `string` |  |
+| `busy` | `busy` | `boolean` | A reply is on its way: shows a Stop button, and Send waits |
+| `disabled` | `disabled` | `boolean` | The box and buttons are off |
+| `label` | `label` | `string` | Accessible name of the conversation (default "Conversation") |
+| `markdown` | `markdown` | `boolean` | Render assistant replies as Markdown (default true). User text is always plain |
+| `max-length` | `maxLength` | `number` | Longest message the box accepts |
+| `placeholder` | `placeholder` | `string` | Placeholder of the message box (default "Message…") |
+| `suggestions` | `suggestions` |  | Prompts shown while the conversation is empty (a comma separated string in HTML) |
+| `user-name` | `userName` | `string` | Names shown above messages (default "You" and "Assistant") |
+
+**Events:** `send`
 
 ## nx-checkbox
 
@@ -609,7 +631,7 @@ Radio group: pick one of a few options. Native radios inside, so arrow keys, for
 | `helper-text` | `helperText` | `string` | Hint shown under the field |
 | `label` | `label` | `string` | Label shown with the field |
 | `name` | `name` | `string` | Field name: the key in form values, and the name it posts under |
-| `orientation` | `orientation` | `vertical` `horizontal` | Lay the options out in a column or a row |
+| `orientation` | `orientation` | `horizontal` `vertical` | Lay the options out in a column or a row |
 | `required` | `required` | `boolean` | A value is required before the form can submit |
 | `value` | `value` | `string \| number` | Value of the selected option |
 | `variant` | `variant` | `default` `cards` | `cards` draws each option as a bordered, selectable card |
@@ -706,10 +728,25 @@ Resizable panes: put two or more elements inside, and a draggable divider appear
 
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
-| `orientation` | `orientation` | `vertical` `horizontal` | `horizontal` puts panes side by side (default); `vertical` stacks them |
+| `orientation` | `orientation` | `horizontal` `vertical` | `horizontal` puts panes side by side (default); `vertical` stacks them |
 | `state-key` | `stateKey` | `string` | Remember the sizes in localStorage under this key |
 
 **Events:** `resize`
+
+## nx-stepper
+
+`<nx-stepper>` · JSX: `<Stepper>` · [source](../src/components/ui/stepper.tsx)
+
+Progress through a sequence of steps. Steps are `<nx-step>` children; the current step is the `current` attribute, so server HTML carries it. It shows progress; the content of each step is yours.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `clickable` | `clickable` | `boolean` | Let people go back to an earlier step by clicking it |
+| `current` | `current` | `number` | The current step, counting from 0 (steps before it are complete) |
+| `label` | `label` | `string` | Accessible name of the list (default "Progress") |
+| `orientation` | `orientation` | `horizontal` `vertical` | `horizontal` (default) or `vertical` |
+
+**Events:** `step-change`
 
 ## nx-switch
 
