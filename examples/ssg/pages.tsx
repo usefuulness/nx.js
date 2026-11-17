@@ -5,7 +5,7 @@
  */
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
-  Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Chart, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
+  Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Chart, Rating, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
   Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
 
@@ -162,6 +162,7 @@ export const Components = () => (
           <RadioGroup name="size" label="Size" value="m" orientation="horizontal" options={{ s: 'Small', m: 'Medium', l: 'Large' }} />
           <Combobox name="country" label="Country" value="de" placeholder="Search…"
                     options={{ de: 'Germany', fr: 'France', it: 'Italy', es: 'Spain', nl: 'Netherlands' }} />
+          <Rating name="stars" label="Rating" value={4} />
           <Slider name="volume" label="Volume" value={30} showValue unit="%" />
           <DatePicker name="due" label="Due date" value="2025-06-15" locale="en-US" />
           <TagInput name="topics" label="Topics" value="css,html" max={5} suggestions="css,html,js,a11y" helperText="Press Enter or comma to add." />

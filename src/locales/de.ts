@@ -3,7 +3,7 @@ import { i18n } from '@/core/i18n';
 
 i18n.extend('de', {
   close: 'Schließen', dismiss: 'Verwerfen', clear: 'Leeren', remove: 'Entfernen', ok: 'OK', cancel: 'Abbrechen', confirm: 'Bestätigen', loading: 'Wird geladen',
-  'breadcrumb.label': 'Brotkrümelnavigation', 'chart.label': 'Diagramm', 'chart.value': 'Wert', 'chart.empty': 'Keine Daten vorhanden', 'progress.label': 'Fortschritt', 'drawer.label': 'Bereich', 'dialog.label': 'Dialog',
+  'breadcrumb.label': 'Brotkrümelnavigation', 'chart.label': 'Diagramm', 'chart.value': 'Wert', 'chart.empty': 'Keine Daten vorhanden', 'rating.value': '{n} von {max}', 'rating.none': 'Nicht bewertet', 'progress.label': 'Fortschritt', 'drawer.label': 'Bereich', 'dialog.label': 'Dialog',
   'dialog.notice': 'Hinweis', 'dialog.confirmTitle': 'Sind Sie sicher?',
   'datepicker.previousMonth': 'Vorheriger Monat', 'datepicker.nextMonth': 'Nächster Monat', 'datepicker.choose': 'Datum auswählen',
   'combobox.empty': 'Keine Ergebnisse.', 'combobox.show': 'Optionen anzeigen', 'combobox.options': 'Optionen',

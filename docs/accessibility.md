@@ -28,6 +28,7 @@ Every component is built to work with a keyboard and a screen reader, in every t
 | Tag input | **Enter** or a separator adds the typed text, **Backspace** in the empty box removes the last tag, chips have × buttons; additions, removals and refusals are announced (`role="status"`) |
 | File upload | the drop zone is a real file input: **Tab** to it, **Enter** or **Space** opens the picker; each file has a **Remove** button, and refused files are announced (`role="status"`) |
 | Chart | the plot is hidden from assistive technology and replaced by a real data table (caption, row and column headers) inside a `role="img"` figure with the chart's `label`; colour is never the only cue (legend, marker shapes); marks have text tooltips |
+| Rating | native radio buttons: **Tab** to the group, **←** **→** **↑** **↓** move and choose; each star is named "3 of 5"; the chosen value is also available as text (`role="status"`); `readonly` is a single image named with the value |
 | Stepper | an ordered list; each step says complete, current or needs attention in text, and the current one has `aria-current="step"`; with `clickable`, completed steps are buttons (**Tab**, **Enter**, **Space**) |
 | Dialog, Drawer | **Tab** stays inside; **Escape** closes (unless `close-on-escape="false"`) |
 | Menu, dropdown button | **↑ ↓** move · **Home End** first/last · **→** opens a submenu, **←** closes it · **Enter Space** choose · **Escape Tab** close · letters jump (type-ahead) |

@@ -41,6 +41,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-popover>`](#nx-popover) | `Popover` | Popover: a panel of rich content anchored to a trigger. Click the trigger to toggle; Escape, clicking outside or opening another popover closes it. |
 | [`<nx-progress>`](#nx-progress) | `Progress` | Progress bar. |
 | [`<nx-radio-group>`](#nx-radio-group) | `RadioGroup` | Radio group: pick one of a few options. Native radios inside, so arrow keys, form posting and validation (`required`) behave like HTML. |
+| [`<nx-rating>`](#nx-rating) | `Rating` | Star rating. A group of native radio buttons underneath, so the arrow keys, **Tab**, form posting and `required` behave like HTML. Each star is announced as "3 of 5", and the filled stars are decoration only: the value is always available as text. With `readonly` it is a plain image with the value as its name. |
 | [`<nx-select>`](#nx-select) | `Select` | Select, styled around the native `<select>` (accessible, mobile friendly, never clipped by overflow containers). |
 | [`<nx-separator>`](#nx-separator) | `Separator` | Vertical separator for toolbars / hboxes. Shorthand in items arrays: `'-'`. |
 | [`<nx-skeleton>`](#nx-skeleton) | `Skeleton` | Loading placeholder. |
@@ -651,6 +652,26 @@ Radio group: pick one of a few options. Native radios inside, so arrow keys, for
 | `required` | `required` | `boolean` | A value is required before the form can submit |
 | `value` | `value` | `string \| number` | Value of the selected option |
 | `variant` | `variant` | `default` `cards` | `cards` draws each option as a bordered, selectable card |
+
+## nx-rating
+
+`<nx-rating>` · JSX: `<Rating>` · [source](../src/components/ui/form/rating.tsx)
+
+Star rating. A group of native radio buttons underneath, so the arrow keys, **Tab**, form posting and `required` behave like HTML. Each star is announced as "3 of 5", and the filled stars are decoration only: the value is always available as text. With `readonly` it is a plain image with the value as its name.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `disabled` | `disabled` | `boolean` | Not interactive (fields are also left out when a form posts) |
+| `error-text` | `errorText` | `string` | Error shown under the field (for example from the server); marks it invalid |
+| `helper-text` | `helperText` | `string` | Hint shown under the field |
+| `label` | `label` | `string` | Label shown with the field |
+| `max` | `max` | `number` | Number of stars (default 5, at most 10) |
+| `name` | `name` | `string` | Field name: the key in form values, and the name it posts under |
+| `readonly` | `readonly` | `boolean` | Show the rating without letting people change it |
+| `required` | `required` | `boolean` | A value is required before the form can submit |
+| `value` | `value` | `number` | The rating, from 0 (none) to `max` |
+
+**Events:** `change`
 
 ## nx-select
 

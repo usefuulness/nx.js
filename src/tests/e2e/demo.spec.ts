@@ -1013,8 +1013,11 @@ test.describe('chat', () => {
     await chat.locator('textarea').fill('three');
     await page.keyboard.press('Enter');
     await expect(chat.locator('.msg.assistant').last()).toContainText('Here is');
-    await log.evaluate(el => { el.scrollTop = 40; });
-    await expect(chat.locator('.latest')).toBeVisible();
+    // Scroll up while the reply is still streaming; retry in case a frame under load re-sticks us to the end
+    await expect(async () => {
+      await log.evaluate(el => { el.scrollTop = 40; });
+      await expect(chat.locator('.latest')).toBeVisible({ timeout: 700 });
+    }).toPass({ timeout: 8000 });
     await expect(chat.locator('.stop')).toBeVisible(); // still streaming while we read further up
     await expect(chat.locator('.stop')).toHaveCount(0, { timeout: 15000 });
     // The reply finished and the conversation was redrawn: the reader is still exactly where they were, and can still jump down
@@ -1024,5 +1027,32 @@ test.describe('chat', () => {
     await chat.locator('.latest').click();
     await expect.poll(gap).toBeLessThan(5);
     await expect(chat.locator('.latest')).toBeHidden();
+  });
+});
+
+test.describe('rating', () => {
+  test('is operated with the keyboard, fills its stars and takes part in the form', async ({ page }) => {
+    await page.goto('/#/forms');
+    const rating = page.locator('#demo-rating');
+    await rating.scrollIntoViewIfNeeded();
+    await expect(rating.getByRole('radio', { name: '3 of 5' })).toBeChecked();
+    // Click a star: it becomes the value and fills up to it
+    await rating.getByRole('radio', { name: '5 of 5' }).click({ force: true });
+    await expect(rating.getByRole('radio', { name: '5 of 5' })).toBeChecked();
+    expect(await rating.evaluate((el: any) => el.value)).toBe(5);
+    const fills = await rating.locator('.star').evaluateAll(els => els.map(e => (e as HTMLElement).style.getPropertyValue('--fill')));
+    expect(fills).toEqual(['100%', '100%', '100%', '100%', '100%']);
+    // Arrow keys move the choice, like native radios
+    await rating.getByRole('radio', { name: '5 of 5' }).focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(rating.getByRole('radio', { name: '4 of 5' })).toBeChecked();
+    expect(await rating.evaluate((el: any) => el.value)).toBe(4);
+    // The star that is drawn filled really is painted: the clipped copy has a size and a colour
+    const paint = await rating.locator('.star').first().evaluate(el => {
+      const s = getComputedStyle(el, '::after');
+      return { w: parseFloat(s.width), bg: s.backgroundColor };
+    });
+    expect(paint.w).toBeGreaterThan(10);
+    expect(paint.bg).not.toBe('rgba(0, 0, 0, 0)');
   });
 });
