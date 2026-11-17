@@ -2,7 +2,7 @@
 
 All notable changes to Nexaro (nx.js). The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
-## Unreleased
+## 0.3.0 - 2026-11-17
 
 ### Added
 - **Timeline:** `<nx-timeline>` / `<nx-timeline-item>`: an ordered list of events with a formatted `<time>`, a status written out for screen readers, optional icons and `reverse`.
