@@ -3,6 +3,7 @@
  * @copyright Copyright (c) 2025 fool@nexaro.cloud
  */
 import { ComponentRegistry, define } from '@/core/registry';
+import { DIRECTION_CSS } from '@/core/dom-utils';
 import { NXField, type FieldConfig } from '@/components/ui/form/field';
 
 export interface CheckboxConfig extends FieldConfig {
@@ -151,6 +152,8 @@ export class NXCheckbox extends NXField {
 
   protected styles(): string {
     return `
+      ${DIRECTION_CSS}
+
       ${this.fieldStyles()}
 
       :host { display: block; }
@@ -246,7 +249,7 @@ export class NXCheckbox extends NXField {
       }
 
       .switch input:checked + .indicator .thumb {
-        transform: translateX(1rem);
+        transform: translateX(calc(1rem * var(--nx-dir)));
       }
 
       .text {

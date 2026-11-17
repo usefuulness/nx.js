@@ -34,10 +34,13 @@ export type { ComponentConfig as BaseComponentConfig } from '@/components/abstra
 export { ComponentRegistry, define } from '@/core/registry';
 export type { ComponentConfig, ItemConfig, ItemsAware } from '@/core/registry';
 export { ThemeManager } from '@/core/theme';
+export { i18n } from '@/core/i18n';
+export { DIRECTION_CSS, MIRROR_CSS, inlineStep, isRtl } from '@/core/dom-utils';
+export type { Message, Messages } from '@/core/i18n';
 export type { ThemeConfig, ThemeColors } from '@/core/theme';
 export { Icons, icon } from '@/core/icons';
-export { Router } from '@/core/router';
-export type { Route, RouteConfig, RouterConfig } from '@/core/router';
+export { Router, routeDataScript } from '@/core/router';
+export type { LoaderContext, Route, RouteConfig, RouterConfig } from '@/core/router';
 
 // Data
 export { Store, createStore } from '@/data/store';
@@ -55,6 +58,10 @@ export { NXViewport, NXRegion } from '@/layout/viewport';
 export { NXAccordion, NXAccordionItem } from '@/components/ui/accordion';
 export type { AccordionConfig, AccordionItem as AccordionItemConfig } from '@/components/ui/accordion';
 export { NXBreadcrumb } from '@/components/ui/breadcrumb';
+export { NXSplitter } from '@/layout/splitter';
+export type { SplitterConfig } from '@/layout/splitter';
+export { NXPagination, pageItems } from '@/components/ui/pagination';
+export type { PaginationConfig } from '@/components/ui/pagination';
 export { NXBadge } from '@/components/ui/badge';
 export type { BadgeConfig } from '@/components/ui/badge';
 export { NXButton } from '@/components/ui/button';
@@ -105,6 +112,10 @@ export type { RadioGroupConfig, RadioOption } from '@/components/ui/form/radio';
 export { NXCombobox } from '@/components/ui/form/combobox';
 export type { ComboboxConfig } from '@/components/ui/form/combobox';
 export { NXSlider } from '@/components/ui/form/slider';
+export { NXTagInput } from '@/components/ui/form/taginput';
+export type { TagInputConfig } from '@/components/ui/form/taginput';
+export { NXFileUpload, acceptsFile, parseSize } from '@/components/ui/form/fileupload';
+export type { FileUploadConfig } from '@/components/ui/form/fileupload';
 export type { SliderConfig } from '@/components/ui/form/slider';
 export { NXDatePicker, parseISODate } from '@/components/ui/form/datepicker';
 export type { DatePickerConfig } from '@/components/ui/form/datepicker';

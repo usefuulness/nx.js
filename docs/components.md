@@ -26,13 +26,15 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-dialog>`](#nx-dialog) | `Dialog` | `<nx-dialog>`: the HTML name matching `<Dialog>` in JSX. |
 | [`<nx-divider>`](#nx-divider) | `Divider` | Horizontal rule, optionally with a label. |
 | [`<nx-drawer>`](#nx-drawer) | `Drawer` | Slide-in panel (a "sheet"), built on the native `<dialog>` element: focus trap, Escape, top layer and inert background come from the browser. |
+| [`<nx-file-upload>`](#nx-file-upload) | `FileUpload` | File upload: a drop zone and a file list that behave like a form field. The zone is a real file input underneath, so keyboard, screen readers and native pickers work, and a plain `<form>` posts the files. Files are checked against `accept`, `max-size` and `max-files`; rejected ones are announced and reported in the `reject` event. |
 | [`<nx-form>`](#nx-form) | `Form` | Form container: collects values from named fields, validates, and fires `submit`. Works with nx fields and plain `<input>`/`<select>`/`<textarea>` elements. |
-| [`<nx-grid>`](#nx-grid) | `DataGrid` | Data grid: sorting, search, selection, paging, store binding. |
+| [`<nx-grid>`](#nx-grid) | `DataGrid` | Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, tree rows, store binding. |
 | [`<nx-input>`](#nx-input) | `Input` | `<nx-input>`: the HTML name matching `<Input>` in JSX. |
 | [`<nx-loader>`](#nx-loader) | — | Loading indicator, optionally covering its container or the whole page. |
 | [`<nx-menu>`](#nx-menu) | `Menu` | A trigger button with a dropdown menu. |
 | [`<nx-menubar>`](#nx-menubar) | `MenuBar` | Application menu bar (File / Edit / View …). Once a menu is open, hovering or arrowing to a neighbour switches menus, like a desktop app. |
 | [`<nx-modal>`](#nx-modal) | — | Modal dialog built on the native `<dialog>` element (focus trap, Escape, top layer and inert background for free). |
+| [`<nx-pagination>`](#nx-pagination) | `Pagination` | Page navigation: previous, numbered pages with gaps, next, and optionally a range label and a page-size selector. It only tracks the page; you load that page's data. |
 | [`<nx-panel>`](#nx-panel) | `Panel` | General-purpose container with an optional header. Inside a viewport, set `region` to dock it (`north`, `west`, `center`, ...). |
 | [`<nx-popover>`](#nx-popover) | `Popover` | Popover: a panel of rich content anchored to a trigger. Click the trigger to toggle; Escape, clicking outside or opening another popover closes it. |
 | [`<nx-progress>`](#nx-progress) | `Progress` | Progress bar. |
@@ -43,10 +45,12 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-slider>`](#nx-slider) | `Slider` | Slider: pick a number in a range. A native range input underneath, so arrow keys, Page Up/Down, Home/End, touch and form posting all work. |
 | [`<nx-spacer>`](#nx-spacer) | `Spacer` | Flexible space. In a toolbar or hbox, pushes following items to the end. Shorthand in items arrays: `'->'`. |
 | [`<nx-spinner>`](#nx-spinner) | `Spinner` | Loading spinner. |
+| [`<nx-splitter>`](#nx-splitter) | `Splitter` | Resizable panes: put two or more elements inside, and a draggable divider appears between each pair. A pane's starting share comes from its `size` attribute (any number: shares are relative) and its smallest size, in pixels, from `min-size` (default 48). |
 | [`<nx-switch>`](#nx-switch) | `Switch` | `<nx-switch>`: a toggle switch, like `<Switch>` in JSX. |
 | [`<nx-tab>`](#nx-tab) | `Tab` | A tab inside `<nx-tabpanel>`: `<nx-tab title="Account" icon="user" closable>…</nx-tab>`. |
 | [`<nx-tabpanel>`](#nx-tabpanel) | — | Tabs. Each item is a tab: `title`/`icon`/`closable`/`disabled` configure the tab button, everything else (`xtype`, `items`, `html`) is the tab's content. |
 | [`<nx-tabs>`](#nx-tabs) | `Tabs` | `<nx-tabs>`: the HTML name matching `<Tabs>` in JSX. |
+| [`<nx-tag-input>`](#nx-tag-input) | `TagInput` | Tag input: type a value and press **Enter** (or a separator such as a comma) to turn it into a removable chip. Paste splits on separators and newlines. **Backspace** in the empty box removes the last tag. Tags can also be removed with their × buttons. Additions and removals are announced. |
 | [`<nx-textarea>`](#nx-textarea) | `Textarea` | `<nx-textarea>`: a multi-line text field, like `<Textarea>` in JSX. |
 | [`<nx-textfield>`](#nx-textfield) | — | Text input (also: `xtype: 'textarea'`, `'numberfield'`, `'datefield'`, `'password'`, `'email'`). |
 | [`<nx-toast>`](#nx-toast) | — | Toast notifications: short messages that stack in a corner and dismiss themselves. Created on demand by the helpers, so you rarely write the tag: |
@@ -235,12 +239,12 @@ Flex/grid layout box. Children are regular light-DOM elements.
 
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
-| `align` | `align` | `start` `center` `end` `stretch` `baseline` | Cross-axis alignment of the children |
+| `align` | `align` | `start` `end` `center` `stretch` `baseline` | Cross-axis alignment of the children |
 | `columns` | `columns` | `number` | grid layout: fixed column count |
 | `gap` | `gap` | `string \| number` | Space between children (px number or CSS length) |
 | `layout` | `layout` | `vbox` `hbox` `grid` `fit` | `hbox` (row), `vbox` (column), `grid`, or `fit` (one child fills it) |
 | `min-column-width` | `minColumnWidth` | `string \| number` | grid layout: responsive columns of at least this width |
-| `pack` | `pack` | `start` `center` `end` `between` `around` `evenly` | Main-axis distribution of the children |
+| `pack` | `pack` | `start` `end` `center` `between` `around` `evenly` | Main-axis distribution of the children |
 | `padding` | `padding` | `string \| number` | Inner padding (px number or CSS length) |
 | `scrollable` | `scrollable` | `boolean` | Scroll when the content overflows |
 | `wrap` | `wrap` | `boolean` | Let children wrap onto new lines |
@@ -255,15 +259,27 @@ Flex/grid layout box. Children are regular light-DOM elements.
 | --- | --- | --- | --- |
 | `bordered` | `bordered` | `boolean` | Borders between cells |
 | `checkbox-selection` | `checkboxSelection` | `boolean` | A checkbox column for selecting rows |
+| `children-field` | `childrenField` | `string` | The row field holding child rows (default `children`) |
 | `dense` | `dense` | `boolean` | Compact rows |
 | `empty-text` | `emptyText` | `string` | Shown when there are no rows |
+| `group-by` | `groupBy` | `string` | Group rows by this field: a header per group that collapses (Enter or Space on its button), with the column `summary` totals after each group. With `pageSize`, groups are made per page. Not available with a `buffered` store. |
+| `group-collapsed` | `groupCollapsed` | `boolean` | Start with every group collapsed |
+| `height` | `height` | `string \| number` | Height of the scrolling body, as a CSS size or px number (a `virtual` grid defaults to 24rem) |
 | `hoverable` | `hoverable` | `boolean` | Highlight the row under the pointer |
 | `page-size` | `pageSize` | `number` | Rows per page; omit for no paging |
+| `reorderable` | `reorderable` | `boolean` | Reorder columns by dragging headers, or with Alt+Left/Right on a focused header |
+| `resizable` | `resizable` | `boolean` | Drag a header's right edge to resize (also focusable: Left/Right arrows, Shift for bigger steps, Enter or double-click resets) |
+| `row-height` | `rowHeight` | `number` | Row height in px for a `virtual` grid (default 48, or 36 when `dense`) |
 | `search` | `search` | `boolean` | Show a search box that filters across all visible columns |
 | `selectable` | `selectable` | `boolean \| 'single' \| 'multiple'` | Row selection: `true` or `'single'` for one row, `'multiple'` for several |
+| `state-key` | `stateKey` | `string` | Remember column widths and order in localStorage under this key |
 | `store` | `store` |  | …or a Store instance / registered store name |
 | `striped` | `striped` | `boolean` | Alternate row shading |
 | `title` | `title` | `string` | Toolbar heading |
+| `tree` | `tree` | `boolean` | Show rows that have `children` (a field of the row) as a tree: the first column gets an expander and indentation, the Right and Left arrow keys open and close nodes, and sorting and search apply within and across levels (a match keeps its ancestors). Ignores `pageSize` and `groupBy`. |
+| `tree-column` | `treeColumn` | `string` | The column that holds the expander (default: the first) |
+| `tree-expanded` | `treeExpanded` | `boolean` | Start with every node expanded |
+| `virtual` | `virtual` | `boolean` | Render only the rows in view, so tens of thousands of rows stay fast. Rows must be a fixed height (`rowHeight`), the body scrolls (`height`), and paging is ignored. |
 
 ## nx-datepicker
 
@@ -332,11 +348,32 @@ Slide-in panel (a "sheet"), built on the native `<dialog>` element: focus trap, 
 | `description` | `description` | `string` | Text under the heading |
 | `open` | `open` | `boolean` | Initially open |
 | `persistent` | `persistent` | `boolean` | Can't be dismissed by the user (no ×, Escape or backdrop) |
-| `position` | `position` | `left` `right` `top` `bottom` | Edge the drawer slides in from |
+| `position` | `position` | `left` `right` `top` `bottom` `start` `end` | `start` and `end` follow the reading direction (right and left in right-to-left layouts); `left` and `right` are fixed |
 | `size` | `size` | `string \| number` | Width (left/right) or height (top/bottom): CSS length or px number. Default 24rem |
 | `title` | `title` | `string` | Drawer heading |
 
 **Events:** `open`, `close`
+
+## nx-file-upload
+
+`<nx-file-upload>` · JSX: `<FileUpload>` · [source](../src/components/ui/form/fileupload.tsx)
+
+File upload: a drop zone and a file list that behave like a form field. The zone is a real file input underneath, so keyboard, screen readers and native pickers work, and a plain `<form>` posts the files. Files are checked against `accept`, `max-size` and `max-files`; rejected ones are announced and reported in the `reject` event.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `accept` | `accept` | `string` | Accepted types, like the native attribute: `".pdf,.docx"`, `"image/*"`, `"image/png,image/jpeg"` |
+| `disabled` | `disabled` | `boolean` | Not interactive (fields are also left out when a form posts) |
+| `error-text` | `errorText` | `string` | Error shown under the field (for example from the server); marks it invalid |
+| `helper-text` | `helperText` | `string` | Hint shown under the field |
+| `label` | `label` | `string` | Label shown with the field |
+| `max-files` | `maxFiles` | `number` | Most files (with `multiple`) |
+| `max-size` | `maxSize` | `string \| number` | Largest file: bytes, or text such as `"5MB"`, `"500 KB"` |
+| `multiple` | `multiple` | `boolean` | Allow more than one file |
+| `name` | `name` | `string` | Field name: the key in form values, and the name it posts under |
+| `required` | `required` | `boolean` | A value is required before the form can submit |
+
+**Events:** `change`, `reject`
 
 ## nx-form
 
@@ -349,6 +386,7 @@ Form container: collects values from named fields, validates, and fires `submit`
 | `action` | `action` | `string` | Post to the server like a native form (after validation, unless `submit` is prevented) |
 | `columns` | `columns` | `number` | Lay fields out in N columns |
 | `enctype` | `enctype` | `application/x-www-form-urlencoded` `multipart/form-data` `text/plain` | Encoding used with `action` (`multipart/form-data` for file uploads) |
+| `enhance` | `enhance` | `boolean` | Post with `fetch` instead of navigating: the page stays put, the form is busy meanwhile, and a JSON error response is shown on the fields it names (see the `error` event). Still posts natively when JavaScript is off or hasn't loaded. |
 | `gap` | `gap` | `string \| number` | Space between fields (px number or CSS length) |
 | `method` | `method` | `get` `post` `dialog` | HTTP method used with `action` |
 | `target` | `target` | `string` | Where the response of `action` opens |
@@ -359,23 +397,35 @@ Form container: collects values from named fields, validates, and fires `submit`
 
 `<nx-grid>` · JSX: `<DataGrid>` · [source](../src/data/grid.tsx)
 
-Data grid: sorting, search, selection, paging, store binding.
+Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, tree rows, store binding.
 
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
 | `bordered` | `bordered` | `boolean` | Borders between cells |
 | `checkbox-selection` | `checkboxSelection` | `boolean` | A checkbox column for selecting rows |
+| `children-field` | `childrenField` | `string` | The row field holding child rows (default `children`) |
 | `dense` | `dense` | `boolean` | Compact rows |
 | `empty-text` | `emptyText` | `string` | Shown when there are no rows |
+| `group-by` | `groupBy` | `string` | Group rows by this field: a header per group that collapses (Enter or Space on its button), with the column `summary` totals after each group. With `pageSize`, groups are made per page. Not available with a `buffered` store. |
+| `group-collapsed` | `groupCollapsed` | `boolean` | Start with every group collapsed |
+| `height` | `height` | `string \| number` | Height of the scrolling body, as a CSS size or px number (a `virtual` grid defaults to 24rem) |
 | `hoverable` | `hoverable` | `boolean` | Highlight the row under the pointer |
 | `page-size` | `pageSize` | `number` | Rows per page; omit for no paging |
+| `reorderable` | `reorderable` | `boolean` | Reorder columns by dragging headers, or with Alt+Left/Right on a focused header |
+| `resizable` | `resizable` | `boolean` | Drag a header's right edge to resize (also focusable: Left/Right arrows, Shift for bigger steps, Enter or double-click resets) |
+| `row-height` | `rowHeight` | `number` | Row height in px for a `virtual` grid (default 48, or 36 when `dense`) |
 | `search` | `search` | `boolean` | Show a search box that filters across all visible columns |
 | `selectable` | `selectable` | `boolean \| 'single' \| 'multiple'` | Row selection: `true` or `'single'` for one row, `'multiple'` for several |
+| `state-key` | `stateKey` | `string` | Remember column widths and order in localStorage under this key |
 | `store` | `store` |  | …or a Store instance / registered store name |
 | `striped` | `striped` | `boolean` | Alternate row shading |
 | `title` | `title` | `string` | Toolbar heading |
+| `tree` | `tree` | `boolean` | Show rows that have `children` (a field of the row) as a tree: the first column gets an expander and indentation, the Right and Left arrow keys open and close nodes, and sorting and search apply within and across levels (a match keeps its ancestors). Ignores `pageSize` and `groupBy`. |
+| `tree-column` | `treeColumn` | `string` | The column that holds the expander (default: the first) |
+| `tree-expanded` | `treeExpanded` | `boolean` | Start with every node expanded |
+| `virtual` | `virtual` | `boolean` | Render only the rows in view, so tens of thousands of rows stay fast. Rows must be a fixed height (`rowHeight`), the body scrolls (`height`), and paging is ignored. |
 
-**Events:** `row-click`, `row-dblclick`, `selection-change`, `sort-change`
+**Events:** `row-click`, `row-dblclick`, `selection-change`, `sort-change`, `column-change`, `cell-change`, `group-toggle`, `node-toggle`
 
 ## nx-input
 
@@ -467,6 +517,27 @@ Modal dialog built on the native `<dialog>` element (focus trap, Escape, top lay
 | `title` | `title` | `string` | Dialog heading |
 
 **Events:** `open`, `close`
+
+## nx-pagination
+
+`<nx-pagination>` · JSX: `<Pagination>` · [source](../src/components/ui/pagination.tsx)
+
+Page navigation: previous, numbered pages with gaps, next, and optionally a range label and a page-size selector. It only tracks the page; you load that page's data.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `boundary` | `boundary` | `number` | Page buttons always shown at each end (default 1) |
+| `compact` | `compact` | `boolean` | Only previous, "Page 3 of 25" and next: for narrow spaces |
+| `disabled` | `disabled` | `boolean` |  |
+| `label` | `label` | `string` | Accessible name of the navigation (default "Pagination") |
+| `page` | `page` | `number` | Current page, starting at 1; kept in the attribute, so server HTML carries it |
+| `page-size` | `pageSize` | `number` | Items per page (default 10) |
+| `show-total` | `showTotal` | `boolean` | Show "1–10 of 250" |
+| `siblings` | `siblings` | `number` | Page buttons shown each side of the current page (default 1) |
+| `sizes` | `sizes` |  | Page sizes to offer in a selector, comma separated in HTML (`"10,25,50"`) |
+| `total` | `total` | `number` | Total number of items |
+
+**Events:** `page-change`, `page-size-change`
 
 ## nx-panel
 
@@ -627,6 +698,19 @@ Loading spinner.
 | `text` | `text` | `string` | Visible caption under the spinner |
 | `thickness` | `thickness` | `number` | Stroke width (viewBox units, default 4) |
 
+## nx-splitter
+
+`<nx-splitter>` · JSX: `<Splitter>` · [source](../src/layout/splitter.tsx)
+
+Resizable panes: put two or more elements inside, and a draggable divider appears between each pair. A pane's starting share comes from its `size` attribute (any number: shares are relative) and its smallest size, in pixels, from `min-size` (default 48).
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `orientation` | `orientation` | `vertical` `horizontal` | `horizontal` puts panes side by side (default); `vertical` stacks them |
+| `state-key` | `stateKey` | `string` | Remember the sizes in localStorage under this key |
+
+**Events:** `resize`
+
 ## nx-switch
 
 `<nx-switch>` · JSX: `<Switch>` · [source](../src/components/ui/form/checkbox.tsx)
@@ -685,6 +769,31 @@ Tabs. Each item is a tab: `title`/`icon`/`closable`/`disabled` configure the tab
 | `active-tab` | `activeTab` | `number` | Index of the selected tab |
 | `position` | `position` | `left` `right` `top` `bottom` | Side the tab strip sits on |
 | `variant` | `variant` | `default` `pills` `underlined` | Tab strip style |
+
+## nx-tag-input
+
+`<nx-tag-input>` · JSX: `<TagInput>` · [source](../src/components/ui/form/taginput.tsx)
+
+Tag input: type a value and press **Enter** (or a separator such as a comma) to turn it into a removable chip. Paste splits on separators and newlines. **Backspace** in the empty box removes the last tag. Tags can also be removed with their × buttons. Additions and removals are announced.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `add-on-blur` | `addOnBlur` | `boolean` | Turn text typed but not confirmed into a tag when the field loses focus (default true) |
+| `allow-duplicates` | `allowDuplicates` | `boolean` | Allow the same tag twice (default false; comparison ignores case) |
+| `disabled` | `disabled` | `boolean` | Not interactive (fields are also left out when a form posts) |
+| `error-text` | `errorText` | `string` | Error shown under the field (for example from the server); marks it invalid |
+| `helper-text` | `helperText` | `string` | Hint shown under the field |
+| `label` | `label` | `string` | Label shown with the field |
+| `max` | `max` | `number` | Most tags |
+| `min` | `min` | `number` | Fewest tags before the field is valid |
+| `name` | `name` | `string` | Field name: the key in form values, and the name it posts under |
+| `placeholder` | `placeholder` | `string` |  |
+| `required` | `required` | `boolean` | A value is required before the form can submit |
+| `separators` | `separators` | `string` | Characters that end a tag as you type or paste (default `,`); Enter always does |
+| `suggestions` | `suggestions` |  | Suggestions offered by the browser while typing (a native datalist) |
+| `value` | `value` |  | The tags (an array; in HTML a comma separated string) |
+
+**Events:** `change`, `reject`, `duplicate`, `max`, `invalid`
 
 ## nx-textarea
 
@@ -760,7 +869,7 @@ Toast notifications: short messages that stack in a corner and dismiss themselve
 
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
-| `position` | `position` |  | Where toasts stack: `top-left`, `top-center`, `top-right`, `bottom-left`, `bottom-center` or `bottom-right` (default) |
+| `position` | `position` |  | Where toasts stack: `top-left`, `top-center`, `top-right`, `bottom-left`, `bottom-center` or `bottom-right` (default); `start` and `end` in place of `left` and `right` (`top-end`) follow the reading direction |
 
 ## nx-toolbar
 

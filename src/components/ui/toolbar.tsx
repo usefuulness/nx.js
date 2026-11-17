@@ -5,6 +5,7 @@
 import { FIELD_TAGS } from '@/components/ui/form/field';
 import { BaseComponent } from '@/components/abstracts/base';
 import { ComponentRegistry, define, type ItemConfig, type ItemsAware } from '@/core/registry';
+import { inlineStep } from '@/core/dom-utils';
 
 export interface ToolbarConfig {
   items?: ItemConfig[];
@@ -135,7 +136,7 @@ export class NXToolbar extends BaseComponent implements ItemsAware {
       if (index < 0) return;
 
       keyEvent.preventDefault();
-      const next = keyEvent.key === 'ArrowRight'
+      const next = inlineStep(keyEvent.key, this) === 1
         ? focusable[(index + 1) % focusable.length]
         : focusable[(index - 1 + focusable.length) % focusable.length];
       next.focus();

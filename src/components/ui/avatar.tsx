@@ -117,7 +117,7 @@ export class NXAvatar extends BaseComponent {
 
       .status {
         position: absolute;
-        right: 0;
+        inset-inline-end: 0;
         bottom: 0;
         width: 28%;
         height: 28%;

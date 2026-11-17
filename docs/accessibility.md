@@ -23,6 +23,10 @@ Every component is built to work with a keyboard and a screen reader, in every t
 
 | Component | Keys |
 | --- | --- |
+| Pagination | every control is a native button (**Tab**, **Enter**, **Space**); the current page has `aria-current="page"` and keeps focus when the buttons are redrawn |
+| Splitter | each divider is a focusable `separator` with `aria-valuenow`/`min`/`max`/`controls`: **←** **→** (vertical: **↑** **↓**) move it 2%, **Shift** 10%; **Home** **End** collapse or grow the pane before it; **Enter** collapses or restores it |
+| Tag input | **Enter** or a separator adds the typed text, **Backspace** in the empty box removes the last tag, chips have × buttons; additions, removals and refusals are announced (`role="status"`) |
+| File upload | the drop zone is a real file input: **Tab** to it, **Enter** or **Space** opens the picker; each file has a **Remove** button, and refused files are announced (`role="status"`) |
 | Dialog, Drawer | **Tab** stays inside; **Escape** closes (unless `close-on-escape="false"`) |
 | Menu, dropdown button | **↑ ↓** move · **Home End** first/last · **→** opens a submenu, **←** closes it · **Enter Space** choose · **Escape Tab** close · letters jump (type-ahead) |
 | MenuBar | **← →** move between menus · **↓ Enter Space** open |
@@ -35,8 +39,10 @@ Every component is built to work with a keyboard and a screen reader, in every t
 | Command palette | type to filter · **↑ ↓** move · **Home End** first/last · **Enter** run · **Escape** close |
 | Popover | **Enter Space** on the trigger toggles · focus moves into the panel · **Escape** or a click outside closes and returns focus |
 | Tooltip | appears on keyboard focus as well as hover · **Escape** hides |
-| Data grid | sortable headers are buttons (**Enter Space** sort) · selection checkboxes and paging buttons are native |
+| Data grid | sortable headers are buttons (**Enter Space** sort) · selection checkboxes and paging buttons are native · resize handles are focusable separators (**←** **→**, **Shift** for bigger steps, **Enter** resets) · **Alt+←** **Alt+→** on a header moves the column · with editable columns it is an ARIA grid: **←** **→** **↑** **↓** **Home** **End** **Ctrl+Home** **Ctrl+End** **PageUp** **PageDown** move between cells, **Enter** **F2** edit, **Escape** cancels, **Tab** saves and moves on, **Space** toggles a boolean · group headers are buttons (**Enter** **Space**) with `aria-expanded`, and arrow keys skip them · a tree grid is an ARIA `treegrid`: **→** opens a node, **←** closes it or climbs to the parent |
 | Radio group, Slider, Checkbox, Switch, Select | the browser's native keys (arrows, Space, Home/End, Page Up/Down) |
+
+In a right-to-left layout (`dir="rtl"`) **←** and **→** follow the reading direction: **←** is "next" in tabs, menubars, toolbars and calendars, and opens submenus and tree nodes, while **→** goes back, closes or climbs to the parent. See [Internationalization](internationalization.md#right-to-left).
 
 ## Testing a new component
 

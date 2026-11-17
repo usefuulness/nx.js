@@ -70,12 +70,38 @@ Server apps (Laravel, Django, Rails, Symfony…) write the tags in their templat
 | Import | What it is |
 | --- | --- |
 | `nx.js` | Every component, the `NX` facade, the JSX components and `hydrate()` |
+| `nx.js/components/<name>` | One component and what it needs, e.g. `nx.js/components/badge` (see below) |
+| `nx.js/locales/<code>` | A translation of the built-in strings (`es`, `fr`, `de`, `ar`); see [Internationalization](internationalization.md) |
 | `nx.js/jsx-runtime` | The JSX runtime (used by your compiler via `jsxImportSource`) |
 | `nx.js/ssr` | Server rendering in Node: `renderToString`, `renderHTML`, `renderDocument`, the proxy |
 | `nx.js/ssr/register` | Installs the server DOM; for `node --import nx.js/ssr/register` |
 | `nx.js/nx.css` | The full stylesheet (every theme), for pages that link CSS instead of injecting it |
 | `nx.js/umd` | `dist/nx.umd.js`, the `<script>` build (global `NX`) |
 | `nx.js/custom-elements.json`, `nx.js/html-custom-data.json` | Editor autocompletion data (see [JSX, configs and HTML](jsx-and-html.md#editor-support)) |
+
+### Import only what you use
+
+`import 'nx.js'` registers every component. A page that needs a few can import them one by one; each entry registers its elements (a side effect, so it is imported for its effect or its exports) and shares one runtime with the others:
+
+```ts
+import 'nx.js/components/badge';        // <nx-badge>
+import 'nx.js/components/form';         // <nx-form>
+import 'nx.js/components/textfield';    // <nx-textfield>, <nx-input>, <nx-textarea>
+import { NXGrid } from 'nx.js/components/grid';   // <nx-grid>, plus the class if you want it
+```
+
+Measured with everything minified and gzipped, including the runtime each one needs:
+
+| Import | gzip |
+| --- | --- |
+| `components/badge` | 13.6 kB |
+| `components/button` | 20.2 kB |
+| `components/tabpanel` | 15.9 kB |
+| `components/form` | 17.4 kB |
+| `components/grid` (virtual, editable, buffered) | 28.0 kB |
+| the `<script>` build, everything | 69.6 kB |
+
+The name is the file name under `src/components/ui`, `src/components/ui/form`, `src/layout` or `src/data` (`select`, `checkbox`, `datepicker`, `panel`, `container`, `viewport`…). Some files register several related tags: `textfield` gives `<nx-input>` and `<nx-textarea>` too, `tabpanel` gives `<nx-tabs>` and `<nx-tab>`. On the server, import `nx.js/ssr` first, as always.
 
 ## Next
 

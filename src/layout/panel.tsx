@@ -6,6 +6,7 @@ import { BaseComponent, ComponentState } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { variants } from '@/core/variants';
+import { MIRROR_CSS } from '@/core/dom-utils';
 
 const panel = variants({
   base: 'nx-panel',
@@ -120,11 +121,11 @@ export class NXPanel extends BaseComponent {
             <div class="nx-panel-tools" part="tools">
               <slot name="tools" />
               {collapsible && (
-                <button class="nx-panel-tool" part="toggle" aria-label={`${collapsed ? 'Expand' : 'Collapse'} panel`}
+                <button class="nx-panel-tool mirror" part="toggle" aria-label={this.t(collapsed ? 'panel.expand' : 'panel.collapse')}
                         aria-expanded={String(!collapsed)} html={Icons.get(toggleIcon)} onClick={() => this.toggle()} />
               )}
               {closable && (
-                <button class="nx-panel-tool" part="close" aria-label="Close panel" html={Icons.get('close')} onClick={() => this.close()} />
+                <button class="nx-panel-tool" part="close" aria-label={this.t('panel.close')} html={Icons.get('close')} onClick={() => this.close()} />
               )}
             </div>
           </div>
@@ -152,6 +153,8 @@ export class NXPanel extends BaseComponent {
     const bodyPadding = padding === true ? '1rem' : padding === false ? '0' : size(padding);
 
     return `
+      ${MIRROR_CSS}
+
       :host {
         display: flex;
         flex-direction: column;
@@ -178,8 +181,8 @@ export class NXPanel extends BaseComponent {
 
       .region-north.bordered { border-bottom: 1px solid var(--color-border); }
       .region-south.bordered { border-top: 1px solid var(--color-border); }
-      .region-west.bordered { border-right: 1px solid var(--color-border); }
-      .region-east.bordered { border-left: 1px solid var(--color-border); }
+      .region-west.bordered { border-inline-end: 1px solid var(--color-border); }
+      .region-east.bordered { border-inline-start: 1px solid var(--color-border); }
       .region-center { background: var(--color-background); }
 
       /* Header */
@@ -188,7 +191,7 @@ export class NXPanel extends BaseComponent {
         align-items: center;
         gap: 0.5rem;
         min-height: 3rem;
-        padding: 0 0.5rem 0 1rem;
+        padding-inline: 1rem 0.5rem;
         border-bottom: 1px solid var(--color-border);
         flex-shrink: 0;
       }
@@ -280,8 +283,8 @@ export class NXPanel extends BaseComponent {
         cursor: ew-resize;
       }
 
-      .region-east .nx-panel-resize-handle { left: -2px; }
-      .region-west .nx-panel-resize-handle { right: -2px; }
+      .region-east .nx-panel-resize-handle { inset-inline-start: -2px; }
+      .region-west .nx-panel-resize-handle { inset-inline-end: -2px; }
 
       .region-north .nx-panel-resize-handle,
       .region-south .nx-panel-resize-handle {

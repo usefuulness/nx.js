@@ -5,6 +5,7 @@
 import { BaseComponent } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
+import { MIRROR_CSS } from '@/core/dom-utils';
 
 export interface BreadcrumbItem {
   text: string;
@@ -54,11 +55,11 @@ export class NXBreadcrumb extends BaseComponent {
 
   protected render(): Node {
     const separator = this.getProp<string>('separator', 'chevron-right');
-    const sep = Icons.has(separator) ? <span class="sep" part="separator" aria-hidden="true" html={Icons.get(separator)} />
+    const sep = Icons.has(separator) ? <span class="sep mirror" part="separator" aria-hidden="true" html={Icons.get(separator)} />
       : <span class="sep" part="separator" aria-hidden="true">{separator}</span>;
 
     return (
-      <nav part="container" aria-label="Breadcrumb">
+      <nav part="container" aria-label={this.t('breadcrumb.label')}>
         <ol part="list">
           {this.items.map((item, i) => {
             const last = i === this.items.length - 1;
@@ -79,6 +80,8 @@ export class NXBreadcrumb extends BaseComponent {
 
   protected styles(): string {
     return `
+      ${MIRROR_CSS}
+
       :host { display: block; font-size: 0.875rem; }
 
       ol {

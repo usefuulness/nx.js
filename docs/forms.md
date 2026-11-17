@@ -15,6 +15,8 @@ Nexaro's fields are **form-associated custom elements**. They behave like native
 | `RadioGroup` | `nx-radio-group` | `radio`, `radiogroup` | one of a few options; `variant="cards"` for plan pickers |
 | `Slider` | `nx-slider` | `slider`, `range` | a number in a range |
 | `DatePicker` | `nx-datepicker` | `datepicker`, `date` | a calendar; the value is `YYYY-MM-DD` |
+| `TagInput` | `nx-tag-input` | `tag-input`, `taginput`, `tags` | a list of short values as removable chips; the value is an array of strings |
+| `FileUpload` | `nx-file-upload` | `file-upload`, `fileupload` | a drop zone and file list; the value is an array of `File`s |
 
 Every field takes `name`, `label`, `helperText`, `errorText`, `required`, `disabled` and `validator`, plus its own attributes; see the [component reference](components.md).
 
@@ -81,6 +83,58 @@ The browser blocks the post while a field is invalid and shows that field's erro
 ```twig
 <nx-input name="email" label="Email" value="{{ old.email }}" error-text="{{ errors.email }}"></nx-input>
 ```
+
+### Without leaving the page: `enhance`
+
+Add `enhance` and the same form posts with `fetch` instead of navigating. The markup is unchanged, so with JavaScript off (or not loaded yet) it still posts natively:
+
+```html
+<nx-form action="/signup" method="post" enhance>
+  <nx-input name="email" type="email" label="Email" required></nx-input>
+  <nx-button slot="buttons" type="submit">Sign up</nx-button>
+</nx-form>
+```
+
+- Validation, the cancelable `submit` event and a submit button's `formaction`/`formmethod` work as before. The request carries `Accept: application/json` and `X-Requested-With: nx-form`, so a server can tell it apart from a normal post. Bodies are urlencoded, or multipart when the form has files or `enctype="multipart/form-data"`; `method="get"` sends a query string.
+- While it waits, the form is `aria-busy`, its submit buttons are disabled and a second submit is ignored. `form.abort()` cancels the request quietly.
+- **Success** (2xx) fires `success` (`detail: { response, status, data }`, cancelable). Like a native post, a response that was redirected then moves the page to its URL unless you `preventDefault()`.
+- **Validation errors** (any other status) put messages on the fields they name and focus the first one. The server replies with JSON in either shape:
+
+  ```json
+  { "errors": { "email": "That email is already registered", "name": ["Too short", "Use a full name"] } }
+  { "errors": [{ "field": "email", "message": "That email is already registered" }] }
+  ```
+
+  An error is cleared when the user changes that field. A `message`, or an error named `_form`, shows above the fields as an alert, and so does a generic message when the server fails without naming a field. A network failure does the same. All of these fire `error` (`detail: { status, errors, data }`; `status` is 0 for a network failure).
+- Only send what the visitor may see. Error text is rendered as text, never as HTML.
+
+### Tag input
+
+```html
+<nx-tag-input name="topics" label="Topics" value="css,html" max="5" suggestions="css,html,js,a11y" required></nx-tag-input>
+```
+
+- **Enter** or a separator (a comma, or the characters in `separators`) turns the typed text into a tag; **Backspace** in the empty box removes the last tag; each chip has a × button. Pasting a list splits it on separators and line breaks. Text left in the box when the field loses focus becomes a tag unless `add-on-blur="false"`.
+- A tag is refused, with the reason under the field and in the `reject` event (`reason`: `duplicate` (ignoring case, unless `allow-duplicates`), `max` or `invalid`), when it repeats, would go over `max`, or `validateTag(tag)` returns a message. `min` and `required` decide validity.
+- Additions and removals are announced to screen readers. `suggestions` fills a native datalist.
+- With JavaScript each tag posts as its own `name` entry (`topics=css&topics=html`). **Before JavaScript loads** the server-rendered page posts the tags as one comma-separated value (plus whatever was typed in the box), so a server should **split every value of `name` on commas**; that handles both.
+
+### File uploads
+
+`FileUpload` is a drop zone over a real file input, so keyboard, screen readers and native pickers work, and a plain form posts the files:
+
+```html
+<nx-form action="/upload" method="post" enctype="multipart/form-data" enhance>
+  <nx-file-upload name="docs" label="Documents" multiple accept=".pdf,image/*" max-size="5MB" max-files="3" required></nx-file-upload>
+  <nx-button slot="buttons" type="submit">Upload</nx-button>
+</nx-form>
+```
+
+- `accept` works like the native attribute (`.pdf`, `image/*`, `image/png`); `max-size` takes bytes or text (`"5MB"`, `"500 KB"`); `max-files` applies with `multiple`.
+- A file that breaks a rule is not added. The reason is shown under the field, announced to screen readers, and reported in the `reject` event (`detail.rejected`: `{ file, reason: 'type' | 'size' | 'count' }`). A single-file field swaps its file; a `multiple` one appends and skips exact repeats.
+- Each file has a **Remove** button; focus returns to the field. `field.files` is the array, `change` fires on every change, and `required` blocks submitting with none.
+- With `enhance` the form sends `multipart/form-data` over `fetch`, files included (see [`enhance`](#without-leaving-the-page-enhance)). Without JavaScript the server-rendered markup includes a native `<input type="file">` that posts normally. Files chosen before the upgrade are kept.
+- The check is in the browser: always validate type and size again on the server.
 
 ## Before JavaScript loads
 

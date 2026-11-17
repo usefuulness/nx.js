@@ -1,6 +1,7 @@
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
+import { inlineStep } from '@/core/dom-utils';
 
 export interface TreeNode {
   id?: string | number;
@@ -214,7 +215,7 @@ export class NXTree extends BaseComponent {
         align-items: center;
         gap: 0.375rem;
         height: 2rem;
-        padding-right: 0.5rem;
+        padding-inline-end: 0.5rem;
         color: var(--color-text-secondary);
         cursor: pointer;
         border-radius: var(--radius-sm);
@@ -253,6 +254,11 @@ export class NXTree extends BaseComponent {
 
       .nx-tree-toggle.expanded {
         transform: rotate(90deg);
+      }
+
+      /* A collapsed node points along the reading direction; an expanded one points down either way */
+      :host(:dir(rtl)) .nx-tree-toggle:not(.expanded) {
+        transform: scaleX(-1);
       }
 
       .nx-tree-checkbox {
@@ -354,21 +360,21 @@ export class NXTree extends BaseComponent {
         e.preventDefault();
         focus(all[index + 1]);
         break;
+      // Expand along the reading direction (Right in LTR, Left in RTL); the other key collapses or climbs
       case 'ArrowLeft':
+      case 'ArrowRight':
         e.preventDefault();
-        if (node?.children?.length && this.getState<Set<string>>('expandedNodes', new Set()).has(nodeId)) {
+        if (inlineStep(e.key, this) === 1) {
+          if (node?.children?.length) {
+            this[ComponentState].set('focusId', nodeId);
+            this.toggleNode(nodeId, true);
+          }
+        } else if (node?.children?.length && this.getState<Set<string>>('expandedNodes', new Set()).has(nodeId)) {
           this[ComponentState].set('focusId', nodeId);
           this.toggleNode(nodeId, false);
         } else {
           const parent = nodeEl.parentElement?.closest('.nx-tree-node');
           focus(parent?.querySelector(':scope > .nx-tree-node-content') as HTMLElement | undefined);
-        }
-        break;
-      case 'ArrowRight':
-        e.preventDefault();
-        if (node?.children?.length) {
-          this[ComponentState].set('focusId', nodeId);
-          this.toggleNode(nodeId, true);
         }
         break;
       case 'Home':

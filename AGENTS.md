@@ -17,6 +17,7 @@ The default branch is `LIVE`.
 | `pnpm test:e2e` | after **any UI change**: Playwright in Chromium, with the demo, server-rendered pages, native forms, and an axe WCAG 2.1 AA audit that must stay at **zero violations**. If Chromium lives somewhere non-standard, set `PLAYWRIGHT_CHROMIUM_PATH` |
 | `pnpm docs:reference` | after changing a component's attributes or JSDoc; regenerates `docs/components.md` (a unit test fails when it is stale) |
 | `pnpm build` | library into `dist/`: ESM, CJS, UMD, `.d.ts`, `nx.css`, editor data |
+| `pnpm size` | after `pnpm build`: gzip/brotli sizes against `scripts/size-budget.json`; CI fails when a file is over budget |
 | `pnpm dev` | the demo app (`src/main.tsx`) at http://localhost:5173 |
 | `pnpm example:ssg`, `example:server`, `example:showcase` | the examples in `examples/` |
 | `pnpm site` | the GitHub Pages site into `site-dist/` (showcase, docs as HTML, demo). CI deploys it on every push to `LIVE` |
@@ -55,10 +56,11 @@ Each of these has broken something before. The tests named catch most of them.
 9. **Server DOM quirks.** The server runs on happy-dom. It needs `:scope` support (v17 or later), and an `<option>`'s `selected` set before insertion isn't kept, so sync selection after render (`syncSelection()` in `select.tsx`).
 10. **Keyboard and ARIA claims must be true.** If docs or JSDoc say a key works, it must be implemented and tested. `docs/accessibility.md` lists every component's keys.
 11. **Docs come from the code.** A class's JSDoc (first paragraph, plus ``Events: `a`, `b` ``) and its `<Name>Config` prop docs feed `docs/components.md` and editor autocompletion. Keep them accurate, then run `pnpm docs:reference`.
+12. **`setX` methods are config setters.** `configure()` calls a component's `setX(value)` method for the config key `x`, so `{ page: 2 }` calls `setPage(2)` with every side effect it has (events, early returns). Name user-facing actions differently (`goTo()`, `changePageSize()`) and let config keys fall through to the attribute. `pagination.test.tsx` has the regression test.
 
 ## Adding or changing a component
 
-Follow [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-component). In short: copy `badge.tsx`; register it in `src/components/index.ts` and `src/index.ts`; add the JSX wrapper and tag types in `src/jsx/components.tsx`; write unit tests; show it in `src/main.tsx` (the a11y audit covers it there) and in `examples/ssg/pages.tsx` (the hydration audit covers it there); document it; run `pnpm docs:reference`, `pnpm check` and `pnpm test:e2e`.
+Follow [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-component). In short: copy `badge.tsx`; register it in `src/components/index.ts` and `src/index.ts`, and add `src/entries/<name>.ts` (the `nx.js/components/<name>` import; a test checks it); add the JSX wrapper and tag types in `src/jsx/components.tsx`; write unit tests; show it in `src/main.tsx` (the a11y audit covers it there) and in `examples/ssg/pages.tsx` (the hydration audit covers it there); document it; run `pnpm docs:reference`, `pnpm check` and `pnpm test:e2e`.
 
 ## Verifying UI work
 

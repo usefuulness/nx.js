@@ -70,6 +70,7 @@ Nexaro follows the shadcn approach: every component is a small, readable file yo
    ```
 
 2. **Register it:** import the file in `src/components/index.ts` and export the class and config type from `src/index.ts`.
+   Then add the per-component entry `src/entries/<name>.ts` (`export * from '@/components/ui/<name>';`), which publishes it as `nx.js/components/<name>`. A unit test fails when a component has no entry.
 3. **Add the JSX wrapper** in `src/jsx/components.tsx`:
 
    ```tsx
@@ -120,5 +121,7 @@ pnpm dev          # demo with HMR
 pnpm check        # typecheck + unit tests (run before every commit)
 pnpm test:e2e     # Playwright: demo, a11y, SSR/hydration, native forms
 pnpm build        # library → dist/
+pnpm bench        # time the grid at 1k to 1M rows → docs/performance.md
+pnpm size         # after a build: gzip/brotli sizes of the bundles and of each nx.js/components/* entry against scripts/size-budget.json (CI fails over budget)
 pnpm docs:reference   # regenerate docs/components.md
 ```

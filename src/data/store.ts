@@ -11,6 +11,14 @@ export interface StoreConfig<T = any> {
   pageSize?: number;
   remoteSort?: boolean;
   remoteFilter?: boolean;
+  /**
+   * Fetch rows in pages as they scroll into view instead of loading them all (for a `virtual`
+   * grid over data too big to hold). Needs a `proxy` that answers `start` and `limit` and reports
+   * the total; sorting and filtering always happen on the server. `pageSize` is the chunk size.
+   */
+  buffered?: boolean;
+  /** Pages kept in memory for a `buffered` store; the least recently used go first (default 40) */
+  maxBufferedPages?: number;
   headers?: Record<string, string>;
 }
 
@@ -58,6 +66,9 @@ export interface StoreRecord<T> {
   errors: Record<string, string[]>;
 }
 
+/** A failed buffered page is not retried for this long, so a dead server isn't hammered while scrolling */
+const RETRY_AFTER = 5000;
+
 interface LoadOptions {
   page?: number;
   start?: number;
@@ -98,6 +109,13 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
   private currentPage = 1;
   private pageSize: number;
   private lastOptions: LoadOptions = {};
+
+  // Buffered mode: pages by number, fetches in flight, recent failures and a generation that
+  // makes responses to an older sort/filter harmless
+  private pages = new Map<number, StoreRecord<T>[]>();
+  private pending = new Map<number, Promise<void>>();
+  private failedPages = new Map<number, number>();
+  private generation = 0;
   
   // State
   private sorters: Sorter[] = [];
@@ -107,7 +125,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
   constructor(config: StoreConfig<T> = {}) {
     super();
     this.config = config;
-    this.pageSize = config.pageSize || 25;
+    this.pageSize = config.pageSize || (config.buffered ? 100 : 25);
     
     // Set up proxy
     if (config.proxy) {
@@ -151,6 +169,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    * Load data from remote source
    */
   async load(options: LoadOptions = {}): Promise<void> {
+    if (this.config.buffered && this.proxy) return this.loadBuffered(options);
     if (!this.proxy) {
       if (this.config.data) {
         this.loadData(this.config.data);
@@ -184,6 +203,107 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
       this.emit('exception', { error, operation: 'load' });
       throw error;
     }
+  }
+
+  // ────────── Buffered loading ──────────
+
+  isBuffered(): boolean {
+    return !!this.config.buffered;
+  }
+
+  /** Forget every loaded page and start over (sort, filter and reload do this). */
+  private resetBuffer(): void {
+    this.generation++;
+    this.pages.clear();
+    this.pending.clear();
+    this.failedPages.clear();
+  }
+
+  /** (Re)start a buffered store: drop the cache and load the first page, which also reports the total. */
+  private async loadBuffered(options: LoadOptions): Promise<void> {
+    this.lastOptions = options;
+    this.resetBuffer();
+    this.loading = true;
+    this.emit('beforeload', { options });
+    try {
+      await this.loadPage0();
+    } finally {
+      this.loading = false;
+    }
+    this.emit('load', { records: this.getData(), total: this.totalCount });
+  }
+
+  private async loadPage0(): Promise<void> {
+    await this.fetchBufferedPage(0, true);
+  }
+
+  /** The row at `index` if its page has arrived (else undefined: it is loading or out of range). */
+  getRecordAt(index: number): StoreRecord<T> | undefined {
+    const page = Math.floor(index / this.pageSize);
+    const records = this.pages.get(page);
+    if (!records) return undefined;
+    // Touch for least-recently-used eviction
+    this.pages.delete(page);
+    this.pages.set(page, records);
+    return records[index - page * this.pageSize];
+  }
+
+  /**
+   * Make sure the rows `start` to `end` (exclusive) are loaded or loading. Resolves when the pages
+   * that were missing have arrived. A page that failed is retried only after a few seconds.
+   */
+  ensureRange(start: number, end: number): Promise<void> {
+    if (!this.config.buffered || !this.proxy) return Promise.resolve();
+    const total = this.totalCount || Infinity;
+    const first = Math.floor(Math.max(0, start) / this.pageSize);
+    const last = Math.floor((Math.min(end, total) - 1) / this.pageSize);
+    const waiting: Promise<void>[] = [];
+    for (let page = first; page <= last; page++) {
+      if (this.pages.has(page)) continue;
+      const inFlight = this.pending.get(page);
+      if (inFlight) {
+        waiting.push(inFlight);
+        continue;
+      }
+      if (Date.now() - (this.failedPages.get(page) ?? -Infinity) < RETRY_AFTER) continue;
+      waiting.push(this.fetchBufferedPage(page));
+    }
+    return Promise.all(waiting).then(() => undefined);
+  }
+
+  private fetchBufferedPage(page: number, throwOnError = false): Promise<void> {
+    const generation = this.generation;
+    const request = (async () => {
+      try {
+        const params = this.buildParams({ start: page * this.pageSize, limit: this.pageSize, page: page + 1 });
+        const response = await this.proxy!.read(params);
+        const { data, total, success, message } = this.parseResponse(response);
+        if (!success) throw new Error(message || 'Load failed');
+        if (generation !== this.generation) return; // a newer sort/filter made this answer stale
+        this.pending.delete(page);
+        this.failedPages.delete(page);
+        if (total !== undefined) this.totalCount = total;
+        this.pages.set(page, data.map(item => this.createRecord(item)));
+        const max = this.config.maxBufferedPages ?? 40;
+        while (this.pages.size > max) this.pages.delete(this.pages.keys().next().value as number);
+        this.emit('rangeload', { page });
+        this.emit('datachanged', { records: this.getRecords() });
+      } catch (error) {
+        if (generation !== this.generation) return;
+        this.pending.delete(page);
+        this.failedPages.set(page, Date.now());
+        this.emit('exception', { error, operation: 'load', page });
+        if (throwOnError) throw error;
+      }
+    })();
+    this.pending.set(page, request);
+    return request;
+  }
+
+  /** Loaded records in row order (a buffered store holds only some of them). */
+  private getRecords(): StoreRecord<T>[] {
+    if (!this.config.buffered) return this.records;
+    return [...this.pages.entries()].sort(([a], [b]) => a - b).flatMap(([, records]) => records);
   }
 
   /**
@@ -342,7 +462,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    * Find records by function
    */
   findBy(fn: (record: StoreRecord<T>) => boolean): StoreRecord<T>[] {
-    return this.records.filter(fn);
+    return this.getRecords().filter(fn);
   }
 
   /**
@@ -370,7 +490,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    * Get the plain data objects of all (filtered, sorted) records.
    */
   getData(): T[] {
-    return this.records.map(record => record.data);
+    return this.getRecords().map(record => record.data);
   }
 
   /**
@@ -384,6 +504,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    * Get total count (including records not loaded)
    */
   getTotalCount(): number {
+    if (this.config.buffered) return this.totalCount;
     return this.totalCount || this.records.length;
   }
 
@@ -488,8 +609,8 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
       }
     }
     
-    if (this.config.remoteSort && this.proxy) {
-      this.load();
+    if ((this.config.remoteSort || this.config.buffered) && this.proxy) {
+      this.load().catch(() => {}); // failures are reported by the `exception` event
     } else {
       this.doSort();
       this.emit('datachanged', { records: this.records });
@@ -508,8 +629,8 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
       }
     }
     
-    if (this.config.remoteFilter && this.proxy) {
-      this.load();
+    if ((this.config.remoteFilter || this.config.buffered) && this.proxy) {
+      this.load().catch(() => {});
     } else {
       this.doFilter();
       this.emit('datachanged', { records: this.records });
@@ -636,7 +757,9 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
   // Private methods
 
   private createRecord(data: T, phantom = false): StoreRecord<T> {
-    const id = (data as any).id || this.generateId();
+    // Only a missing id gets a generated one: 0 is a perfectly good id
+    const given = (data as any).id;
+    const id = given === undefined || given === null || given === '' ? this.generateId() : given;
     return {
       data: { ...data, id },
       modified: {},
@@ -701,11 +824,11 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
       ...options.params
     };
     
-    if (this.config.remoteSort && this.sorters.length > 0) {
+    if ((this.config.remoteSort || this.config.buffered) && this.sorters.length > 0) {
       params.sort = JSON.stringify(this.sorters);
     }
     
-    if (this.config.remoteFilter && this.filters.length > 0) {
+    if ((this.config.remoteFilter || this.config.buffered) && this.filters.length > 0) {
       params.filter = JSON.stringify(this.filters);
     }
     
@@ -786,7 +909,8 @@ abstract class Proxy<T> {
  */
 class RestProxy<T> extends Proxy<T> {
   async read(params: any): Promise<any> {
-    const url = new URL(this.config.api?.read || this.config.url!);
+    // Relative URLs ('/api/users') resolve against the page, like fetch() does
+    const url = new URL(this.config.api?.read || this.config.url!, location.href);
     Object.entries(params).forEach(([key, value]) => {
       url.searchParams.append(key, String(value));
     });

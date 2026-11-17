@@ -28,6 +28,8 @@ export function place(
     : 'width' in anchor ? anchor : new DOMRect(anchor.x, anchor.y, 0, 0);
   const [side, align = 'center'] = placement.split('-') as [Side, 'start' | 'end' | 'center'];
   const { innerWidth: vw, innerHeight: vh } = window;
+  // `start` and `end` follow the reading direction: in RTL a menu "starts" at the anchor's right edge
+  const rtl = getComputedStyle(anchor instanceof Element ? anchor : floating).direction === 'rtl';
   const width = floating.offsetWidth;
   const height = floating.offsetHeight;
 
@@ -37,7 +39,9 @@ export function place(
     let y: number;
     if (vertical) {
       y = s === 'bottom' ? rect.bottom + offset : rect.top - height - offset;
-      x = align === 'start' ? rect.left : align === 'end' ? rect.right - width : rect.left + (rect.width - width) / 2;
+      const left = rect.left;
+      const right = rect.right - width;
+      x = align === 'center' ? rect.left + (rect.width - width) / 2 : (align === 'start') !== rtl ? left : right;
     } else {
       x = s === 'right' ? rect.right + offset : rect.left - width - offset;
       y = align === 'start' ? rect.top : align === 'end' ? rect.bottom - height : rect.top + (rect.height - height) / 2;

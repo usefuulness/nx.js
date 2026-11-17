@@ -3,10 +3,10 @@
  * JSX that reads like HTML, shadcn-style components, and the public API only.
  */
 import {
-  NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Form, Grid,
-  HStack, Input, Menu, Outlet, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Switch, Tab, Tabs,
+  NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, FileUpload, Form, Grid,
+  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Splitter, Switch, Tab, Tabs, TagInput,
   Textarea, Toolbar, Tooltip, Tree,
-  VStack, type Child, type GridColumn, type NXGrid, type NXForm
+  VStack, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
 
 // ────────── Sample data ──────────
@@ -38,6 +38,15 @@ const orders = Array.from({ length: 6 }, (_, i) => ({
   total: [249, 1290, 89, 540, 72, 1999][i],
   status: ['Paid', 'Paid', 'Pending', 'Refunded', 'Paid', 'Pending'][i]
 }));
+
+const files = [
+  { name: 'docs', kind: 'Folder', size: 0, children: [
+    { name: 'guide.md', kind: 'Markdown', size: 30 },
+    { name: 'api', kind: 'Folder', size: 0, children: [{ name: 'grid.md', kind: 'Markdown', size: 7 }, { name: 'router.md', kind: 'Markdown', size: 3 }] }
+  ] },
+  { name: 'src', kind: 'Folder', size: 0, children: [{ name: 'index.ts', kind: 'TypeScript', size: 12 }, { name: 'app.ts', kind: 'TypeScript', size: 21 }] },
+  { name: 'README.md', kind: 'Markdown', size: 2 }
+];
 
 // ────────── Small building blocks (plain function components) ──────────
 
@@ -90,14 +99,32 @@ const DashboardPage = () => (
 
     <Grid columns={3} gap={16}>
       <DataGrid
+        id="orders-grid"
         title="Recent orders"
         style="grid-column: span 2"
         data={orders}
+        groupBy="status"
         columns={[
           { field: 'id', header: 'Order', width: 90 },
           { field: 'customer', header: 'Customer' },
           { field: 'status', header: 'Status', type: 'badge', width: 110, badges: { Paid: 'success', Pending: 'warning', Refunded: 'neutral' } },
-          { field: 'total', header: 'Total', type: 'currency', width: 110 }
+          { field: 'total', header: 'Total', type: 'currency', width: 110, summary: 'sum' }
+        ]}
+      />
+      <DataGrid
+        id="events-grid"
+        title="Event log (20,000 rows)"
+        style="grid-column: span 3"
+        data={events}
+        virtual
+        rowHeight={40}
+        height={280}
+        search
+        columns={[
+          { field: 'id', header: 'Event', width: 100, type: 'number', pinned: 'left' },
+          { field: 'source', header: 'Source', editable: true, validate: v => (String(v).trim() ? true : 'Source is required') },
+          { field: 'level', header: 'Level', type: 'badge', width: 110, badges: { Info: 'info', Warn: 'warning', Error: 'error' },
+            editable: true, editor: 'select', options: ['Info', 'Warn', 'Error'] }
         ]}
       />
       <Card title="Goals" subtitle="Q2 progress">
@@ -113,6 +140,12 @@ const DashboardPage = () => (
     </Grid>
   </Page>
 );
+
+const events = Array.from({ length: 20000 }, (_, i) => ({
+  id: i + 1,
+  source: ['api', 'worker', 'scheduler', 'billing'][i % 4],
+  level: ['Info', 'Info', 'Warn', 'Error'][i % 4]
+}));
 
 const userColumns: GridColumn<User>[] = [
   { field: 'name', header: 'Name' },
@@ -180,6 +213,7 @@ const UsersPage = () => {
         <HStack gap={8}>
           <Menu icon="more" items={[
             { text: 'Export CSV', icon: 'download', handler: () => grid.current!.exportCSV('users.csv') },
+            { text: 'Export Excel', icon: 'download', handler: () => grid.current!.exportXLSX('users.xlsx') },
             { text: 'Select all', icon: 'check', handler: () => grid.current!.selectAll() },
             { text: 'Clear selection', handler: () => grid.current!.clearSelection() }
           ]} />
@@ -195,6 +229,9 @@ const UsersPage = () => {
         search
         pageSize={10}
         checkboxSelection
+        resizable
+        reorderable
+        stateKey="users-grid"
         columns={userColumns}
         onSelectionChange={(e: CustomEvent) => deleteButton.current!.toggleAttribute('disabled', !e.detail.selected.length)}
         onRowDblclick={(e: CustomEvent) => NX.alert(`${e.detail.row.name} <${e.detail.row.email}>`, { title: 'User' })}
@@ -264,6 +301,21 @@ const ComponentsPage = () => (
       </HStack>
     </Card>
 
+    <Card title="Tree grid" subtitle="Rows with children: Right and Left open and close nodes.">
+      <DataGrid
+        id="files-grid"
+        tree
+        height={260}
+        dense
+        columns={[
+          { field: 'name', header: 'Name' },
+          { field: 'kind', header: 'Kind', width: 120 },
+          { field: 'size', header: 'Size (KB)', type: 'number', width: 120, summary: 'sum' }
+        ]}
+        data={files}
+      />
+    </Card>
+
     <Grid minColumnWidth={320} gap={16}>
       <Card title="Feedback" subtitle="Promise-based dialogs and toasts.">
         <HStack gap={8} wrap>
@@ -308,6 +360,10 @@ const ComponentsPage = () => (
           </HStack>
           <Slider name="demo-slider" label="Opacity" value={70} showValue unit="%" />
           <DatePicker name="demo-date" label="Due date" value="2025-06-15" />
+          <TagInput id="demo-tags" name="demo-tags" label="Topics" value="css,html" max={4} suggestions="css,html,js,a11y"
+                    helperText="Enter or comma adds a tag; Backspace removes the last." />
+          <FileUpload id="demo-upload" name="demo-files" label="Attachments" multiple accept=".pdf,.txt,image/*" maxSize="1MB" maxFiles={3}
+                      helperText="PDF, text or images, up to 1 MB each, 3 files." />
         </VStack>
       </Card>
 
@@ -325,6 +381,28 @@ const ComponentsPage = () => (
           <Alert variant="success" title="Saved">Your changes have been saved.</Alert>
           <Alert variant="warning" title="Trial ends soon">Upgrade to keep your projects.</Alert>
           <Alert variant="destructive" title="Payment failed">Your card was declined.</Alert>
+        </VStack>
+      </Card>
+
+      <Card title="Splitter" subtitle="Drag the dividers, or focus one and use the arrow keys, Home, End and Enter.">
+        <Splitter id="demo-splitter" style="height: 11rem; border: 1px solid var(--color-border); border-radius: var(--radius-md)">
+          <div size="25" min-size="96" style="padding: 0.75rem">Navigation</div>
+          <Splitter orientation="vertical">
+            <div size="60" min-size="40" style="padding: 0.75rem">Content</div>
+            <div size="40" min-size="40" style="padding: 0.75rem">Console</div>
+          </Splitter>
+          <div size="25" min-size="96" style="padding: 0.75rem">Details</div>
+        </Splitter>
+      </Card>
+
+      <Card title="Pagination" subtitle="Numbered pages that keep their width, with a range and a page size.">
+        <VStack gap={16}>
+          <Pagination id="demo-pagination" total={250} page={4} showTotal sizes="10,25,50"
+                      onPageChange={(e: CustomEvent) => {
+                        document.getElementById('page-status')!.textContent = `Page ${e.detail.page}, ${e.detail.pageSize} per page`;
+                      }} />
+          <span id="page-status" class="muted" role="status">Page 4, 10 per page</span>
+          <Pagination total={95} page={2} compact />
         </VStack>
       </Card>
 
@@ -453,6 +531,33 @@ const app = NX.app({
     { path: '/users', title: 'Users', view: UsersPage },
     { path: '/forms', title: 'Settings', view: SettingsPage },
     { path: '/components', title: 'Components', view: ComponentsPage },
+    {
+      // A loader fetches before the page shows (the outlet is aria-busy meanwhile); the view reads route.data
+      path: '/users/:id',
+      title: 'User',
+      loader: async ({ params, signal }) => {
+        await new Promise(resolve => setTimeout(resolve, 150)); // stands in for a request
+        if (signal.aborted) return null;
+        const user = users.find(u => u.id === Number(params.id));
+        if (!user) throw new Error(`No user with id ${params.id}`);
+        return user;
+      },
+      view: (route: Route) => (
+        <Page title={route.data.name} description={`${route.data.role} · ${route.data.status}`}
+              actions={<Button variant="outline" icon="users" onClick={() => app.navigate('/users')}>All users</Button>}>
+          <Card title="Contact" subtitle="Loaded by the route's loader">
+            <VStack gap={8}>
+              <span id="user-email">{route.data.email}</span>
+              <span class="muted">Joined {new Date(route.data.joined).toLocaleDateString()}</span>
+            </VStack>
+          </Card>
+        </Page>
+      ),
+      errorView: (error: Error) => (
+        <Page title="User not found" description={error.message}
+              actions={<Button variant="outline" onClick={() => app.navigate('/users')}>All users</Button>} />
+      )
+    },
     { path: '*', view: () => <p style="padding: 2rem">Not found.</p> }
   ]
 });

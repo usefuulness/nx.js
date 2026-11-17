@@ -23,6 +23,8 @@
 import type { Child, KnownProps, LooseProps } from '@/jsx/jsx-runtime';
 import type { ButtonConfig } from '@/components/ui/button';
 import type { BadgeConfig } from '@/components/ui/badge';
+import type { PaginationConfig } from '@/components/ui/pagination';
+import type { SplitterConfig } from '@/layout/splitter';
 import type { CardConfig } from '@/components/ui/card';
 import type { PanelConfig } from '@/layout/panel';
 import type { ToolbarConfig } from '@/components/ui/toolbar';
@@ -35,6 +37,8 @@ import type { ComboboxConfig } from '@/components/ui/form/combobox';
 import type { PopoverConfig } from '@/components/ui/popover';
 import type { TooltipConfig } from '@/components/ui/tooltip';
 import type { SliderConfig } from '@/components/ui/form/slider';
+import type { FileUploadConfig } from '@/components/ui/form/fileupload';
+import type { TagInputConfig } from '@/components/ui/form/taginput';
 import type { DatePickerConfig } from '@/components/ui/form/datepicker';
 import type { AvatarConfig } from '@/components/ui/avatar';
 import type { AlertConfig } from '@/components/ui/alert';
@@ -115,6 +119,8 @@ declare module './jsx-runtime' {
   interface NexaroElements {
     'nx-button': Props<ButtonConfig>;
     'nx-badge': Props<BadgeConfig>;
+    'nx-pagination': Props<PaginationConfig>;
+    'nx-splitter': Props<SplitterConfig>;
     'nx-card': Props<CardConfig>;
     'nx-panel': Props<PanelConfig>;
     'nx-container': Props<ContainerConfig>;
@@ -133,6 +139,8 @@ declare module './jsx-runtime' {
     'nx-popover': Props<PopoverConfig>;
     'nx-tooltip': Props<TooltipConfig>;
     'nx-slider': Props<SliderConfig>;
+    'nx-file-upload': Props<FileUploadConfig>;
+    'nx-tag-input': Props<TagInputConfig>;
     'nx-datepicker': Props<DatePickerConfig>;
     'nx-avatar': Props<AvatarConfig>;
     'nx-alert': Props<AlertConfig>;
@@ -157,6 +165,8 @@ declare module './jsx-runtime' {
 
 export const Button = (props: Props<ButtonConfig>) => <nx-button {...props} />;
 export const Badge = (props: Props<BadgeConfig>) => <nx-badge {...props} />;
+export const Pagination = (props: Props<PaginationConfig>) => <nx-pagination {...props} />;
+export const Splitter = (props: Props<SplitterConfig>) => <nx-splitter {...props} />;
 export const Avatar = (props: Props<AvatarConfig>) => <nx-avatar {...props} />;
 export const Alert = (props: Props<AlertConfig>) => <nx-alert {...props} />;
 /** Inline command list; for the ⌘K dialog use `NX.command()` */
@@ -224,6 +234,8 @@ export const RadioGroup = (props: Props<RadioGroupConfig>) => <nx-radio-group {.
 /** Searchable select: type to filter the options */
 export const Combobox = (props: Props<ComboboxConfig>) => <nx-combobox {...props} />;
 export const Slider = (props: Props<SliderConfig>) => <nx-slider {...props} />;
+export const FileUpload = (props: Props<FileUploadConfig>) => <nx-file-upload {...props} />;
+export const TagInput = (props: Props<TagInputConfig>) => <nx-tag-input {...props} />;
 /** Calendar in a popover; value is `YYYY-MM-DD` */
 export const DatePicker = (props: Props<DatePickerConfig>) => <nx-datepicker {...props} />;
 

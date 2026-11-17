@@ -29,6 +29,12 @@ export interface FormConfig {
   enctype?: 'application/x-www-form-urlencoded' | 'multipart/form-data' | 'text/plain';
   /** Where the response of `action` opens */
   target?: string;
+  /**
+   * Post with `fetch` instead of navigating: the page stays put, the form is busy meanwhile, and
+   * a JSON error response is shown on the fields it names (see the `error` event). Still posts
+   * natively when JavaScript is off or hasn't loaded.
+   */
+  enhance?: boolean;
 }
 
 type AnyField = HTMLElement & { name?: string; value?: any; validate?: () => boolean; reset?: () => void; checked?: boolean };
@@ -59,7 +65,10 @@ type AnyField = HTMLElement & { name?: string; value?: any; validate?: () => boo
  * cancelable), `invalid` (detail: `{ fields }`), `reset`, `change`.
  *
  * With `action` it posts to the server like a native form (server apps, no JS
- * handler needed); call `preventDefault()` on `submit` to handle it in JS instead:
+ * handler needed); call `preventDefault()` on `submit` to handle it in JS instead.
+ * Add `enhance` to post with `fetch` and show server validation errors on the fields
+ * (`{ "errors": { "email": "Already taken" } }` with a 4xx status). Events then also
+ * include `success` and `error`.
  * ```html
  * <nx-form action="/users" method="post">
  *   <nx-input name="email" type="email" label="Email" required></nx-input>
@@ -69,10 +78,12 @@ type AnyField = HTMLElement & { name?: string; value?: any; validate?: () => boo
  */
 export class NXForm extends BaseComponent {
   static get observedAttributes(): string[] {
-    return ['columns', 'gap', 'action', 'method', 'enctype', 'target'];
+    return ['columns', 'gap', 'action', 'method', 'enctype', 'target', 'enhance'];
   }
 
   private pendingValues: Record<string, any> | null = null;
+  private inFlight: AbortController | null = null;
+  private formError = '';
 
   protected initializeState(): void {}
 
@@ -95,6 +106,17 @@ export class NXForm extends BaseComponent {
     });
 
     this.addEventListener('nx-field-enter', () => this.submit());
+
+    // An error from the server goes away once the user changes that field
+    const clearServerError = (e: Event) => {
+      const field = e.target as HTMLElement | null;
+      if (!field?.hasAttribute?.('data-nx-server-error')) return;
+      field.removeAttribute('data-nx-server-error');
+      if (field instanceof NXField) field.removeAttribute('error-text');
+      else (field as HTMLInputElement).setCustomValidity?.('');
+    };
+    this.addEventListener('change', clearServerError);
+    this.addEventListener('input', clearServerError);
   }
 
   /** The hidden native form that server-rendered stand-ins posted with. */
@@ -225,7 +247,10 @@ export class NXForm extends BaseComponent {
     }));
     if (proceed) {
       const outer = this.parentElement?.closest('form');
-      if (this.hasAttribute('action')) this.submitNative(submitter ?? null);
+      if (this.hasAttribute('action')) {
+        if (this.hasAttribute('enhance') && this.attr('method', submitter ?? null)?.toLowerCase() !== 'dialog') void this.submitEnhanced(submitter ?? null);
+        else this.submitNative(submitter ?? null);
+      }
       else if (outer) submitForm(outer, submitter);
     }
     return values;
@@ -256,12 +281,159 @@ export class NXForm extends BaseComponent {
     return data;
   }
 
+  /** A submit attribute, letting the submit button's `formaction`, `formmethod`… win like they do natively. */
+  private attr(name: string, submitter: HTMLElement | null): string | null {
+    return submitter?.getAttribute(`form${name}`) ?? this.getAttribute(name);
+  }
+
+  /** Whether a submission is in flight (the form is `aria-busy` and its submit buttons are disabled). */
+  isSubmitting(): boolean {
+    return this.inFlight !== null;
+  }
+
+  /** Cancel a submission that is still waiting for the server. */
+  abort(): void {
+    this.inFlight?.abort();
+  }
+
+  private setBusy(busy: boolean): void {
+    if (busy) this.setAttribute('aria-busy', 'true');
+    else this.removeAttribute('aria-busy');
+    this.querySelectorAll('[slot="buttons"]').forEach(button => {
+      if (button.getAttribute('type') !== 'submit') return;
+      // Only re-enable buttons this method disabled
+      if (busy && !button.hasAttribute('disabled')) {
+        button.setAttribute('disabled', '');
+        button.setAttribute('data-nx-busy', '');
+      } else if (!busy && button.hasAttribute('data-nx-busy')) {
+        button.removeAttribute('disabled');
+        button.removeAttribute('data-nx-busy');
+      }
+    });
+  }
+
+  private async submitEnhanced(submitter: HTMLElement | null): Promise<void> {
+    if (this.inFlight) return; // a double click must not post twice
+    const controller = (this.inFlight = new AbortController());
+    const method = (this.attr('method', submitter) ?? 'get').toUpperCase();
+    const url = new URL(this.attr('action', submitter) ?? '', location.href);
+    const data = this.formData(submitter);
+    const headers: Record<string, string> = { Accept: 'application/json', 'X-Requested-With': 'nx-form' };
+    const init: RequestInit = { method, headers, credentials: 'same-origin', signal: controller.signal };
+
+    if (method === 'GET' || method === 'HEAD') {
+      data.forEach((value, name) => typeof value === 'string' && url.searchParams.append(name, value));
+    } else {
+      const hasFile = Array.from(data.values()).some(value => typeof value !== 'string');
+      const enctype = this.attr('enctype', submitter);
+      if (hasFile || enctype === 'multipart/form-data') {
+        init.body = data; // the browser sets the multipart boundary
+      } else {
+        const params = new URLSearchParams();
+        data.forEach((value, name) => params.append(name, value as string));
+        init.body = params;
+        if (enctype === 'text/plain') headers['Content-Type'] = 'text/plain';
+      }
+    }
+
+    this.clearServerErrors();
+    this.setFormError('');
+    this.setBusy(true);
+    let response: Response;
+    try {
+      response = await fetch(url, init);
+    } catch (error) {
+      this.inFlight = null;
+      this.setBusy(false);
+      if (controller.signal.aborted) return;
+      this.setFormError(this.t('form.network'));
+      this.emit('error', { error, status: 0, errors: {} });
+      return;
+    }
+
+    let body: any = null;
+    try {
+      body = /json/.test(response.headers.get('content-type') ?? '') ? await response.json() : await response.text();
+    } catch {
+      // An unreadable body is treated as empty
+    }
+    this.inFlight = null;
+    this.setBusy(false);
+
+    if (response.ok) {
+      const proceed = this.dispatchEvent(new CustomEvent('success', {
+        detail: { response, status: response.status, data: body },
+        bubbles: true,
+        composed: true,
+        cancelable: true
+      }));
+      // Like a native post: a redirect response moves the page
+      if (proceed && response.redirected) location.assign(response.url);
+      return;
+    }
+
+    const { fields, general } = this.readErrors(body);
+    const shown = this.showServerErrors(fields);
+    const message = general || (shown ? '' : this.t('form.server', { status: response.status }));
+    this.setFormError(message);
+    this.emit('error', { status: response.status, errors: fields, data: body });
+  }
+
+  /** `{ errors: { field: 'msg' | ['msg'] } }` or `{ errors: [{ field, message }] }`, plus a general `message`. */
+  private readErrors(body: any): { fields: Record<string, string>; general: string } {
+    const fields: Record<string, string> = {};
+    let general = typeof body === 'object' && body && typeof body.message === 'string' ? body.message : '';
+    const errors = typeof body === 'object' && body ? body.errors : null;
+    const add = (name: unknown, message: unknown) => {
+      const text = Array.isArray(message) ? message.join(' ') : String(message ?? '');
+      if (!text) return;
+      if (!name || name === '_form') general = text;
+      else fields[String(name)] = text;
+    };
+    if (Array.isArray(errors)) errors.forEach(item => add(item?.field ?? item?.name, item?.message));
+    else if (errors && typeof errors === 'object') Object.entries(errors).forEach(([name, message]) => add(name, message));
+    return { fields, general };
+  }
+
+  /** Put each message on its field; returns whether any field took one. Focus goes to the first. */
+  private showServerErrors(errors: Record<string, string>): boolean {
+    let first: HTMLElement | null = null;
+    Object.entries(errors).forEach(([name, message]) => {
+      const field = this.getField(name);
+      if (!field) return;
+      field.setAttribute('data-nx-server-error', '');
+      if (field instanceof NXField) field.setAttribute('error-text', message);
+      else (field as unknown as HTMLInputElement).setCustomValidity?.(message);
+      first ??= field;
+    });
+    // The field re-renders with its message; focus it after that
+    if (first) setTimeout(() => (first as HTMLElement).focus(), 0);
+    return first !== null;
+  }
+
+  private clearServerErrors(): void {
+    this.querySelectorAll('[data-nx-server-error]').forEach(field => {
+      field.removeAttribute('data-nx-server-error');
+      if (field instanceof NXField) field.removeAttribute('error-text');
+      else (field as HTMLInputElement).setCustomValidity?.('');
+    });
+  }
+
+  private setFormError(message: string): void {
+    if (message === this.formError) return;
+    this.formError = message;
+    const el = this.$('.form-error') as HTMLElement | null;
+    if (!el) return this.scheduleUpdate();
+    el.textContent = message;
+    el.hidden = !message;
+  }
+
   /** Navigate like a native form submission (a temporary light-DOM <form>). */
   private submitNative(submitter: HTMLElement | null): void {
     const form = document.createElement('form');
     form.hidden = true;
     form.noValidate = true;
-    const attr = (name: string) => submitter?.getAttribute(`form${name}`) ?? this.getAttribute(name);
+    const attr = (name: string) => this.attr(name, submitter);
     form.action = attr('action') ?? '';
     form.method = attr('method') ?? 'get';
     form.target = attr('target') ?? '';
@@ -312,6 +484,7 @@ export class NXForm extends BaseComponent {
     const hasButtons = !!this.querySelector(':scope > [slot="buttons"]');
     return (
       <form part="form" novalidate>
+        <div class="form-error" part="error" role="alert" hidden={!this.formError}>{this.formError}</div>
         <div class="fields" part="fields"><slot /></div>
         {hasButtons && <div class="buttons" part="buttons"><slot name="buttons" /></div>}
       </form>
@@ -341,6 +514,16 @@ export class NXForm extends BaseComponent {
       @media (max-width: 640px) {
         .fields { grid-template-columns: minmax(0, 1fr); }
       }
+
+      .form-error {
+        padding: 0.625rem 0.75rem;
+        border: 1px solid var(--color-error);
+        border-radius: var(--radius-md);
+        color: var(--color-error-text);
+        font-size: 0.875rem;
+      }
+
+      .form-error[hidden] { display: none; }
 
       .buttons {
         display: flex;

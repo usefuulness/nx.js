@@ -76,7 +76,7 @@ export class NXAlert extends BaseComponent {
           <div class="description" part="description"><slot /></div>
         </div>
         {this.getProp('dismissible', false) && (
-          <button type="button" class="close" part="close" aria-label="Dismiss" html={Icons.get('close')} onClick={() => this.dismiss()} />
+          <button type="button" class="close" part="close" aria-label={this.t('dismiss')} html={Icons.get('close')} onClick={() => this.dismiss()} />
         )}
       </div>
     );

@@ -2,6 +2,21 @@ import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import dts from 'vite-plugin-dts';
 import path from 'path';
+import { readdirSync } from 'fs';
+
+// One entry per component (src/entries/*.ts), published as `nx.js/components/<name>`
+const componentEntries = Object.fromEntries(
+  readdirSync(path.resolve(__dirname, 'src/entries'))
+    .filter(file => file.endsWith('.ts'))
+    .map(file => [`entries/${file.slice(0, -3)}`, path.resolve(__dirname, 'src/entries', file)])
+);
+
+// One entry per translation (src/locales/*.ts), published as `nx.js/locales/<code>`
+const localeEntries = Object.fromEntries(
+  readdirSync(path.resolve(__dirname, 'src/locales'))
+    .filter(file => file.endsWith('.ts'))
+    .map(file => [`locales/${file.slice(0, -3)}`, path.resolve(__dirname, 'src/locales', file)])
+);
 
 // `vite` / `vite build --mode demo` → the demo app (index.html + src/main.tsx)
 // `vite build`                      → the library: ESM + CJS entries (index, jsx-runtime, jsx-dev-runtime,
@@ -35,7 +50,9 @@ export default defineConfig(({ command, mode }) => {
                   ssr: path.resolve(__dirname, 'src/ssr/index.ts'),
                   // Its own chunk, so it evaluates (installing DOM globals) before the components
                   'ssr-dom': path.resolve(__dirname, 'src/ssr/dom.ts'),
-                  'ssr-cli': path.resolve(__dirname, 'src/ssr/cli.ts')
+                  'ssr-cli': path.resolve(__dirname, 'src/ssr/cli.ts'),
+                  ...componentEntries,
+                  ...localeEntries
                 },
                 formats: ['es', 'cjs'],
                 fileName: (format, name) => `${name}.${format === 'es' ? 'js' : 'cjs'}`

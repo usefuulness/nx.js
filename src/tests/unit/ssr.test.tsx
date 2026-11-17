@@ -48,7 +48,7 @@ describe('renderToString', () => {
       />,
       { onDropped: paths => dropped.push(paths) }
     );
-    expect(html).toContain('<td class="align-left">ADA</td>');
+    expect(html).toMatch(/<td class="align-left"[^>]*>ADA<\/td>/);
     // Escaped in the table (the formatter upper-cases it) and safe inside the script tag
     expect(html).toContain('&lt;/SCRIPT&gt;&lt;B&gt;X');
     expect(html).not.toMatch(/<\/script><b>/);

@@ -39,8 +39,41 @@ app.toggleRegion('west');   // open the side nav on phones, collapse a collapsib
 ```
 
 - Routes render their `view` into the `<Outlet />`.
+### Loading data for a route
+
+A `loader` fetches what a page needs *before* it shows, so views never render half-empty:
+
+```tsx
+router: [{
+  path: '/users/:id',
+  title: 'User',
+  staleTime: 30_000,                                   // reuse the result for 30s (default 0)
+  loader: async ({ params, query, signal }) => {
+    const res = await fetch(`/api/users/${params.id}`, { signal });
+    if (!res.ok) throw new Error('No such user');
+    return res.json();
+  },
+  view: route => <UserPage user={route.data} />,       // route.data is what the loader returned
+  errorView: (error, route) => <p role="alert">{error.message}</p>
+}]
+```
+
+- The previous page stays up while the loader runs, and the outlet gets `aria-busy="true"`. The router emits `loading` and `loaded`, and `router.isLoading()` tells you in between.
+- A newer navigation aborts the older loader through `signal` and wins, even if the older request finishes later.
+- If the loader throws, the route still opens: `route.error` is set and `errorView` renders (a plain alert if you don't give one).
+- `router.prefetch('/users/7')` loads ahead, for example on link hover; the next visit reuses it for 30s. `router.invalidate(path?)` drops cached results, and `router.reload()` runs the current route's loader again, e.g. after a save.
+- Loaders run in the browser. They can also run on the server; see [server rendering](server-rendering.md#route-data-without-fetching-twice).
+
 - Tree nodes with a `route` navigate when selected, and the tree highlights the node for the current route.
 - Below 768px (`breakpoint`), `west`/`east` regions become off-canvas drawers. `class="nx-mobile-only"` and `"nx-desktop-only"` show things per screen size.
+
+### Navigation behaviour
+
+- **Scroll:** a new page opens at the top of the outlet (or at its `#fragment`). Back and Forward return to where that page was scrolled; `route.history` is `true` for those visits.
+- **Links** (`mode: 'history'`): plain `<a href>` clicks to the same origin navigate without a page load, including links inside shadow DOM. Modified clicks, `target`, `download`, `rel="external"`, `data-nx-external` and other origins are left to the browser. Pass `links: false` to handle clicks yourself.
+- **Prefetch:** hovering or focusing such a link runs its route's loader ahead of the click (`prefetch: false` turns it off).
+- **Transitions:** `NX.app({ viewTransitions: true })` animates page changes with the View Transitions API where it exists, and not for visitors who prefer reduced motion.
+- `router.stop()` removes the router's browser listeners.
 
 ## Layout
 
@@ -80,10 +113,35 @@ app.toggleRegion('west');   // open the side nav on phones, collapse a collapsib
 }
 ```
 
-- API: `getSelected()`, `select(rows)`, `selectAll()`, `clearSelection()`, `sort(field, dir)`, `setFilter(text)`, `setPage(n)`, `setData(rows)`, `exportCSV(filename)`.
+- API: `getSelected()`, `select(rows)`, `selectAll()`, `clearSelection()`, `sort(field, dir)`, `setFilter(text)`, `setPage(n)`, `setData(rows)`, `exportCSV(filename)`, `exportXLSX(filename)` (async), `toCSV()`, `toTSV()`, `toXLSX()` (async).
 - Events: `row-click`, `row-dblclick`, `selection-change`, `sort-change`.
 - Clicks on buttons, links and inputs inside cells don't select the row. Sortable headers are buttons, so sorting works from the keyboard.
 - Cell values are always escaped. Only a `renderer` that returns an HTML string bypasses that.
+- **Tree rows:** `tree: true` shows rows that have a `children` array (`childrenField` renames it) as a tree: the first column (`treeColumn` picks another) gets indentation and an expander, and the table becomes an ARIA `treegrid` with `aria-level` and `aria-expanded` on its rows. **Right** opens a node, then moves right; **Left** closes it, then climbs to its parent; mouse and touch use the expander button. `treeExpanded` starts everything open. Sorting orders siblings within each level, and a search keeps the ancestors of every match and opens the path to it. `pageSize` and `groupBy` are ignored, `getVisibleRows()` and exports list every node depth-first (collapsed ones too), and column `summary` totals cover every node, so don't total a column where a parent already holds its children's sum. API: `expandNode(row)`, `collapseNode(row)`, `expandAll()`, `collapseAll()`; event `node-toggle` (`{ row, expanded }`).
+- **Grouping and totals:** `groupBy: 'status'` puts rows under headers ordered by that field (or in the sort's order when you sort by it); `groupCollapsed` starts them closed. Each header is a button (**Enter** or **Space**) with `aria-expanded` and a row count, and keyboard focus stays on it after it toggles. A column's `summary` (`'sum' | 'avg' | 'min' | 'max' | 'count'`, or a function of the column's values and the rows) is totalled under each group and in a footer row for every row the search leaves, formatted like the column (currency stays currency). With `pageSize`, groups are made per page; a `buffered` store can't group. Arrow keys skip headers and summaries. API: `toggleGroup(key)`, `expandAll()`, `collapseAll()`, `setGroupBy(field | null)`; event `group-toggle` (`{ key, collapsed }`). Summaries read numbers only (dates need a function).
+- **Export and copy:** `exportCSV()` and `exportXLSX()` download the rows after search and sort, from every page (a `buffered` grid exports the rows loaded so far). `toCSV()` and `toTSV()` return the text, and `await toXLSX()` the bytes, for sending to a server. The Excel writer is loaded the first time you export, so grids that never export don't carry it. The Excel file has no dependencies behind it: a bold frozen header, an auto-filter, fitted column widths, and typed cells, so numbers, `type: 'date'` columns and booleans are real numbers, dates and booleans, not text. Dates are written as their UTC date. CSV is UTF-8 with a byte-order mark so Excel reads accents. **Ctrl/Cmd+C** copies the selected rows (with a header row), or the focused cell of an editable grid, as tab-separated text and an HTML table that paste into Excel, Sheets and mail. Text that starts with `=`, `+`, `-` or `@` would run as a formula when it reaches a spreadsheet (CSV injection), so CSV and copied text prefix such cells with an apostrophe; in `.xlsx` they are plain text cells.
+- **Editing:** mark columns `editable: true` (or `row => boolean`) and the grid becomes an ARIA grid with one cell in the tab order. **Arrow keys** move between cells, **Home/End** go to the row's ends, **Ctrl+Home/End** to the grid's corners, **PageUp/PageDown** jump 10 rows. **Enter**, **F2** or double-click edits; **Enter** saves and moves down, **Tab** saves and moves right, **Escape** cancels, and clicking away saves. Editors follow `type` (number, date, boolean) or `editor: 'text' | 'number' | 'date' | 'select' | 'checkbox'` with `options` for selects; boolean cells toggle with **Space**. `validate: (value, row) => 'message' | true` keeps the editor open and announces the message. Saved values fire `cell-change` (`{ row, field, value, oldValue, index }`) and are written through a bound `store` (so records become dirty and `autoSync` works), or straight into the row for `data` grids.
+- **Columns:** `resizable` adds a handle to each header (drag it, or focus it and use **Left/Right**, **Shift** for bigger steps, **Enter** or double-click to reset). `reorderable` lets you drag headers or press **Alt+Left/Right** on a focused header. `pinned: 'left'` (with a px `width`) keeps a column at the left edge while the body scrolls sideways; pinned columns stay in front. Add `minWidth` or `resizable: false` per column. `stateKey: 'users'` remembers widths and order in `localStorage`. API: `getColumnState()`, `setColumnState()`, `resetColumns()`; event: `column-change`.
+- **Large data:** `virtual: true` renders only the rows in view (plus a small overscan), so 50,000+ rows scroll smoothly. Set `rowHeight` (px, default 48, or 36 when `dense`) and `height` (default `24rem`); rows must stay that height, and paging is ignored. The table reports its full size through `aria-rowcount`, but rows that are scrolled out of view are not in the DOM, so browser find-in-page won't see them. Use `search` for that.
+
+## Splitter
+
+`<Splitter>` makes the elements inside it resizable panes, with a draggable divider between each pair. A pane's starting share is its `size` attribute (relative numbers, not percentages) and its smallest size in pixels is `min-size` (default 48). Panes that give no `size` share what is left equally. Padding on a pane is fine: each pane is sized as its share of the space the dividers leave.
+
+```tsx
+<Splitter style="height: 24rem" stateKey="editor">
+  <nav size="25" min-size="160">Files</nav>
+  <Splitter orientation="vertical">          {/* splitters nest */}
+    <main size="70">Editor</main>
+    <section size="30" min-size="64">Console</section>
+  </Splitter>
+</Splitter>
+```
+
+- Each divider is a focusable `separator` with `aria-valuenow`, `aria-valuemin`, `aria-valuemax` and `aria-controls` (the pane before it). **←** **→** (**↑** **↓** when vertical) move it by 2%, **Shift** by 10%, **Home** and **End** collapse the pane before it to its minimum or grow it as far as the next pane allows, and **Enter** collapses it or restores it (to its remembered size, or the one in the markup). Double-click resets to the markup's sizes.
+- `stateKey` remembers the sizes in `localStorage`. `getSizes()` returns each pane's percentage, `setSizes([1, 3])` sets relative sizes, and `resize` (`detail.sizes`) fires when a drag or key press ends. Panes can be added or removed later; dividers follow.
+- The dividers are real elements in the light DOM, so server-rendered pages already contain them and nothing moves when the page upgrades.
+- In a right-to-left layout the horizontal keys and dragging follow the reading direction.
 
 ## Stores
 
@@ -98,6 +156,32 @@ users.sort({ property: 'name', direction: 'ASC' });
 // Remote data
 NX.store('orders', { proxy: { type: 'rest', url: '/api/orders' }, autoLoad: true });
 ```
+
+### Millions of rows: buffered stores
+
+A `buffered` store fetches rows in pages as they scroll into view, so the grid can sit on a table far too big to download. The grid is virtual automatically.
+
+```ts
+stores: {
+  events: {
+    buffered: true,
+    pageSize: 100,                                   // rows per request (default 100)
+    maxBufferedPages: 40,                            // pages kept in memory (default 40, least recently used go first)
+    proxy: { type: 'rest', url: '/api/events' }
+  }
+}
+// <DataGrid store="events" search columns={…} height={480} />
+```
+
+Each request is `GET /api/events?start=300&limit=100&page=4`, answered with `{ "data": [...], "total": 1000000 }` (the `reader` options rename those keys). Sorting and searching are done by your server:
+
+- A sorted header adds `sort=[{"property":"name","direction":"DESC"}]`.
+- The search box adds `filter=[{"property":"*","value":"text","operator":"like"}]` (property `*` means "any column"), once typing pauses for 250 ms.
+- Rows whose page hasn't arrived show as skeleton rows of the same height, announced as "Loading", so the scrollbar never jumps.
+- Requests for a page already in flight are shared, an answer to an older sort or search is discarded, and a page that failed is retried after 5 seconds (the store fires `exception`).
+
+Limits: row selection and CSV export see only the rows that are loaded, and editing changes the cached row (listen to `cell-change` to save it).
+
 
 ## Dialogs and toasts
 

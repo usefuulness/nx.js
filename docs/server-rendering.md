@@ -47,6 +47,24 @@ hydrate(() => <Page />);                // or hydrate(() => <Page />, document.g
 
 See [`examples/ssg`](../examples/ssg) (`pnpm example:ssg`) and [`examples/showcase`](../examples/showcase) (`pnpm example:showcase`).
 
+## Route data without fetching twice
+
+Route loaders ([Building apps](building-apps.md#loading-data-for-a-route)) also run on the server. `router.resolve(path)` matches the URL and runs the loader with no browser involved; embed the result with `routeDataScript()` so the browser's first visit uses it instead of fetching again:
+
+```tsx
+import { renderDocument, Router, routeDataScript } from 'nx.js/ssr';
+import { routes } from './routes';                          // the same route config the client uses
+
+const router = new Router({ mode: 'history', routes });
+const route = await router.resolve(req.url);                // runs the loader; route.error if it threw
+const html = await renderDocument(<UserPage user={route.data} />, {
+  head: routeDataScript(route),                             // <script type="application/json" id="nx-route-data">
+  scripts: ['/client.js']
+});
+```
+
+On the client, `router.start()` finds that script and seeds the route's cache for about a minute, so hydration shows the server's data without a second request. The JSON is escaped so data can't close the script tag or be read as markup. Only put data in it that the visitor may see.
+
 ## Template engines: Twig, Blade, Jinja, ERB, Go, Handlebars…
 
 Templates write the tags. Attributes take strings; rich values are JSON in an attribute or in a config script:

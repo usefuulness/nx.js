@@ -3,6 +3,7 @@
 // Layout
 import '@/layout/container';
 import '@/layout/panel';
+import '@/layout/splitter';
 import '@/layout/viewport';
 
 // UI
@@ -16,6 +17,7 @@ import '@/components/ui/loader';
 import '@/components/ui/menu';
 import '@/components/ui/menubar';
 import '@/components/ui/modal';
+import '@/components/ui/pagination';
 import '@/components/ui/popover';
 import '@/components/ui/tooltip';
 import '@/components/ui/avatar';
@@ -37,6 +39,8 @@ import '@/components/ui/form/checkbox';
 import '@/components/ui/form/radio';
 import '@/components/ui/form/combobox';
 import '@/components/ui/form/slider';
+import '@/components/ui/form/fileupload';
+import '@/components/ui/form/taginput';
 import '@/components/ui/form/datepicker';
 
 // Data

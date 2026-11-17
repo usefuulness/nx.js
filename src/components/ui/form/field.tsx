@@ -34,7 +34,7 @@ type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 let fieldSeq = 0;
 
 /** Every Nexaro form field tag, HTML aliases included (for `matches()`/`querySelector()`). */
-export const FIELD_TAGS = 'nx-textfield, nx-input, nx-textarea, nx-select, nx-checkbox, nx-switch, nx-radio-group, nx-combobox, nx-slider, nx-datepicker';
+export const FIELD_TAGS = 'nx-textfield, nx-input, nx-textarea, nx-select, nx-checkbox, nx-switch, nx-radio-group, nx-combobox, nx-slider, nx-datepicker, nx-file-upload, nx-tag-input';
 
 export abstract class NXField extends BaseComponent {
   static formAssociated = true;
@@ -271,6 +271,10 @@ export abstract class NXField extends BaseComponent {
 
   protected afterRender(): void {
     this.syncFormValue();
+    // A message given up front (`error-text`, e.g. from the server) makes the control invalid too
+    const control = this.control();
+    if (this.getProp<string>('error-text', '')) control?.setAttribute('aria-invalid', 'true');
+    else if (control?.getAttribute('aria-invalid') === 'true') this.showError(this.touched ? this.validationMessage() : '');
   }
 
   protected fieldStyles(): string {
@@ -293,7 +297,7 @@ export abstract class NXField extends BaseComponent {
       }
 
       .required {
-        margin-left: 0.125rem;
+        margin-inline-start: 0.125rem;
         color: var(--color-error);
       }
 

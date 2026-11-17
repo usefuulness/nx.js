@@ -1,6 +1,7 @@
 import { BaseComponent, ComponentState } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
+import { DIRECTION_CSS } from '@/core/dom-utils';
 
 export interface ViewportConfig {
   /** `border` (default, also accepts `viewport`) | `card` | `fit` */
@@ -59,6 +60,8 @@ export class NXViewport extends BaseComponent {
 
   protected styles(): string {
     return `
+      ${DIRECTION_CSS}
+
       :host {
         display: block;
         width: 100%;
@@ -135,8 +138,8 @@ export class NXViewport extends BaseComponent {
           transition: transform 250ms var(--transition-easing), visibility 0s linear 250ms;
         }
 
-        .nx-region-west { left: 0; transform: translateX(-100%); }
-        .nx-region-east { right: 0; transform: translateX(100%); }
+        .nx-region-west { inset-inline-start: 0; transform: translateX(calc(-100% * var(--nx-dir))); }
+        .nx-region-east { inset-inline-end: 0; transform: translateX(calc(100% * var(--nx-dir))); }
 
         .nx-region-west.open,
         .nx-region-east.open {
@@ -285,7 +288,7 @@ export class NXRegion extends BaseComponent {
           <div class="nx-region-header" part="header">
             <h3 class="nx-region-title" part="title">{title}</h3>
             {this.getProp('collapsible', false) && (
-              <button class="nx-region-toggle" part="toggle" aria-label="Toggle region" aria-expanded={String(!collapsed)}
+              <button class="nx-region-toggle" part="toggle" aria-label={this.t('region.toggle')} aria-expanded={String(!collapsed)}
                       html={Icons.get('chevron-down')} onClick={() => this.toggle()} />
             )}
           </div>
@@ -313,7 +316,7 @@ export class NXRegion extends BaseComponent {
         align-items: center;
         gap: 0.5rem;
         min-height: 3rem;
-        padding: 0 0.5rem 0 1rem;
+        padding-inline: 1rem 0.5rem;
         border-bottom: 1px solid var(--color-border);
         flex-shrink: 0;
       }

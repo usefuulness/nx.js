@@ -12,8 +12,9 @@ import { renderDocument, stylesheet, themeScript } from 'nx.js/ssr';
 import { Showcase } from '../examples/showcase/page';
 import { bundleClient } from '../examples/bundle';
 import { Marked, type Tokens } from 'marked';
+import { buildLlms, guides as llmsGuides } from './llms';
 import { execFileSync } from 'node:child_process';
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 
@@ -21,6 +22,7 @@ const root = path.resolve(import.meta.dirname, '..');
 const out = path.join(root, 'site-dist');
 const repo = 'https://github.com/usefuulness/nx.js';
 const branch = 'LIVE';
+const siteUrl = 'https://usefuulness.github.io/nx.js';
 
 const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -70,18 +72,7 @@ await writeFile(path.join(out, 'nx.css'), stylesheet());
 const slug = (text: string) => text.trim().toLowerCase().replace(/[`*_]/g, '').replace(/[^\w\- ]/g, '').replace(/ /g, '-');
 
 /** Order of the sidebar: the guides as docs/README.md lists them. */
-const guides: Array<[string, string]> = [
-  ['README.md', 'Overview'],
-  ['getting-started.md', 'Getting started'],
-  ['jsx-and-html.md', 'JSX, configs and HTML'],
-  ['building-apps.md', 'Building apps'],
-  ['forms.md', 'Forms'],
-  ['server-rendering.md', 'Server rendering'],
-  ['theming.md', 'Theming'],
-  ['accessibility.md', 'Accessibility'],
-  ['custom-components.md', 'Custom components'],
-  ['components.md', 'Component reference']
-];
+const guides: Array<[string, string]> = llmsGuides.map(g => [g.file, g.title]);
 const pageName = (file: string) => (file === 'README.md' ? 'index.html' : file.replace(/\.md$/, '.html'));
 
 /** Rewrite a link in docs/<file>: other docs → .html pages, repository files → GitHub. */
@@ -183,6 +174,14 @@ ${body}
   await writeFile(path.join(out, 'docs', pageName(file)), html);
 }
 console.log(`  docs/ (${docFiles.length} pages)`);
+
+// ────────── For AI assistants: llms.txt, llms-full.txt and the docs as plain Markdown ──────────
+
+const { index: llmsIndex, full: llmsFull } = buildLlms(root, siteUrl);
+await writeFile(path.join(out, 'llms.txt'), llmsIndex);
+await writeFile(path.join(out, 'llms-full.txt'), llmsFull);
+for (const file of docFiles) await copyFile(path.join(docsDir, file), path.join(out, 'docs', file));
+console.log('  llms.txt, llms-full.txt, docs/*.md');
 
 // ────────── Misc ──────────
 

@@ -22,13 +22,21 @@
 import { serverWindow, settle } from '@/ssr/dom';
 import { openTag, serializeNode, type SerializeContext } from '@/ssr/serialize';
 import { ComponentRegistry, ThemeManager, type ComponentConfig } from '@/index';
+import { i18n } from '@/core/i18n';
 
 export { settle };
+export { Router, routeDataScript } from '@/core/router';
+export { i18n } from '@/core/i18n';
 export { createProxy, proxyHandler, themeFromCookie, type ProxyOptions } from '@/ssr/proxy';
 
 export interface RenderOptions {
   /** Called with config that couldn't be serialized for hydration (functions) */
   onDropped?: (paths: string[]) => void;
+  /**
+   * The language to render built-in strings and number/date formats in (`es`, `ar-EG`). Per render, so
+   * concurrent requests can use different languages. Default: the document's own `lang`, else English.
+   */
+  lang?: string;
 }
 
 export interface RenderHTMLOptions extends RenderOptions {
@@ -39,6 +47,12 @@ export interface RenderHTMLOptions extends RenderOptions {
   injectStyles?: boolean;
   /** Set `<html data-theme>` so the page renders in this theme */
   theme?: string;
+}
+
+/** Components read their language from the DOM, so say it on the container they render into. */
+function stampLanguage(container: HTMLElement, lang?: string | null): void {
+  container.setAttribute('lang', lang || 'en');
+  container.setAttribute('dir', i18n.direction(lang || 'en'));
 }
 
 type Renderable = Node | ComponentConfig | Array<Node | ComponentConfig> | (() => Node | ComponentConfig);
@@ -67,6 +81,7 @@ export async function renderToString(input: Renderable, options: RenderOptions =
     .filter((node): node is HTMLElement => !!node);
 
   const container = document.createElement('div');
+  stampLanguage(container, options.lang);
   document.body.appendChild(container);
   try {
     container.append(...nodes);
@@ -90,6 +105,7 @@ export async function renderHTML(html: string, options: RenderHTMLOptions = {}):
 
   if (!isDocument) {
     const container = document.createElement('div');
+    stampLanguage(container, options.lang);
     document.body.appendChild(container);
     try {
       container.innerHTML = html;
@@ -109,6 +125,8 @@ export async function renderHTML(html: string, options: RenderHTMLOptions = {}):
   if (options.theme) htmlEl.setAttribute('data-theme', options.theme);
 
   const container = document.createElement('div');
+  // The body's content leaves <html> behind, so carry the page's language across
+  stampLanguage(container, options.lang ?? htmlEl.getAttribute('lang'));
   document.body.appendChild(container);
   try {
     // Moving the body into the live document upgrades its custom elements
@@ -159,7 +177,7 @@ export async function renderDocument(input: Renderable, options: DocumentOptions
   const text = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   return [
     '<!doctype html>',
-    `<html lang="${attr(options.lang ?? 'en')}"${options.theme ? ` data-theme="${attr(options.theme)}"` : ''}>`,
+    `<html lang="${attr(options.lang ?? 'en')}"${i18n.direction(options.lang ?? 'en') === 'rtl' ? ' dir="rtl"' : ''}${options.theme ? ` data-theme="${attr(options.theme)}"` : ''}>`,
     '<head>',
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',

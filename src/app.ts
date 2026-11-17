@@ -14,6 +14,7 @@ import { alert, confirm, dialog, prompt, type ModalConfig } from '@/components/u
 import { showMenu } from '@/components/ui/menu';
 import { command } from '@/components/ui/command';
 import { hydrate } from '@/jsx/hydrate';
+import { i18n } from '@/core/i18n';
 
 export type { ComponentConfig, ItemConfig } from '@/core/registry';
 
@@ -37,6 +38,8 @@ export interface ApplicationConfig {
   stores?: Record<string, StoreConfig | Store<any>>;
   /** Routes render their `view` into the `{ xtype: 'outlet' }` component */
   router?: RouterConfig | RouteConfig[];
+  /** Animate page changes with the View Transitions API where the browser has it (skipped for reduced motion) */
+  viewTransitions?: boolean;
   plugins?: Plugin[];
   ready?: (app: NXApplication) => void;
 }
@@ -60,6 +63,7 @@ export class NXApplication extends EventTarget {
   private config: ApplicationConfig = {};
   private container: HTMLElement | null = null;
   private router: Router | null = null;
+  private scrollPositions = new Map<string, number>();
   private stores = new Map<string, Store<any>>();
   private viewport: HTMLElement | null = null;
   private ready = false;
@@ -105,6 +109,15 @@ export class NXApplication extends EventTarget {
       const routerConfig = Array.isArray(config.router) ? { routes: config.router } : config.router;
       this.router = new Router(routerConfig);
       this.router.on('navigate', route => this.handleRouteChange(route));
+      // Remember where each page was scrolled, to restore it on back/forward
+      this.router.on('beforeNavigate', ({ from }: { from: Route | null }) => {
+        const outlet = this.container?.querySelector('nx-outlet, [data-outlet]');
+        if (from && outlet) this.scrollPositions.set(from.fullPath, outlet.scrollTop);
+      });
+      // Loaders keep the old page up; tell assistive tech and CSS the outlet is busy
+      const outlet = () => this.container?.querySelector('nx-outlet, [data-outlet]');
+      this.router.on('loading', () => outlet()?.setAttribute('aria-busy', 'true'));
+      this.router.on('loaded', () => outlet()?.removeAttribute('aria-busy'));
     }
   }
 
@@ -195,14 +208,39 @@ export class NXApplication extends EventTarget {
     if (!outlet || config.view === undefined) return;
 
     try {
-      const view = typeof config.view === 'function' ? await config.view(route) : config.view;
+      // A loader that threw shows the route's errorView (or a plain message) instead of the view
+      const failed = route.error !== undefined;
+      const source = failed ? config.errorView ?? defaultErrorView : config.view;
+      const view = typeof source === 'function' ? await source(failed ? route.error : route, route) : source;
       // A newer navigation may have happened meanwhile
       if (this.router?.getCurrentRoute() !== route) return;
       const element = ComponentRegistry.build(view);
-      outlet.replaceChildren(...(element ? [element] : []));
+      const swap = () => {
+        outlet.replaceChildren(...(element ? [element] : []));
+        this.restoreScroll(outlet, route);
+      };
+      const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (this.config.viewTransitions && !reduced && typeof document.startViewTransition === 'function') {
+        await document.startViewTransition(swap).updateCallbackDone;
+      } else {
+        swap();
+      }
     } catch (error) {
       console.error(`[nx] Failed to render route "${route.path}"`, error);
     }
+  }
+
+  /** Back/forward return to where the page was; a link or `#fragment` goes to its target; else the top. */
+  private restoreScroll(outlet: Element, route: Route): void {
+    const saved = this.scrollPositions.get(route.fullPath);
+    if (route.history && saved !== undefined) {
+      outlet.scrollTop = saved;
+      return;
+    }
+    const target = route.hash ? outlet.querySelector(`[id="${route.hash.replace(/["\\]/g, '')}"]`) : null;
+    // Scroll the outlet itself; scrollIntoView() would scroll the whole page too
+    if (target) outlet.scrollTop += target.getBoundingClientRect().top - outlet.getBoundingClientRect().top;
+    else outlet.scrollTop = 0;
   }
 
   // ────────── Public API ──────────
@@ -247,6 +285,14 @@ export class NXApplication extends EventTarget {
     this.dispatchEvent(new CustomEvent('themechange', { detail: theme }));
   }
 }
+
+const defaultErrorView = (error: unknown): HTMLElement => {
+  const el = document.createElement('div');
+  el.setAttribute('role', 'alert');
+  el.style.padding = '1rem';
+  el.textContent = `Something went wrong: ${error instanceof Error ? error.message : String(error)}`;
+  return el;
+};
 
 /**
  * Router outlet: routes render their `view` here.
@@ -438,6 +484,9 @@ export const NX = {
     extend: ThemeManager.createTheme.bind(ThemeManager),
     onChange: ThemeManager.subscribe.bind(ThemeManager)
   },
+
+  /** Language: `NX.i18n.setLanguage('ar')` sets `lang` and `dir`; `NX.i18n.extend('es', {...})` adds strings */
+  i18n,
 
   icons: Icons,
 

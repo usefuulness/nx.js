@@ -5,8 +5,8 @@
  */
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
-  Divider, Drawer, Form, Grid, HStack, Input, Menu, MenuBar, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Switch,
-  Tab, Tabs, Textarea, Toolbar, Tooltip, Tree, VStack, NX
+  Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
+  Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
 
 type Openable = HTMLElement & { open(): void; close(): void };
@@ -122,6 +122,20 @@ export const Components = () => (
         </VStack>
       </Card>
 
+      <Card title="Splitter">
+        <Splitter style="height: 8rem; border: 1px solid var(--color-border); border-radius: var(--radius-md)">
+          <div size="30" min-size="80" style="padding: 0.75rem">Files</div>
+          <div size="70" style="padding: 0.75rem">Drag the divider, or focus it and use the arrow keys.</div>
+        </Splitter>
+      </Card>
+
+      <Card title="Pagination">
+        <VStack gap={12}>
+          <Pagination total={250} page={4} showTotal />
+          <Pagination total={95} page={2} compact />
+        </VStack>
+      </Card>
+
       <Card title="Form controls">
         <VStack gap={12}>
           <Input name="q" label="Search" icon="search" placeholder="Anything…" clearable />
@@ -133,6 +147,8 @@ export const Components = () => (
                     options={{ de: 'Germany', fr: 'France', it: 'Italy', es: 'Spain', nl: 'Netherlands' }} />
           <Slider name="volume" label="Volume" value={30} showValue unit="%" />
           <DatePicker name="due" label="Due date" value="2025-06-15" locale="en-US" />
+          <TagInput name="topics" label="Topics" value="css,html" max={5} suggestions="css,html,js,a11y" helperText="Press Enter or comma to add." />
+          <FileUpload name="attachments" label="Attachments" multiple accept=".pdf,image/*" maxSize="5MB" helperText="PDF or images, up to 5 MB each." />
         </VStack>
       </Card>
     </Grid>

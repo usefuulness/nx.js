@@ -14,6 +14,7 @@ import { BaseComponent } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { Overlays } from '@/core/overlays';
+import { inlineStep, MIRROR_CSS } from '@/core/dom-utils';
 
 export interface MenuItem {
   id?: string;
@@ -171,7 +172,7 @@ export class NXMenuPopup extends BaseComponent {
               {anyIcon && <span class="icon" html={icon} />}
               <span class="text">{item.text ?? ''}</span>
               {item.shortcut && <span class="shortcut">{item.shortcut}</span>}
-              {sub && <span class="chevron" html={Icons.get('chevron-right')} />}
+              {sub && <span class="chevron mirror" html={Icons.get('chevron-right')} />}
               {sub && this.renderList(normalize(sub), path)}
             </div>
           );
@@ -214,10 +215,11 @@ export class NXMenuPopup extends BaseComponent {
     itemEl.classList.add('open');
     itemEl.setAttribute('aria-expanded', 'true');
 
-    // Flip to the left if it would overflow the viewport
-    sub.classList.remove('left');
+    // Flip to the other side if it would overflow the viewport
+    // (its default side is the end of the line: the right in LTR, the left in RTL)
+    sub.classList.remove('flip');
     const rect = sub.getBoundingClientRect();
-    if (rect.right > window.innerWidth - 8) sub.classList.add('left');
+    if (rect.right > window.innerWidth - 8 || rect.left < 8) sub.classList.add('flip');
 
     if (focus) this.focusItem(sub, 0);
   }
@@ -277,10 +279,13 @@ export class NXMenuPopup extends BaseComponent {
       case 'End':
         this.focusItem(list, -1);
         break;
+      // A submenu opens toward the end of the line: Right in LTR, Left in RTL (and the other key closes it)
       case 'ArrowRight':
-        if (active?.getAttribute('aria-haspopup')) this.openSub(active, true);
-        break;
       case 'ArrowLeft': {
+        if (inlineStep(key, this) === 1) {
+          if (active?.getAttribute('aria-haspopup')) this.openSub(active, true);
+          break;
+        }
         const parentItem = list.parentElement?.closest('.item') as HTMLElement | null;
         if (parentItem) {
           this.closeSub(parentItem);
@@ -309,6 +314,8 @@ export class NXMenuPopup extends BaseComponent {
 
   protected styles(): string {
     return `
+      ${MIRROR_CSS}
+
       :host {
         position: fixed;
         inset: auto;
@@ -342,13 +349,13 @@ export class NXMenuPopup extends BaseComponent {
       .sub {
         position: absolute;
         top: -0.3125rem;
-        left: calc(100% + 0.25rem);
+        inset-inline-start: calc(100% + 0.25rem);
         display: none;
       }
 
-      .sub.left {
-        left: auto;
-        right: calc(100% + 0.25rem);
+      .sub.flip {
+        inset-inline-start: auto;
+        inset-inline-end: calc(100% + 0.25rem);
       }
 
       .item.open > .sub { display: block; }
@@ -398,7 +405,7 @@ export class NXMenuPopup extends BaseComponent {
       }
 
       .shortcut {
-        margin-left: 1rem;
+        margin-inline-start: 1rem;
         color: var(--color-text-secondary);
         font-size: 0.75rem;
         letter-spacing: 0.05em;
@@ -406,7 +413,7 @@ export class NXMenuPopup extends BaseComponent {
 
       .chevron {
         display: inline-flex;
-        margin-right: -0.25rem;
+        margin-inline-end: -0.25rem;
         color: var(--color-text-secondary);
       }
 
@@ -501,7 +508,7 @@ export class NXMenu extends BaseComponent {
     return (
       <slot name="trigger">
         <nx-button part="trigger" variant={this.getProp('variant', 'outline')} size={this.getProp('size', 'md')}
-                   icon={icon || undefined} text={text || undefined} aria-label={text ? undefined : 'Open menu'}
+                   icon={icon || undefined} text={text || undefined} aria-label={text ? undefined : this.t('menu.open')}
                    disabled={this.getProp('disabled', false)} />
       </slot>
     );
