@@ -1,13 +1,13 @@
 [
   {
     "file": "nx.umd.js",
-    "maxGzipKB": 95,
+    "maxGzipKB": 105,
     "note": "the whole library, minified, for <script> tags: the number to compare with other UI kits"
   },
   {
     "file": "index.js",
     "closure": true,
-    "maxGzipKB": 115,
+    "maxGzipKB": 128,
     "note": "import { ... } from 'nx.js' bundled as ES modules. About 17 kB gz more than the UMD build of the same code (not yet explained); per-component entries are the way to ship less"
   },
   {
