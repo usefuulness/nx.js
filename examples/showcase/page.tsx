@@ -8,8 +8,8 @@
 import {
   NX, Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardFooter, Checkbox, Combobox,
   Command, DataGrid, DatePicker, Dialog, DialogFooter, Drawer, DrawerFooter, Form, Input, Menu, MenuBar, Popover,
-  PopoverTrigger, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
-  type CommandItem, type Child
+  PopoverTrigger, Chat, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
+  type CommandItem, type Child, type NXChat
 } from 'nx.js';
 
 type Openable = HTMLElement & { open(): unknown; close(): void };
@@ -20,6 +20,26 @@ const drawer = { current: null as Openable | null };
 const progress = { current: null as HTMLElement | null };
 const payload = { current: null as HTMLElement | null };
 const themeCode = { current: null as HTMLElement | null };
+
+/** A stand-in for a model: streams a Markdown reply word by word, and stops when the signal aborts. */
+async function* fakeReply(prompt: string, signal: AbortSignal): AsyncGenerator<string> {
+  const reply = `Here is a short answer to **${prompt.replace(/[*_`<>]/g, '').slice(0, 60)}**.
+
+- Replies stream in as they are written
+- Press **Stop** to end one early
+- Markdown is shown safely, so <b>this</b> stays text
+
+\`\`\`ts
+const reply = await chat.respond(signal => stream(prompt, signal));
+\`\`\`
+
+See the [chat guide](https://usefuulness.github.io/nx.js/docs/chat.html).`;
+  for (const word of reply.split(/(?<=\s)/)) {
+    await new Promise(resolve => setTimeout(resolve, 22));
+    if (signal.aborted) return;
+    yield word;
+  }
+}
 
 // ────────── Sample data ──────────
 
@@ -475,6 +495,12 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
             <Specimen tag="nx-file-upload">
               <FileUpload name="attachments" label="Attachments" multiple accept=".pdf,image/*" maxSize="5MB" helperText="PDF or images, up to 5 MB each." />
               <p class="sc-note">A real file input underneath: keyboard, drag and drop, rules checked, refusals announced.</p>
+            </Specimen>
+
+            <Specimen tag="nx-chat" span>
+              <Chat style="height: 22rem" suggestions="Explain streaming|Write a haiku" assistantName="Nexa"
+                    onSend={(e: CustomEvent) => (e.target as NXChat).respond(signal => fakeReply(e.detail.text, signal))} />
+              <p class="sc-note">Streams, renders Markdown safely (try the suggestions), and Stop ends a reply early. This one answers with a canned reply: connect your own model.</p>
             </Specimen>
 
             <Specimen tag="nx-splitter">

@@ -4,6 +4,9 @@ All notable changes to Nexaro (nx.js). The format follows [Keep a Changelog](htt
 
 ## Unreleased
 
+### Added
+- **Chat:** `<nx-chat>` for AI interfaces: streaming replies (`respond()`), Stop, safe Markdown (`renderMarkdown()`: HTML shown as text, images never loaded, only http/https/mailto links), a message box (Enter sends, IME-safe), copy and regenerate, scroll-following that yields to the reader, announcements for screen readers; `readText()` and `readSSE()` for streamed responses.
+
 ### Changed
 - `Select` (single): in browsers with customizable selects (Chromium 135+) the dropdown is styled with the theme, lines up with the field, and left-aligns its options with a checkmark, instead of showing the operating system's list. Other browsers keep the native popup.
 

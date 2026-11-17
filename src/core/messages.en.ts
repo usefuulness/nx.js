@@ -49,6 +49,26 @@ export const en: Messages = {
   'pagination.range': '{from}–{to} of {total}',
   'pagination.perPage': 'Rows per page',
 
+  // Chat
+  'chat.label': 'Conversation',
+  'chat.inputLabel': 'Write a message',
+  'chat.placeholder': 'Message…',
+  'chat.send': 'Send message',
+  'chat.stop': 'Stop generating',
+  'chat.you': 'You',
+  'chat.assistant': 'Assistant',
+  'chat.copy': 'Copy',
+  'chat.copied': 'Copied',
+  'chat.copyCode': 'Copy code',
+  'chat.regenerate': 'Regenerate response',
+  'chat.retry': 'Try again',
+  'chat.error': 'Something went wrong',
+  'chat.stopped': 'Stopped',
+  'chat.responding': 'Assistant is responding',
+  'chat.complete': 'Response complete',
+  'chat.latest': 'Jump to latest',
+  'chat.empty': 'Start a conversation',
+
   // Forms
   'tags.placeholder': 'Add a tag…',
   'tags.remove': 'Remove {tag}',

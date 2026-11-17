@@ -921,3 +921,108 @@ test('pagination in a narrow container collapses to "Page x of y" and its button
   await pager.getByRole('button', { name: 'Next page' }).click();
   await expect(pager.locator('.status.responsive')).toHaveText('Page 5 of 25');
 });
+
+test.describe('chat', () => {
+  const open = async (page: import('@playwright/test').Page) => {
+    await page.goto('/#/components');
+    const chat = page.locator('#demo-chat');
+    await chat.scrollIntoViewIfNeeded();
+    await expect(chat.locator('textarea')).toBeVisible();
+    return chat;
+  };
+  /** Wait for a reply to finish. Not just for Stop to be absent: that is also true in the frame before the reply starts. */
+  const idle = async (chat: import('@playwright/test').Locator) => {
+    await expect(chat.locator('.stop')).toBeVisible();
+    await expect(chat.locator('.stop')).toHaveCount(0, { timeout: 15000 });
+  };
+
+  test('Enter sends, the reply streams in as safe Markdown, and hostile output stays text', async ({ page }) => {
+    const chat = await open(page);
+    await expect(chat.locator('.empty-state')).toContainText('Start a conversation');
+    await chat.locator('textarea').click();
+    await page.keyboard.type('hello there');
+    await page.keyboard.press('Enter');
+
+    await expect(chat.locator('.msg.user .body')).toHaveText('hello there');
+    await expect(chat.locator('textarea')).toHaveValue('');
+    // The question comes first and the reply after it, in the document and on screen
+    await expect(chat.locator('.msg').first()).toHaveClass(/user/);
+    await expect(chat.locator('.msg.assistant')).toHaveCount(1);
+    const order = await chat.locator('.msg').evaluateAll(els => els.map(el => (el as HTMLElement).className.split(' ')[1]));
+    expect(order).toEqual(['user', 'assistant']);
+    const tops = await chat.locator('.msg').evaluateAll(els => els.map(el => el.getBoundingClientRect().top));
+    expect(tops[0]).toBeLessThan(tops[1]);
+    const reply = chat.locator('.msg.assistant');
+    await expect(reply).toHaveAttribute('aria-busy', 'true');
+    await expect(chat.locator('.stop')).toBeVisible(); // Stop replaces Send while it answers
+    await idle(chat);
+    await expect(reply).not.toHaveAttribute('aria-busy', 'true');
+
+    const body = reply.locator('.body');
+    await expect(body.locator('strong').first()).toContainText('hello there');
+    await expect(body.locator('ul li')).toHaveCount(3);
+    await expect(body.locator('.md-code pre code')).toContainText('chat.respond');
+    await expect(body.locator('a[href^="https://"]')).toHaveAttribute('rel', 'noopener noreferrer nofollow');
+    expect(await body.locator('script').count()).toBe(0);
+    await expect(body).toContainText('<script>alert(1)</script>'); // visible as text
+    await expect(chat.locator('.announce')).toHaveText('Response complete');
+  });
+
+  test('Shift+Enter adds a line instead of sending, and the code block can be copied', async ({ page }) => {
+    const chat = await open(page);
+    await chat.locator('textarea').click();
+    await page.keyboard.type('line one');
+    await page.keyboard.press('Shift+Enter');
+    await page.keyboard.type('line two');
+    await expect(chat.locator('textarea')).toHaveValue('line one\nline two');
+    await expect(chat.locator('.msg')).toHaveCount(0);
+    await page.keyboard.press('Enter');
+    await expect(chat.locator('.msg.user .body')).toHaveText('line one\nline two');
+    await idle(chat);
+    await chat.locator('[data-copy-code]').click();
+    await expect(chat.locator('[data-copy-code]')).toHaveClass(/copied/);
+    await expect(chat.locator('.announce')).toHaveText('Copied');
+  });
+
+  test('Stop ends the reply early and keeps what arrived', async ({ page }) => {
+    const chat = await open(page);
+    await chat.getByRole('button', { name: 'Explain streaming' }).click(); // a suggestion sends it
+    const reply = chat.locator('.msg.assistant .body');
+    await expect(reply).toContainText('Here is a short answer'); // some text has arrived
+    await chat.getByRole('button', { name: 'Stop generating' }).click();
+    await idle(chat);
+    await expect(chat.locator('.msg.assistant .note')).toHaveText('Stopped');
+    expect(await reply.locator('.md-code').count()).toBe(0); // it never got as far as the code block
+    await expect(chat.getByRole('button', { name: 'Send message' })).toBeVisible();
+  });
+
+  test('follows new text at the bottom, but stops following (and offers Jump to latest) once you scroll up', async ({ page }) => {
+    const chat = await open(page);
+    const log = chat.locator('.log');
+    const gap = () => log.evaluate(el => el.scrollHeight - el.scrollTop - el.clientHeight);
+    // Fill the window so it scrolls
+    for (const text of ['one', 'two']) {
+      await chat.locator('textarea').fill(text);
+      await page.keyboard.press('Enter');
+      await idle(chat);
+      await expect(chat.locator('.msg.assistant .md-code').last()).toBeVisible(); // the reply is complete
+    }
+    expect(await log.evaluate(el => el.scrollHeight > el.clientHeight + 40)).toBe(true);
+    expect(await gap()).toBeLessThan(5); // it followed the replies down
+
+    await chat.locator('textarea').fill('three');
+    await page.keyboard.press('Enter');
+    await expect(chat.locator('.msg.assistant').last()).toContainText('Here is');
+    await log.evaluate(el => { el.scrollTop = 40; });
+    await expect(chat.locator('.latest')).toBeVisible();
+    await expect(chat.locator('.stop')).toBeVisible(); // still streaming while we read further up
+    await expect(chat.locator('.stop')).toHaveCount(0, { timeout: 15000 });
+    // The reply finished and the conversation was redrawn: the reader is still exactly where they were, and can still jump down
+    expect(await log.evaluate(el => el.scrollTop)).toBe(40);
+    await expect(chat.locator('.latest')).toBeVisible();
+
+    await chat.locator('.latest').click();
+    await expect.poll(gap).toBeLessThan(5);
+    await expect(chat.locator('.latest')).toBeHidden();
+  });
+});

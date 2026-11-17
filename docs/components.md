@@ -17,6 +17,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-breadcrumb>`](#nx-breadcrumb) | `Breadcrumb` | Breadcrumb trail. The last item is the current page. |
 | [`<nx-button>`](#nx-button) | `Button` | Button. |
 | [`<nx-card>`](#nx-card) | `Card` | Card with optional header, body and footer. |
+| [`<nx-chat>`](#nx-chat) | `Chat` | A chat window for talking to an AI (or a person): a conversation, streaming replies, and a message box. You decide where replies come from; the component handles the interface. |
 | [`<nx-checkbox>`](#nx-checkbox) | `Checkbox` | Checkbox or toggle switch. |
 | [`<nx-combobox>`](#nx-combobox) | `Combobox` | Combobox: a text input that filters a list of options — a searchable select. |
 | [`<nx-command>`](#nx-command) | `Command` | Command menu: a search box over a list of actions (shadcn's Command / ⌘K). Type to filter, arrow keys to move, Enter to run. |
@@ -174,6 +175,26 @@ Card with optional header, body and footer.
 | `padding` | `padding` | `boolean` | Pad the body (default true) |
 | `subtitle` | `subtitle` | `string` | Secondary line under the title |
 | `title` | `title` | `string` | Card heading |
+
+## nx-chat
+
+`<nx-chat>` · JSX: `<Chat>` · [source](../src/components/ui/chat.tsx)
+
+A chat window for talking to an AI (or a person): a conversation, streaming replies, and a message box. You decide where replies come from; the component handles the interface.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `assistant-name` | `assistantName` | `string` |  |
+| `busy` | `busy` | `boolean` | A reply is on its way: shows a Stop button, and Send waits |
+| `disabled` | `disabled` | `boolean` | The box and buttons are off |
+| `label` | `label` | `string` | Accessible name of the conversation (default "Conversation") |
+| `markdown` | `markdown` | `boolean` | Render assistant replies as Markdown (default true). User text is always plain |
+| `max-length` | `maxLength` | `number` | Longest message the box accepts |
+| `placeholder` | `placeholder` | `string` | Placeholder of the message box (default "Message…") |
+| `suggestions` | `suggestions` |  | Prompts shown while the conversation is empty (a comma separated string in HTML) |
+| `user-name` | `userName` | `string` | Names shown above messages (default "You" and "Assistant") |
+
+**Events:** `send`
 
 ## nx-checkbox
 

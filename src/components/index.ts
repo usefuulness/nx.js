@@ -11,6 +11,7 @@ import '@/components/ui/accordion';
 import '@/components/ui/badge';
 import '@/components/ui/breadcrumb';
 import '@/components/ui/button';
+import '@/components/ui/chat';
 import '@/components/ui/card';
 import '@/components/ui/drawer';
 import '@/components/ui/loader';
