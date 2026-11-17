@@ -313,6 +313,9 @@ export class NXTagInput extends NXField {
       /* Before JavaScript the server's native box stands in for the entry box */
       ::slotted(input[type="text"]) { padding: 0; border: none; outline: none; background: transparent; color: inherit; font: inherit; }
 
+      /* The browser draws an arrow on a text box with a datalist; suggestions here are not a dropdown field */
+      .entry::-webkit-calendar-picker-indicator { display: none !important; }
+
       .live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     `;
   }

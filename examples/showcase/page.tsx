@@ -8,7 +8,7 @@
 import {
   NX, Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardFooter, Checkbox, Combobox,
   Command, DataGrid, DatePicker, Dialog, DialogFooter, Drawer, DrawerFooter, Form, Input, Menu, MenuBar, Popover,
-  PopoverTrigger, Progress, RadioGroup, Select, Skeleton, Slider, Spinner, Switch, Tab, Tabs, Textarea, Tooltip, Tree,
+  PopoverTrigger, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
   type CommandItem, type Child
 } from 'nx.js';
 
@@ -454,6 +454,38 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
               <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden">
                 <Command placeholder="Search this page…" items={commandItems()} />
               </div>
+            </Specimen>
+          </div>
+
+          <h3 class="sc-group">New in 0.2</h3>
+          <div class="sc-grid">
+            <Specimen tag="nx-pagination">
+              <div style="display: grid; gap: 1rem">
+                <Pagination total={250} page={4} showTotal sizes="10,25,50" />
+                <Pagination total={95} page={2} compact />
+              </div>
+              <p class="sc-note">A window that keeps its width as you move, a range, and a page size.</p>
+            </Specimen>
+
+            <Specimen tag="nx-tag-input">
+              <TagInput name="topics" label="Topics" value="css,html" max={5} suggestions="css,html,js,a11y" helperText="Enter or comma adds a tag; Backspace removes the last." />
+              <p class="sc-note">Posts each tag as its own entry; changes are announced to screen readers.</p>
+            </Specimen>
+
+            <Specimen tag="nx-file-upload">
+              <FileUpload name="attachments" label="Attachments" multiple accept=".pdf,image/*" maxSize="5MB" helperText="PDF or images, up to 5 MB each." />
+              <p class="sc-note">A real file input underneath: keyboard, drag and drop, rules checked, refusals announced.</p>
+            </Specimen>
+
+            <Specimen tag="nx-splitter">
+              <Splitter style="height: 9rem; border: 1px solid var(--color-border); border-radius: var(--radius-md)">
+                <div size="30" min-size="80" style="padding: 0.75rem">Files</div>
+                <Splitter orientation="vertical">
+                  <div size="60" min-size="40" style="padding: 0.75rem">Editor</div>
+                  <div size="40" min-size="40" style="padding: 0.75rem">Console</div>
+                </Splitter>
+              </Splitter>
+              <p class="sc-note">Drag a divider, or focus one and use the arrow keys, Home, End and Enter.</p>
             </Specimen>
           </div>
         </section>

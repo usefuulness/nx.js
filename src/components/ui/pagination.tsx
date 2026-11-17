@@ -160,7 +160,7 @@ export class NXPagination extends BaseComponent {
             ? <li class="status" aria-live="polite">{this.t('pagination.status', { page, pages })}</li>
             : pageItems(page, pages, this.count('siblings', 1), this.count('boundary', 1)).map(item =>
                 typeof item === 'number' ? (
-                  <li>
+                  <li class="num">
                     <button type="button" class={['page', { current: item === page }]} part={item === page ? 'page current' : 'page'}
                             aria-current={item === page ? 'page' : undefined} aria-label={this.t('pagination.page', { page: item })}
                             disabled={disabled} onClick={() => this.goTo(item)}>
@@ -170,6 +170,8 @@ export class NXPagination extends BaseComponent {
                 ) : (
                   <li class="gap" aria-hidden="true">…</li>
                 ))}
+          {/* Shown instead of the numbered pages when the container is too narrow for them (see styles) */}
+          {!compact && <li class="status responsive" aria-live="polite">{this.t('pagination.status', { page, pages })}</li>}
           {step(this.t('pagination.next'), page + 1, 'chevron-right', page >= pages)}
         </ul>
         {sizes.length > 0 && (
@@ -189,6 +191,8 @@ export class NXPagination extends BaseComponent {
       ${MIRROR_CSS}
       :host { display: block; font-size: 0.875rem; }
 
+      /* The pager sizes itself to the space it is in: container queries, not the screen, so it works in a narrow card too */
+      :host { container-type: inline-size; }
       .pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; }
       .range { color: var(--color-text-secondary); margin-inline-end: auto; }
       .pages { display: flex; align-items: center; gap: 0.25rem; margin: 0; padding: 0; list-style: none; }
@@ -214,6 +218,12 @@ export class NXPagination extends BaseComponent {
       .page:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px var(--color-ring); }
       .page:disabled { opacity: 0.5; cursor: not-allowed; }
       .page.current { border-color: var(--color-border); background: var(--color-background); font-weight: 600; box-shadow: var(--shadow-sm); }
+      .responsive { display: none; }
+      @container (max-width: 25rem) {
+        /* Too narrow for the numbered window: previous, "Page 4 of 25", next */
+        .pages > li.num, .pages > li.gap { display: none; }
+        .responsive { display: inline-flex; }
+      }
       .gap, .status { display: inline-flex; align-items: center; justify-content: center; min-width: 2.25rem; color: var(--color-text-secondary); }
       .status { min-width: 0; padding: 0 0.5rem; color: var(--color-text); }
 
