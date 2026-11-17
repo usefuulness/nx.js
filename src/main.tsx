@@ -4,7 +4,7 @@
  */
 import {
   NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, FileUpload, Form, Grid,
-  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Splitter, Switch, Tab, Tabs, TagInput, Chat, Stepper, Step, type NXChat,
+  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Splitter, Switch, Tab, Tabs, TagInput, Chat, Chart, Stepper, Step, type NXChat,
   Textarea, Toolbar, Tooltip, Tree,
   VStack, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
@@ -402,6 +402,14 @@ const ComponentsPage = () => (
           <Alert variant="warning" title="Trial ends soon">Upgrade to keep your projects.</Alert>
           <Alert variant="destructive" title="Payment failed">Your card was declined.</Alert>
         </VStack>
+      </Card>
+
+      <Card title="Chart" subtitle="Bars, lines, areas and donuts in SVG. The data is also a hidden table for screen readers.">
+        <HStack gap={24} wrap>
+          <div style="flex: 1 1 18rem"><Chart id="demo-chart" type="bar" label="Signups per month" data={[{ label: 'Jan', value: 12 }, { label: 'Feb', value: 19 }, { label: 'Mar', value: 8 }, { label: 'Apr', value: 24 }]} /></div>
+          <div style="flex: 1 1 18rem"><Chart type="line" label="Visits and orders" labels={['Mon', 'Tue', 'Wed', 'Thu', 'Fri']} series={[{ name: 'Visits', data: [30, 42, 38, 55, 61] }, { name: 'Orders', data: [4, 9, 7, 12, 15] }]} /></div>
+          <div style="flex: 1 1 14rem"><Chart type="donut" label="Traffic" data={[{ label: 'Search', value: 52 }, { label: 'Direct', value: 31 }, { label: 'Social', value: 17 }]} /></div>
+        </HStack>
       </Card>
 
       <Card title="Stepper" subtitle="Progress through steps. Click a completed step to go back.">

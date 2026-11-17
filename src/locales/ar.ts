@@ -3,7 +3,7 @@ import { i18n } from '@/core/i18n';
 
 i18n.extend('ar', {
   close: 'إغلاق', dismiss: 'تجاهل', clear: 'مسح', remove: 'إزالة', ok: 'حسنًا', cancel: 'إلغاء', confirm: 'تأكيد', loading: 'جارٍ التحميل',
-  'breadcrumb.label': 'مسار التنقل', 'progress.label': 'التقدم', 'drawer.label': 'لوحة', 'dialog.label': 'نافذة حوار',
+  'breadcrumb.label': 'مسار التنقل', 'chart.label': 'مخطط', 'chart.value': 'القيمة', 'chart.empty': 'لا توجد بيانات للعرض', 'progress.label': 'التقدم', 'drawer.label': 'لوحة', 'dialog.label': 'نافذة حوار',
   'dialog.notice': 'تنبيه', 'dialog.confirmTitle': 'هل أنت متأكد؟',
   'datepicker.previousMonth': 'الشهر السابق', 'datepicker.nextMonth': 'الشهر التالي', 'datepicker.choose': 'اختر التاريخ',
   'combobox.empty': 'لا توجد نتائج.', 'combobox.show': 'عرض الخيارات', 'combobox.options': 'الخيارات',

@@ -50,6 +50,7 @@ import type { SelectConfig } from '@/components/ui/form/select';
 import type { CheckboxConfig } from '@/components/ui/form/checkbox';
 import type { ModalConfig } from '@/components/ui/modal';
 import type { MenuItemLike } from '@/components/ui/menu';
+import type { ChartConfig } from '@/components/ui/chart';
 import type { ProgressConfig } from '@/components/ui/progress';
 import type { AccordionConfig } from '@/components/ui/accordion';
 import type { BreadcrumbConfig } from '@/components/ui/breadcrumb';
@@ -156,6 +157,7 @@ declare module './jsx-runtime' {
     'nx-modal': Props<ModalConfig>;
     'nx-dialog': Props<ModalConfig>;
     'nx-menu': Props<MenuConfig>;
+    'nx-chart': Props<ChartConfig>;
     'nx-progress': Props<ProgressConfig>;
     'nx-accordion': Props<AccordionConfig>;
     'nx-drawer': Props<DrawerConfig>;
@@ -182,6 +184,7 @@ export const Alert = (props: Props<AlertConfig>) => <nx-alert {...props} />;
 export const Command = (props: Props<CommandConfig>) => <nx-command {...props} />;
 export const Spinner = (props: Props<SpinnerConfig>) => <nx-spinner {...props} />;
 export const Skeleton = (props: Props<SkeletonConfig>) => <nx-skeleton {...props} />;
+export const Chart = (props: Props<ChartConfig>) => <nx-chart {...props} />;
 export const Progress = (props: Props<ProgressConfig>) => <nx-progress {...props} />;
 
 // ────────── Layout ──────────

@@ -28,6 +28,7 @@ import '@/components/ui/progress';
 import '@/components/ui/skeleton';
 import '@/components/ui/spinner';
 import '@/components/ui/stepper';
+import '@/components/ui/chart';
 import '@/components/ui/tabpanel';
 import '@/components/ui/toast';
 import '@/components/ui/toolbar';

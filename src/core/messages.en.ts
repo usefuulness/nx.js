@@ -20,6 +20,7 @@ export const en: Messages = {
   // Components
   'breadcrumb.label': 'Breadcrumb',
   'progress.label': 'Progress',
+  'chart.label': 'Chart', 'chart.value': 'Value', 'chart.empty': 'No data to show',
   'stepper.label': 'Progress',
   'stepper.step': 'Step {n} of {total}',
   'stepper.complete': 'completed',

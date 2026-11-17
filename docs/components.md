@@ -17,6 +17,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-breadcrumb>`](#nx-breadcrumb) | `Breadcrumb` | Breadcrumb trail. The last item is the current page. |
 | [`<nx-button>`](#nx-button) | `Button` | Button. |
 | [`<nx-card>`](#nx-card) | `Card` | Card with optional header, body and footer. |
+| [`<nx-chart>`](#nx-chart) | `Chart` | A chart drawn as SVG: bars, lines, areas or a donut. Colours come from the theme, so it follows light and dark mode, and every chart also carries its data as a real (visually hidden) table for screen readers. Hovering or focusing a mark shows its value. |
 | [`<nx-chat>`](#nx-chat) | `Chat` | A chat window for talking to an AI (or a person): a conversation, streaming replies, and a message box. You decide where replies come from; the component handles the interface. |
 | [`<nx-checkbox>`](#nx-checkbox) | `Checkbox` | Checkbox or toggle switch. |
 | [`<nx-combobox>`](#nx-combobox) | `Combobox` | Combobox: a text input that filters a list of options — a searchable select. |
@@ -176,6 +177,21 @@ Card with optional header, body and footer.
 | `padding` | `padding` | `boolean` | Pad the body (default true) |
 | `subtitle` | `subtitle` | `string` | Secondary line under the title |
 | `title` | `title` | `string` | Card heading |
+
+## nx-chart
+
+`<nx-chart>` · JSX: `<Chart>` · [source](../src/components/ui/chart.tsx)
+
+A chart drawn as SVG: bars, lines, areas or a donut. Colours come from the theme, so it follows light and dark mode, and every chart also carries its data as a real (visually hidden) table for screen readers. Hovering or focusing a mark shows its value.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `data` | `data` |  | Shortcut for one series: `[{ label, value }]` (sets the labels too) |
+| `hide-legend` | `hideLegend` | `boolean` | Hide the legend (shown by default with more than one series, and for a donut) |
+| `label` | `label` | `string` | Accessible name and caption of the chart |
+| `labels` | `labels` |  | The category names, for example months |
+| `series` | `series` |  | One or more series, each with one number per label. A donut shows the first. |
+| `type` | `type` | `bar` `line` `area` `donut` | `bar` (default), `line`, `area` or `donut` |
 
 ## nx-chat
 

@@ -64,6 +64,8 @@ export { renderMarkdown, safeHref } from '@/core/markdown';
 export type { MarkdownOptions } from '@/core/markdown';
 export { readText, readSSE } from '@/core/stream';
 export type { ServerEvent } from '@/core/stream';
+export { NXChart, niceScale } from '@/components/ui/chart';
+export type { ChartConfig, ChartSeries } from '@/components/ui/chart';
 export { NXStepper } from '@/components/ui/stepper';
 export type { StepperConfig, StepProps } from '@/components/ui/stepper';
 export { NXSplitter } from '@/layout/splitter';

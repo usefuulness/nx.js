@@ -27,6 +27,7 @@ Every component is built to work with a keyboard and a screen reader, in every t
 | Splitter | each divider is a focusable `separator` with `aria-valuenow`/`min`/`max`/`controls`: **←** **→** (vertical: **↑** **↓**) move it 2%, **Shift** 10%; **Home** **End** collapse or grow the pane before it; **Enter** collapses or restores it |
 | Tag input | **Enter** or a separator adds the typed text, **Backspace** in the empty box removes the last tag, chips have × buttons; additions, removals and refusals are announced (`role="status"`) |
 | File upload | the drop zone is a real file input: **Tab** to it, **Enter** or **Space** opens the picker; each file has a **Remove** button, and refused files are announced (`role="status"`) |
+| Chart | the plot is hidden from assistive technology and replaced by a real data table (caption, row and column headers) inside a `role="img"` figure with the chart's `label`; colour is never the only cue (legend, marker shapes); marks have text tooltips |
 | Stepper | an ordered list; each step says complete, current or needs attention in text, and the current one has `aria-current="step"`; with `clickable`, completed steps are buttons (**Tab**, **Enter**, **Space**) |
 | Dialog, Drawer | **Tab** stays inside; **Escape** closes (unless `close-on-escape="false"`) |
 | Menu, dropdown button | **↑ ↓** move · **Home End** first/last · **→** opens a submenu, **←** closes it · **Enter Space** choose · **Escape Tab** close · letters jump (type-ahead) |
