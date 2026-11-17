@@ -897,3 +897,27 @@ test('splitter: padded panes get exactly their share (padding must not skew the 
   expect(widths.share[1]).toBeCloseTo(0.5, 2);
   expect(widths.share[2]).toBeCloseTo(0.25, 2);
 });
+
+test('pagination in a narrow container collapses to "Page x of y" and its buttons stay reachable', async ({ page }) => {
+  await page.goto('/#/components');
+  await page.evaluate(() => {
+    const box = document.createElement('div');
+    box.id = 'narrow';
+    box.style.cssText = 'width: 220px; border: 1px solid #ccc';
+    box.innerHTML = '<nx-pagination id="narrow-pager" total="250" page="4" show-total></nx-pagination>';
+    document.querySelector('nx-outlet')!.prepend(box);
+  });
+  const pager = page.locator('#narrow-pager');
+  await expect(pager.locator('.status.responsive')).toBeVisible();
+  await expect(pager.locator('.status.responsive')).toHaveText('Page 4 of 25');
+  await expect(pager.locator('li.num').first()).toBeHidden();
+  // Both ends are visible, inside the container (not clipped), and clicking works
+  const box = (await page.locator('#narrow').boundingBox())!;
+  for (const name of ['Previous page', 'Next page']) {
+    const b = (await pager.getByRole('button', { name }).boundingBox())!;
+    expect(b.x).toBeGreaterThanOrEqual(box.x);
+    expect(b.x + b.width).toBeLessThanOrEqual(box.x + box.width + 1);
+  }
+  await pager.getByRole('button', { name: 'Next page' }).click();
+  await expect(pager.locator('.status.responsive')).toHaveText('Page 5 of 25');
+});

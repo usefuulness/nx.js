@@ -4,6 +4,9 @@ All notable changes to Nexaro (nx.js). The format follows [Keep a Changelog](htt
 
 ## Unreleased
 
+### Changed
+- `Select` (single): in browsers with customizable selects (Chromium 135+) the dropdown is styled with the theme, lines up with the field, and left-aligns its options with a checkmark, instead of showing the operating system's list. Other browsers keep the native popup.
+
 ## 0.2.0 - 2026-11-17
 
 First release. Everything below is new since the first commit.
