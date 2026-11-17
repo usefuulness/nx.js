@@ -121,6 +121,8 @@ export { NXRadioGroup } from '@/components/ui/form/radio';
 export type { RadioGroupConfig, RadioOption } from '@/components/ui/form/radio';
 export { NXCombobox } from '@/components/ui/form/combobox';
 export type { ComboboxConfig } from '@/components/ui/form/combobox';
+export { NXRating } from '@/components/ui/form/rating';
+export type { RatingConfig } from '@/components/ui/form/rating';
 export { NXSlider } from '@/components/ui/form/slider';
 export { NXTagInput } from '@/components/ui/form/taginput';
 export type { TagInputConfig } from '@/components/ui/form/taginput';
