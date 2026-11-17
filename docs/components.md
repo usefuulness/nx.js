@@ -47,6 +47,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-spacer>`](#nx-spacer) | `Spacer` | Flexible space. In a toolbar or hbox, pushes following items to the end. Shorthand in items arrays: `'->'`. |
 | [`<nx-spinner>`](#nx-spinner) | `Spinner` | Loading spinner. |
 | [`<nx-splitter>`](#nx-splitter) | `Splitter` | Resizable panes: put two or more elements inside, and a draggable divider appears between each pair. A pane's starting share comes from its `size` attribute (any number: shares are relative) and its smallest size, in pixels, from `min-size` (default 48). |
+| [`<nx-stepper>`](#nx-stepper) | `Stepper` | Progress through a sequence of steps. Steps are `<nx-step>` children; the current step is the `current` attribute, so server HTML carries it. It shows progress; the content of each step is yours. |
 | [`<nx-switch>`](#nx-switch) | `Switch` | `<nx-switch>`: a toggle switch, like `<Switch>` in JSX. |
 | [`<nx-tab>`](#nx-tab) | `Tab` | A tab inside `<nx-tabpanel>`: `<nx-tab title="Account" icon="user" closable>…</nx-tab>`. |
 | [`<nx-tabpanel>`](#nx-tabpanel) | — | Tabs. Each item is a tab: `title`/`icon`/`closable`/`disabled` configure the tab button, everything else (`xtype`, `items`, `html`) is the tab's content. |
@@ -630,7 +631,7 @@ Radio group: pick one of a few options. Native radios inside, so arrow keys, for
 | `helper-text` | `helperText` | `string` | Hint shown under the field |
 | `label` | `label` | `string` | Label shown with the field |
 | `name` | `name` | `string` | Field name: the key in form values, and the name it posts under |
-| `orientation` | `orientation` | `vertical` `horizontal` | Lay the options out in a column or a row |
+| `orientation` | `orientation` | `horizontal` `vertical` | Lay the options out in a column or a row |
 | `required` | `required` | `boolean` | A value is required before the form can submit |
 | `value` | `value` | `string \| number` | Value of the selected option |
 | `variant` | `variant` | `default` `cards` | `cards` draws each option as a bordered, selectable card |
@@ -727,10 +728,25 @@ Resizable panes: put two or more elements inside, and a draggable divider appear
 
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
-| `orientation` | `orientation` | `vertical` `horizontal` | `horizontal` puts panes side by side (default); `vertical` stacks them |
+| `orientation` | `orientation` | `horizontal` `vertical` | `horizontal` puts panes side by side (default); `vertical` stacks them |
 | `state-key` | `stateKey` | `string` | Remember the sizes in localStorage under this key |
 
 **Events:** `resize`
+
+## nx-stepper
+
+`<nx-stepper>` · JSX: `<Stepper>` · [source](../src/components/ui/stepper.tsx)
+
+Progress through a sequence of steps. Steps are `<nx-step>` children; the current step is the `current` attribute, so server HTML carries it. It shows progress; the content of each step is yours.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `clickable` | `clickable` | `boolean` | Let people go back to an earlier step by clicking it |
+| `current` | `current` | `number` | The current step, counting from 0 (steps before it are complete) |
+| `label` | `label` | `string` | Accessible name of the list (default "Progress") |
+| `orientation` | `orientation` | `horizontal` `vertical` | `horizontal` (default) or `vertical` |
+
+**Events:** `step-change`
 
 ## nx-switch
 

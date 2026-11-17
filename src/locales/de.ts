@@ -19,6 +19,7 @@ i18n.extend('de', {
   'tags.max': { one: 'Höchstens {count} Tag erlaubt', other: 'Höchstens {count} Tags erlaubt' }, 'tags.required': 'Fügen Sie mindestens einen Tag hinzu', 'tags.min': { one: 'Fügen Sie mindestens {count} Tag hinzu', other: 'Fügen Sie mindestens {count} Tags hinzu' },
   'splitter.resize': 'Größe der Bereiche ändern',
   'chat.label': 'Unterhaltung', 'chat.inputLabel': 'Nachricht schreiben', 'chat.placeholder': 'Nachricht…', 'chat.send': 'Nachricht senden', 'chat.stop': 'Generierung stoppen', 'chat.you': 'Sie', 'chat.assistant': 'Assistent', 'chat.copy': 'Kopieren', 'chat.copied': 'Kopiert', 'chat.copyCode': 'Code kopieren', 'chat.regenerate': 'Antwort neu generieren', 'chat.retry': 'Erneut versuchen', 'chat.error': 'Etwas ist schiefgelaufen', 'chat.stopped': 'Gestoppt', 'chat.responding': 'Der Assistent antwortet', 'chat.complete': 'Antwort vollständig', 'chat.latest': 'Zur neuesten Nachricht', 'chat.empty': 'Starten Sie eine Unterhaltung',
+  'stepper.label': 'Fortschritt', 'stepper.step': 'Schritt {n} von {total}', 'stepper.complete': 'abgeschlossen', 'stepper.current': 'aktueller Schritt', 'stepper.upcoming': 'noch nicht begonnen', 'stepper.error': 'erfordert Aufmerksamkeit',
   'form.network': 'Der Server ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.',
   'form.server': 'Der Server konnte das Formular nicht verarbeiten ({status}).',
   'grid.search': 'Suchen…', 'grid.searchRows': 'Zeilen durchsuchen', 'grid.selectAll': 'Alle auswählen', 'grid.selectRow': 'Zeile auswählen',

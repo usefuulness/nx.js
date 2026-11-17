@@ -19,6 +19,7 @@ i18n.extend('fr', {
   'tags.max': { one: '{count} étiquette au maximum', other: '{count} étiquettes au maximum' }, 'tags.required': 'Ajoutez au moins une étiquette', 'tags.min': { one: 'Ajoutez au moins {count} étiquette', other: 'Ajoutez au moins {count} étiquettes' },
   'splitter.resize': 'Redimensionner les panneaux',
   'chat.label': 'Conversation', 'chat.inputLabel': 'Écrire un message', 'chat.placeholder': 'Message…', 'chat.send': 'Envoyer le message', 'chat.stop': 'Arrêter la génération', 'chat.you': 'Vous', 'chat.assistant': 'Assistant', 'chat.copy': 'Copier', 'chat.copied': 'Copié', 'chat.copyCode': 'Copier le code', 'chat.regenerate': 'Régénérer la réponse', 'chat.retry': 'Réessayer', 'chat.error': 'Une erreur est survenue', 'chat.stopped': 'Arrêté', 'chat.responding': 'L’assistant répond', 'chat.complete': 'Réponse terminée', 'chat.latest': 'Aller au dernier message', 'chat.empty': 'Commencez une conversation',
+  'stepper.label': 'Progression', 'stepper.step': 'Étape {n} sur {total}', 'stepper.complete': 'terminée', 'stepper.current': 'étape en cours', 'stepper.upcoming': 'pas commencée', 'stepper.error': 'nécessite votre attention',
   'form.network': 'Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.',
   'form.server': 'Le serveur n’a pas pu traiter le formulaire ({status}).',
   'grid.search': 'Rechercher…', 'grid.searchRows': 'Rechercher des lignes', 'grid.selectAll': 'Tout sélectionner', 'grid.selectRow': 'Sélectionner la ligne',

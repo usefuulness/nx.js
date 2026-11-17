@@ -4,7 +4,7 @@
  */
 import {
   NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, FileUpload, Form, Grid,
-  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Splitter, Switch, Tab, Tabs, TagInput, Chat, type NXChat,
+  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Slider, Spacer, Splitter, Switch, Tab, Tabs, TagInput, Chat, Stepper, Step, type NXChat,
   Textarea, Toolbar, Tooltip, Tree,
   VStack, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
@@ -62,7 +62,7 @@ const reply = await chat.respond(signal => stream(prompt, signal));
 
 Read the [chat guide](https://usefuulness.github.io/nx.js/docs/chat.html) for the details.`;
   for (const word of reply.split(/(?<=\s)/)) {
-    await new Promise(resolve => setTimeout(resolve, 22));
+    await new Promise(resolve => setTimeout(resolve, 45));
     if (signal.aborted) return;
     yield word;
   }
@@ -402,6 +402,15 @@ const ComponentsPage = () => (
           <Alert variant="warning" title="Trial ends soon">Upgrade to keep your projects.</Alert>
           <Alert variant="destructive" title="Payment failed">Your card was declined.</Alert>
         </VStack>
+      </Card>
+
+      <Card title="Stepper" subtitle="Progress through steps. Click a completed step to go back.">
+        <Stepper id="demo-stepper" current={1} clickable>
+          <Step title="Account" description="Your details" />
+          <Step title="Plan" description="Pick a tier" />
+          <Step title="Payment" status="error" description="Card declined" />
+          <Step title="Done" />
+        </Stepper>
       </Card>
 
       <Card title="Chat" subtitle="A chat window for talking to an AI: streaming, safe Markdown, Stop. This one answers with a canned reply.">

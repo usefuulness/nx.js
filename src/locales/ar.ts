@@ -19,6 +19,7 @@ i18n.extend('ar', {
   'tags.max': { one: 'يُسمح بوسم واحد على الأكثر', other: 'يُسمح بـ {count} وسوم على الأكثر' }, 'tags.required': 'أضف وسمًا واحدًا على الأقل', 'tags.min': { one: 'أضف وسمًا واحدًا على الأقل', other: 'أضف {count} وسوم على الأقل' },
   'splitter.resize': 'تغيير حجم اللوحات',
   'chat.label': 'المحادثة', 'chat.inputLabel': 'اكتب رسالة', 'chat.placeholder': 'رسالة…', 'chat.send': 'إرسال الرسالة', 'chat.stop': 'إيقاف التوليد', 'chat.you': 'أنت', 'chat.assistant': 'المساعد', 'chat.copy': 'نسخ', 'chat.copied': 'تم النسخ', 'chat.copyCode': 'نسخ الشيفرة', 'chat.regenerate': 'إعادة توليد الرد', 'chat.retry': 'حاول مرة أخرى', 'chat.error': 'حدث خطأ ما', 'chat.stopped': 'تم الإيقاف', 'chat.responding': 'المساعد يرد الآن', 'chat.complete': 'اكتمل الرد', 'chat.latest': 'الانتقال إلى الأحدث', 'chat.empty': 'ابدأ محادثة',
+  'stepper.label': 'التقدم', 'stepper.step': 'الخطوة {n} من {total}', 'stepper.complete': 'مكتملة', 'stepper.current': 'الخطوة الحالية', 'stepper.upcoming': 'لم تبدأ', 'stepper.error': 'تحتاج إلى انتباه',
   'form.network': 'تعذّر الوصول إلى الخادم. تحقق من اتصالك وحاول مرة أخرى.',
   'form.server': 'تعذّر على الخادم معالجة النموذج ({status}).',
   'grid.search': 'بحث…', 'grid.searchRows': 'البحث في الصفوف', 'grid.selectAll': 'تحديد الكل', 'grid.selectRow': 'تحديد الصف',

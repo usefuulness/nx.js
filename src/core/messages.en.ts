@@ -20,6 +20,12 @@ export const en: Messages = {
   // Components
   'breadcrumb.label': 'Breadcrumb',
   'progress.label': 'Progress',
+  'stepper.label': 'Progress',
+  'stepper.step': 'Step {n} of {total}',
+  'stepper.complete': 'completed',
+  'stepper.current': 'current step',
+  'stepper.upcoming': 'not started',
+  'stepper.error': 'needs attention',
   'drawer.label': 'Panel',
   'dialog.label': 'Dialog',
   'dialog.notice': 'Notice',

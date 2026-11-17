@@ -19,6 +19,7 @@ i18n.extend('es', {
   'tags.max': { one: 'Máximo {count} etiqueta', other: 'Máximo {count} etiquetas' }, 'tags.required': 'Añada al menos una etiqueta', 'tags.min': { one: 'Añada al menos {count} etiqueta', other: 'Añada al menos {count} etiquetas' },
   'splitter.resize': 'Cambiar el tamaño de los paneles',
   'chat.label': 'Conversación', 'chat.inputLabel': 'Escribir un mensaje', 'chat.placeholder': 'Mensaje…', 'chat.send': 'Enviar mensaje', 'chat.stop': 'Detener la generación', 'chat.you': 'Tú', 'chat.assistant': 'Asistente', 'chat.copy': 'Copiar', 'chat.copied': 'Copiado', 'chat.copyCode': 'Copiar código', 'chat.regenerate': 'Regenerar respuesta', 'chat.retry': 'Intentar de nuevo', 'chat.error': 'Algo salió mal', 'chat.stopped': 'Detenido', 'chat.responding': 'El asistente está respondiendo', 'chat.complete': 'Respuesta completa', 'chat.latest': 'Ir al último', 'chat.empty': 'Empiece una conversación',
+  'stepper.label': 'Progreso', 'stepper.step': 'Paso {n} de {total}', 'stepper.complete': 'completado', 'stepper.current': 'paso actual', 'stepper.upcoming': 'sin empezar', 'stepper.error': 'requiere atención',
   'form.network': 'No se pudo conectar con el servidor. Compruebe su conexión e inténtelo de nuevo.',
   'form.server': 'El servidor no pudo procesar el formulario ({status}).',
   'grid.search': 'Buscar…', 'grid.searchRows': 'Buscar filas', 'grid.selectAll': 'Seleccionar todo', 'grid.selectRow': 'Seleccionar fila',
