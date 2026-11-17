@@ -5,6 +5,7 @@ All notable changes to Nexaro (nx.js). The format follows [Keep a Changelog](htt
 ## Unreleased
 
 ### Added
+- **Chart:** `<nx-chart>`: bar, line, area and donut charts in SVG, themed (light and dark), with the data as a hidden table for screen readers, a legend, per-series marker shapes, locale-formatted numbers; bad data shows an empty state, and a chart is capped at 500 points.
 - **Stepper:** `<nx-stepper>` / `<nx-step>` shows progress through a sequence (horizontal or vertical), with an error state and optional click-to-go-back; `current` lives in the markup so server HTML carries it.
 - **Chat:** `<nx-chat>` for AI interfaces: streaming replies (`respond()`), Stop, safe Markdown (`renderMarkdown()`: HTML shown as text, images never loaded, only http/https/mailto links), a message box (Enter sends, IME-safe), copy and regenerate, scroll-following that yields to the reader, announcements for screen readers; `readText()` and `readSSE()` for streamed responses.
 

@@ -3,7 +3,7 @@ import { i18n } from '@/core/i18n';
 
 i18n.extend('fr', {
   close: 'Fermer', dismiss: 'Ignorer', clear: 'Effacer', remove: 'Retirer', ok: 'OK', cancel: 'Annuler', confirm: 'Confirmer', loading: 'Chargement',
-  'breadcrumb.label': 'Fil d’Ariane', 'progress.label': 'Progression', 'drawer.label': 'Panneau', 'dialog.label': 'Boîte de dialogue',
+  'breadcrumb.label': 'Fil d’Ariane', 'chart.label': 'Graphique', 'chart.value': 'Valeur', 'chart.empty': 'Aucune donnée à afficher', 'progress.label': 'Progression', 'drawer.label': 'Panneau', 'dialog.label': 'Boîte de dialogue',
   'dialog.notice': 'Information', 'dialog.confirmTitle': 'Êtes-vous sûr ?',
   'datepicker.previousMonth': 'Mois précédent', 'datepicker.nextMonth': 'Mois suivant', 'datepicker.choose': 'Choisir une date',
   'combobox.empty': 'Aucun résultat.', 'combobox.show': 'Afficher les options', 'combobox.options': 'Options',
