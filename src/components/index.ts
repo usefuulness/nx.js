@@ -29,6 +29,7 @@ import '@/components/ui/skeleton';
 import '@/components/ui/spinner';
 import '@/components/ui/stepper';
 import '@/components/ui/chart';
+import '@/components/ui/timeline';
 import '@/components/ui/tabpanel';
 import '@/components/ui/toast';
 import '@/components/ui/toolbar';

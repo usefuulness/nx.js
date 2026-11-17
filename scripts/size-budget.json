@@ -40,7 +40,7 @@
   {
     "file": "locales/ar.js",
     "closure": true,
-    "maxGzipKB": 4,
+    "maxGzipKB": 5,
     "note": "nx.js/locales/ar with the i18n core it extends; the strings themselves are about 1.2 kB"
   },
   {

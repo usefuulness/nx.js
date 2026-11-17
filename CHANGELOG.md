@@ -5,6 +5,7 @@ All notable changes to Nexaro (nx.js). The format follows [Keep a Changelog](htt
 ## Unreleased
 
 ### Added
+- **Timeline:** `<nx-timeline>` / `<nx-timeline-item>`: an ordered list of events with a formatted `<time>`, a status written out for screen readers, optional icons and `reverse`.
 - **Rating:** `<nx-rating>` star rating form control (native radios underneath: keys, posting and `required` as in HTML), `max` up to 10, `readonly` display with half stars.
 - **Chart:** `<nx-chart>`: bar, line, area and donut charts in SVG, themed (light and dark), with the data as a hidden table for screen readers, a legend, per-series marker shapes, locale-formatted numbers; bad data shows an empty state, and a chart is capped at 500 points.
 - **Stepper:** `<nx-stepper>` / `<nx-step>` shows progress through a sequence (horizontal or vertical), with an error state and optional click-to-go-back; `current` lives in the markup so server HTML carries it.

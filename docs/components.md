@@ -57,6 +57,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-tag-input>`](#nx-tag-input) | `TagInput` | Tag input: type a value and press **Enter** (or a separator such as a comma) to turn it into a removable chip. Paste splits on separators and newlines. **Backspace** in the empty box removes the last tag. Tags can also be removed with their × buttons. Additions and removals are announced. |
 | [`<nx-textarea>`](#nx-textarea) | `Textarea` | `<nx-textarea>`: a multi-line text field, like `<Textarea>` in JSX. |
 | [`<nx-textfield>`](#nx-textfield) | — | Text input (also: `xtype: 'textarea'`, `'numberfield'`, `'datefield'`, `'password'`, `'email'`). |
+| [`<nx-timeline>`](#nx-timeline) | `Timeline` | A vertical list of events, such as an activity feed or an order history. Items are `<nx-timeline-item>` children: `title`, optional `time` (ISO) and `status`, and the item's text is its description. |
 | [`<nx-toast>`](#nx-toast) | — | Toast notifications: short messages that stack in a corner and dismiss themselves. Created on demand by the helpers, so you rarely write the tag: |
 | [`<nx-toolbar>`](#nx-toolbar) | `Toolbar` | Horizontal bar of controls. Items are regular components; buttons default to the `ghost` variant. Use `'->'` to push the rest to the right and `'-'` for a separator. |
 | [`<nx-tooltip>`](#nx-tooltip) | `Tooltip` | Tooltip: a short hint shown on hover and keyboard focus. Wrap the trigger: `<nx-tooltip content="Save changes"><nx-button icon="save" aria-label="Save"></nx-button></nx-tooltip>` (buttons also take `tooltip="…"` directly). |
@@ -934,6 +935,17 @@ Text input (also: `xtype: 'textarea'`, `'numberfield'`, `'datefield'`, `'passwor
 | `step` | `step` | `string \| number` | Increment between allowed values |
 | `type` | `type` | `number` `text` `email` `password` `tel` `url` `search` `date` `time` `datetime-local` | Input type: `text`, `email`, `password`, `number`, `date`, `search`… |
 | `value` | `value` | `string \| number` | Current value |
+
+## nx-timeline
+
+`<nx-timeline>` · JSX: `<Timeline>` · [source](../src/components/ui/timeline.tsx)
+
+A vertical list of events, such as an activity feed or an order history. Items are `<nx-timeline-item>` children: `title`, optional `time` (ISO) and `status`, and the item's text is its description.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `label` | `label` | `string` | Accessible name of the list (default "Timeline") |
+| `reverse` | `reverse` | `boolean` | Show the newest item last instead of first |
 
 ## nx-toast
 

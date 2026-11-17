@@ -4,7 +4,7 @@
  */
 import {
   NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, FileUpload, Form, Grid,
-  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Rating, Slider, Spacer, Splitter, Switch, Tab, Tabs, TagInput, Chat, Chart, Stepper, Step, type NXChat,
+  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Rating, Slider, Spacer, Timeline, TimelineItem, Splitter, Switch, Tab, Tabs, TagInput, Chat, Chart, Stepper, Step, type NXChat,
   Textarea, Toolbar, Tooltip, Tree,
   VStack, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
@@ -403,6 +403,14 @@ const ComponentsPage = () => (
           <Alert variant="warning" title="Trial ends soon">Upgrade to keep your projects.</Alert>
           <Alert variant="destructive" title="Payment failed">Your card was declined.</Alert>
         </VStack>
+      </Card>
+
+      <Card title="Timeline" subtitle="Events in order, with a time and a status that is also written out for screen readers.">
+        <Timeline id="demo-timeline" label="Order history">
+          <TimelineItem title="Delivered" time="2026-03-04" status="success">Left at the front door.</TimelineItem>
+          <TimelineItem title="Payment failed, retried" time="2026-03-02T14:10" status="warning" />
+          <TimelineItem title="Order placed" time="2026-03-01T09:30" />
+        </Timeline>
       </Card>
 
       <Card title="Chart" subtitle="Bars, lines, areas and donuts in SVG. The data is also a hidden table for screen readers.">

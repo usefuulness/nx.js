@@ -5,7 +5,7 @@
  */
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
-  Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Chart, Rating, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
+  Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Chart, Timeline, TimelineItem, Rating, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
   Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
 
@@ -120,6 +120,13 @@ export const Components = () => (
           <Progress value={64} label="Storage" showValue />
           <HStack gap={12} align="center"><Spinner /><Skeleton width="60%" /></HStack>
         </VStack>
+      </Card>
+
+      <Card title="Timeline">
+        <Timeline label="Order history">
+          <TimelineItem title="Delivered" time="2026-03-04" status="success">Left at the front door.</TimelineItem>
+          <TimelineItem title="Order placed" time="2026-03-01T09:30" />
+        </Timeline>
       </Card>
 
       <Card title="Chart">
