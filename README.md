@@ -26,13 +26,18 @@ Accessible, themeable UI components you write like HTML: shadcn-style, as standa
 - **Forms that work before JavaScript.** Fields are form-associated: they post, validate and reset like native inputs, and server-rendered forms can be filled in and submitted before the script arrives.
 - **Accessible, and checked.** Keyboard support and ARIA throughout; an axe WCAG 2.1 AA audit of every page, in every theme, with overlays open, runs on every change and must report zero violations.
 - **Themeable.** Light, dark and midnight themes built in; your brand is a few design tokens.
-- **Small, and you pay for what you use.** About 70 kB gzipped (57 kB brotli) with every component, no runtime dependencies, and per-component imports: a badge is 14 kB, a form 17 kB, the full data grid 28 kB (`pnpm size` checks these in CI).
+- **Logic, not just widgets.** Stores with filtering, sorting and aggregates; models with typed fields and validators; proxies and `NX.ajax`; view models with formulas and `bind-…` attributes; controllers; remembered state; formatting. All usable without a single component.
+- **Small, and you pay for what you use.** About 110 kB gzipped (89 kB brotli) with everything, no runtime dependencies, and per-component imports: a badge is 16 kB, a form 20 kB, the full data grid 38 kB (`pnpm size` checks these in CI).
 
 ## Quick start
 
-> nx.js is not on npm yet. Build it from this repository (`pnpm install && pnpm build`) and use `dist/`.
+```bash
+npm create nx.js my-app     # a Vite + TypeScript + JSX project, ready to run
+```
 
-Point your compiler's JSX at nx.js:
+> nx.js is not on npm yet, so `npm create nx.js` and `npm install nx.js` will not find it. Until it is published, build it from this repository (`pnpm install && pnpm build`) and use `dist/`.
+
+Or add it to a project you have. Point your compiler's JSX at nx.js:
 
 ```jsonc
 // tsconfig.json
@@ -63,6 +68,8 @@ No CSS import is needed. Without a build step, load `dist/nx.umd.js` and write t
 | [Getting started](docs/getting-started.md) | setup with a bundler, a `<script>` tag, or a server template |
 | [JSX, configs and HTML](docs/jsx-and-html.md) | the three ways to write UI, and how props map to attributes |
 | [Building apps](docs/building-apps.md) | app shell, routing, data grid, stores, dialogs, toasts, menus, ⌘K |
+| [Data and logic](docs/data.md) | stores, models and validators, proxies, view models and bindings, controllers, state, formatting |
+| [Chat](docs/chat.md) | a chat window for AI: streaming replies, safe Markdown, connecting a model |
 | [Forms](docs/forms.md) | fields, validation, posting to a server, forms before JavaScript |
 | [Server rendering](docs/server-rendering.md) | SSR, SSG, `hydrate()`, Twig/Blade/Jinja, the `nx-ssr` proxy and CLI |
 | [Theming](docs/theming.md) | themes, brand colours, design tokens, `::part()` |
@@ -75,11 +82,12 @@ No CSS import is needed. Without a build step, load `dist/nx.umd.js` and write t
 | Group | JSX components (tags: `<nx-*>`) |
 | --- | --- |
 | Actions | `Button`, `Menu`, `MenuBar`, `Command` (⌘K palette) |
-| Forms | `Form`, `Input`, `Textarea`, `Select`, `Combobox`, `Checkbox`, `Switch`, `RadioGroup`, `Slider`, `DatePicker` |
-| Data | `DataGrid` with stores, sorting, search, selection and paging |
-| Navigation | `Tabs`, `Tree`, `Breadcrumb`, `Accordion` |
+| Forms | `Form`, `Input`, `Textarea`, `Select`, `Combobox`, `Checkbox`, `Switch`, `RadioGroup` (also segmented and cards), `Slider`, `DatePicker`, `TagInput`, `FileUpload`, `OtpInput`, `Rating` |
+| Data | `DataGrid` (virtual rows, editing, tree rows, grouping, export), `Pagination`, `Chart` (bar, line, area, donut) |
+| Navigation | `Tabs`, `Tree`, `Breadcrumb`, `Accordion`, `Stepper`, `Splitter` |
 | Overlays | `Dialog`, `Drawer`, `Popover`, `Tooltip`, plus `NX.toast()`, `NX.confirm()`, `NX.prompt()`, `NX.dialog()` |
-| Display | `Card`, `Badge`, `Avatar`, `Alert`, `Progress`, `Spinner`, `Skeleton` |
+| Display | `Card`, `Badge`, `Avatar`, `Alert`, `Progress`, `Spinner`, `Skeleton`, `Timeline`, `Calendar` |
+| AI | `Chat`: streaming replies, safe Markdown, Stop, regenerate |
 | Layout | `Viewport` (app shell), `Panel`, `Toolbar`, `Box`, `HStack`, `VStack`, `Grid`, `Spacer`, `Separator`, `Divider` |
 
 See them all live in the [showcase](examples/showcase) (`pnpm example:showcase`) or the demo app (`pnpm dev`).
