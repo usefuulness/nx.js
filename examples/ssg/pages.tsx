@@ -5,7 +5,7 @@
  */
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
-  Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Chart, Calendar, Timeline, TimelineItem, Rating, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
+  Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Chart, Calendar, OtpInput, Timeline, TimelineItem, Rating, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
   Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
 
@@ -174,6 +174,7 @@ export const Components = () => (
           <Combobox name="country" label="Country" value="de" placeholder="Search…"
                     options={{ de: 'Germany', fr: 'France', it: 'Italy', es: 'Spain', nl: 'Netherlands' }} />
           <RadioGroup name="density" label="Density" variant="segmented" value="comfortable" options={{ compact: 'Compact', comfortable: 'Comfortable', spacious: 'Spacious' }} />
+          <OtpInput name="code" label="Verification code" length={6} />
           <Rating name="stars" label="Rating" value={4} />
           <Slider name="volume" label="Volume" value={30} showValue unit="%" />
           <DatePicker name="due" label="Due date" value="2025-06-15" locale="en-US" />

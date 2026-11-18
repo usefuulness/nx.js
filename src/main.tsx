@@ -4,7 +4,7 @@
  */
 import {
   NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, FileUpload, Form, Grid,
-  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Calendar, Rating, Slider, Spacer, Timeline, TimelineItem, Splitter, Switch, Tab, Tabs, TagInput, Chat, Chart, Stepper, Step, type NXChat,
+  HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Calendar, OtpInput, Rating, Slider, Spacer, Timeline, TimelineItem, Splitter, Switch, Tab, Tabs, TagInput, Chat, Chart, Stepper, Step, type NXChat,
   Textarea, Toolbar, Tooltip, Tree,
   VStack, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
@@ -280,6 +280,7 @@ const SettingsPage = () => (
         <Input name="age" type="number" label="Age" min={0} max={150} />
         <DatePicker name="birthday" label="Birthday" max="2020-12-31" placeholder="Pick your birthday" />
         <RadioGroup id="demo-segmented" name="density" label="Density" variant="segmented" value="comfortable" options={{ compact: 'Compact', comfortable: 'Comfortable', spacious: 'Spacious' }} />
+        <OtpInput id="demo-otp" name="code" label="Verification code" length={6} helperText="Paste the code, or type it: the boxes move on by themselves." />
         <Rating id="demo-rating" name="rating" label="How was it?" value={3} />
         <Slider name="volume" label="Notification volume" value={60} showValue unit="%" />
         <Textarea name="bio" label="Bio" placeholder="Tell us a little about yourself" style="grid-column: 1 / -1" />

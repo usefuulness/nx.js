@@ -38,6 +38,7 @@ import type { RadioGroupConfig } from '@/components/ui/form/radio';
 import type { ComboboxConfig } from '@/components/ui/form/combobox';
 import type { PopoverConfig } from '@/components/ui/popover';
 import type { TooltipConfig } from '@/components/ui/tooltip';
+import type { OtpInputConfig } from '@/components/ui/form/otp';
 import type { RatingConfig } from '@/components/ui/form/rating';
 import type { SliderConfig } from '@/components/ui/form/slider';
 import type { FileUploadConfig } from '@/components/ui/form/fileupload';
@@ -147,6 +148,7 @@ declare module './jsx-runtime' {
     'nx-combobox': Props<ComboboxConfig>;
     'nx-popover': Props<PopoverConfig>;
     'nx-tooltip': Props<TooltipConfig>;
+    'nx-otp-input': Props<OtpInputConfig>;
     'nx-rating': Props<RatingConfig>;
     'nx-slider': Props<SliderConfig>;
     'nx-file-upload': Props<FileUploadConfig>;
@@ -255,6 +257,7 @@ export const Switch = (props: Props<Omit<CheckboxConfig, 'switch'>>) => <nx-swit
 export const RadioGroup = (props: Props<RadioGroupConfig>) => <nx-radio-group {...props} />;
 /** Searchable select: type to filter the options */
 export const Combobox = (props: Props<ComboboxConfig>) => <nx-combobox {...props} />;
+export const OtpInput = (props: Props<OtpInputConfig>) => <nx-otp-input {...props} />;
 export const Rating = (props: Props<RatingConfig>) => <nx-rating {...props} />;
 export const Slider = (props: Props<SliderConfig>) => <nx-slider {...props} />;
 export const FileUpload = (props: Props<FileUploadConfig>) => <nx-file-upload {...props} />;
