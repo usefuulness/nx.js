@@ -1083,3 +1083,27 @@ test.describe('calendar', () => {
     await expect(cal.locator('.ev-title')).toHaveText('Design review');
   });
 });
+
+test.describe('one-time code', () => {
+  test('moves on as you type, takes a paste, and steps back on Backspace', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.goto('/#/forms');
+    const otp = page.locator('#demo-otp');
+    await otp.scrollIntoViewIfNeeded();
+    const cells = otp.locator('input.cell');
+    await cells.nth(0).click();
+    await page.keyboard.type('123');
+    await expect(cells.nth(3)).toBeFocused();
+    expect(await otp.evaluate((el: any) => el.value)).toBe('123');
+    await page.keyboard.press('Backspace'); // box 4 is empty: step back and clear box 3
+    await expect(cells.nth(2)).toBeFocused();
+    expect(await otp.evaluate((el: any) => el.value)).toBe('12');
+    // A pasted code lands in every box and the last one has focus
+    await page.evaluate(() => navigator.clipboard.writeText('987 654'));
+    await cells.nth(0).click();
+    await page.keyboard.press('Control+V');
+    await expect.poll(() => otp.evaluate((el: any) => el.value)).toBe('987654');
+    await expect(cells.nth(5)).toBeFocused();
+    expect(await cells.evaluateAll(els => els.map(e => (e as HTMLInputElement).value).join(''))).toBe('987654');
+  });
+});

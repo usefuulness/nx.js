@@ -37,6 +37,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-menu>`](#nx-menu) | `Menu` | A trigger button with a dropdown menu. |
 | [`<nx-menubar>`](#nx-menubar) | `MenuBar` | Application menu bar (File / Edit / View …). Once a menu is open, hovering or arrowing to a neighbour switches menus, like a desktop app. |
 | [`<nx-modal>`](#nx-modal) | — | Modal dialog built on the native `<dialog>` element (focus trap, Escape, top layer and inert background for free). |
+| [`<nx-otp-input>`](#nx-otp-input) | `OtpInput` | One-time code input: a box per character that moves on as you type, steps back on **Backspace**, and takes a pasted code (or the one your phone offers) in one go. The code posts as a single value, and the first box asks the browser for `one-time-code` autofill. |
 | [`<nx-pagination>`](#nx-pagination) | `Pagination` | Page navigation: previous, numbered pages with gaps, next, and optionally a range label and a page-size selector. It only tracks the page; you load that page's data. |
 | [`<nx-panel>`](#nx-panel) | `Panel` | General-purpose container with an optional header. Inside a viewport, set `region` to dock it (`north`, `west`, `center`, ...). |
 | [`<nx-popover>`](#nx-popover) | `Popover` | Popover: a panel of rich content anchored to a trigger. Click the trigger to toggle; Escape, clicking outside or opening another popover closes it. |
@@ -577,6 +578,26 @@ Modal dialog built on the native `<dialog>` element (focus trap, Escape, top lay
 | `title` | `title` | `string` | Dialog heading |
 
 **Events:** `open`, `close`
+
+## nx-otp-input
+
+`<nx-otp-input>` · JSX: `<OtpInput>` · [source](../src/components/ui/form/otp.tsx)
+
+One-time code input: a box per character that moves on as you type, steps back on **Backspace**, and takes a pasted code (or the one your phone offers) in one go. The code posts as a single value, and the first box asks the browser for `one-time-code` autofill.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `disabled` | `disabled` | `boolean` | Not interactive (fields are also left out when a form posts) |
+| `error-text` | `errorText` | `string` | Error shown under the field (for example from the server); marks it invalid |
+| `helper-text` | `helperText` | `string` | Hint shown under the field |
+| `label` | `label` | `string` | Label shown with the field |
+| `length` | `length` | `number` | Number of characters (default 6, from 2 to 12) |
+| `name` | `name` | `string` | Field name: the key in form values, and the name it posts under |
+| `required` | `required` | `boolean` | A value is required before the form can submit |
+| `type` | `type` | `text` `numeric` | `numeric` (default) takes digits only; `text` takes letters and digits |
+| `value` | `value` | `string` | The code typed so far |
+
+**Events:** `input`, `change`, `complete`
 
 ## nx-pagination
 

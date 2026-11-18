@@ -20,6 +20,7 @@ export const en: Messages = {
   // Components
   'breadcrumb.label': 'Breadcrumb',
   'progress.label': 'Progress',
+  'otp.digit': 'Character {n} of {total}', 'otp.required': { one: 'Enter the {count}-character code', other: 'Enter the {count}-character code' },
   'calendar.label': 'Calendar', 'calendar.none': 'Nothing on this day', 'calendar.events': { one: '{count} event', other: '{count} events' },
   'timeline.label': 'Timeline', 'timeline.success': 'succeeded', 'timeline.warning': 'warning', 'timeline.error': 'failed', 'timeline.info': 'information',
   'rating.value': '{n} of {max}', 'rating.none': 'Not rated',

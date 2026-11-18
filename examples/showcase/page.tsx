@@ -8,7 +8,7 @@
 import {
   NX, Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardFooter, Checkbox, Combobox,
   Command, DataGrid, DatePicker, Dialog, DialogFooter, Drawer, DrawerFooter, Form, Input, Menu, MenuBar, Popover,
-  PopoverTrigger, Calendar, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
+  PopoverTrigger, Calendar, OtpInput, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
   type CommandItem, type Child, type NXChat
 } from 'nx.js';
 
@@ -534,6 +534,11 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
                 <div style="flex: 1 1 12rem"><Chart type="donut" label="Traffic" data={[{ label: 'Search', value: 52 }, { label: 'Direct', value: 31 }, { label: 'Social', value: 17 }]} /></div>
               </div>
               <p class="sc-note">Bars, lines, areas and donuts in SVG, themed. The data is also a hidden table for screen readers.</p>
+            </Specimen>
+
+            <Specimen tag="nx-otp-input">
+              <OtpInput name="code" label="Verification code" length={6} />
+              <p class="sc-note">A box per character that moves on as you type, steps back on Backspace, and takes a pasted or autofilled code. It posts as one value.</p>
             </Specimen>
 
             <Specimen tag="nx-rating">

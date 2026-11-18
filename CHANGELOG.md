@@ -5,6 +5,7 @@ All notable changes to nx.js. The format follows [Keep a Changelog](https://keep
 ## Unreleased
 
 ### Added
+- **One-time code:** `<nx-otp-input>`: a box per character (2 to 12) that advances as you type, steps back on Backspace, and takes a pasted or autofilled code; `numeric` or `text`, `complete` event, posts as one value and as one text box before JavaScript.
 - **Segmented control:** `<nx-radio-group variant="segmented">` joins the options into one compact switch row (still native radios: keys, posting and `required` as before).
 
 ## 0.4.0 - 2026-11-17
