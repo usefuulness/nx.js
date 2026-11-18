@@ -2,6 +2,11 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## Unreleased
+
+### Added
+- **Select, everywhere:** browsers that cannot theme the native dropdown (Firefox, Safari) now open a themed list on desktop: same look as the Chromium one, a labelled `listbox` with arrow keys, Home/End, type-ahead, Escape, and the top layer so nothing clips it. The native `<select>` remains the control (value, validity, forms, server HTML). Touch screens keep the native picker. New `popup` attribute (`auto`, `custom`, `native`).
+
 ## 0.5.0 - 2026-11-18
 
 ### Added

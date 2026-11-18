@@ -1107,3 +1107,44 @@ test.describe('one-time code', () => {
     expect(await cells.evaluateAll(els => els.map(e => (e as HTMLInputElement).value).join(''))).toBe('987654');
   });
 });
+
+test.describe('select with the themed list', () => {
+  test('opens our list under the field, is keyboard operable, and posts the choice', async ({ page }) => {
+    await page.goto('/#/forms');
+    const select = page.locator('nx-select').first();
+    await select.scrollIntoViewIfNeeded();
+    await select.evaluate((el: any) => el.setAttribute('popup', 'custom'));
+    await page.waitForTimeout(200);
+    const field = select.locator('select');
+    await field.click();
+    const list = select.locator('.listbox');
+    await expect(list).toBeVisible();
+    // It sits right under the field, at least as wide, and in the top layer (nothing can clip it)
+    const geo = await select.evaluate((el: any) => {
+      const f = el.shadowRoot.querySelector('select').getBoundingClientRect();
+      const l = el.shadowRoot.querySelector('.listbox').getBoundingClientRect();
+      return { dx: Math.abs(l.left - f.left), dy: l.top - f.bottom, wider: l.width >= f.width - 1, top: el.shadowRoot.querySelector('.listbox').matches(':popover-open') };
+    });
+    expect(geo.dx).toBeLessThan(2);
+    expect(geo.dy).toBeGreaterThanOrEqual(0);
+    expect(geo.dy).toBeLessThan(12);
+    expect(geo.wider).toBe(true);
+    expect(geo.top).toBe(true);
+    // Keyboard: arrows, Enter picks, focus returns to the field
+    await page.keyboard.press('ArrowDown');
+    const label = await select.locator('.opt.active .opt-text').textContent();
+    await page.keyboard.press('Enter');
+    await expect(list).toHaveCount(0);
+    expect(await select.evaluate((el: any) => el.shadowRoot.activeElement?.tagName)).toBe('SELECT');
+    expect(await field.evaluate((s: HTMLSelectElement) => s.selectedOptions[0].textContent)).toBe(label);
+    // Escape closes it; a click elsewhere closes it too
+    await field.press('Enter');
+    await expect(list).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(list).toHaveCount(0);
+    await field.click();
+    await expect(list).toBeVisible();
+    await page.mouse.click(5, 5);
+    await expect(list).toHaveCount(0);
+  });
+});
