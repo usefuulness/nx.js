@@ -2,7 +2,7 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
-## Unreleased
+## 0.5.0 - 2026-11-18
 
 ### Added
 - **One-time code:** `<nx-otp-input>`: a box per character (2 to 12) that advances as you type, steps back on Backspace, and takes a pasted or autofilled code; `numeric` or `text`, `complete` event, posts as one value and as one text box before JavaScript.
