@@ -1148,3 +1148,34 @@ test.describe('select with the themed list', () => {
     await expect(list).toHaveCount(0);
   });
 });
+
+test.describe('view model', () => {
+  test('bound markup follows typing, a formula decides validity, and the model says why', async ({ page }) => {
+    await page.goto('/#/components');
+    const card = page.locator('#demo-viewmodel');
+    await card.scrollIntoViewIfNeeded();
+    const greeting = card.locator('.vm-greeting');
+    const submit = card.locator('.vm-submit');
+    await expect(greeting).toHaveText('Hello, Ada! We will write to ada@example.com.');
+    await expect(submit).not.toHaveAttribute('disabled', /.*/);
+    await expect(card.locator('.vm-problem')).toBeHidden();
+    // Typing updates the data, and everything bound to it
+    const name = card.getByLabel('Name');
+    await name.fill('Grace');
+    await expect(greeting).toContainText('Hello, Grace!');
+    // An invalid value: the formula flips, the button disables, the model's message shows
+    await card.getByLabel('Email').fill('not-an-email');
+    await expect(submit).toHaveAttribute('disabled', '');
+    await expect(card.locator('.vm-problem')).toHaveText('Enter an email address');
+    await card.getByLabel('Email').fill('grace@example.com');
+    await expect(submit).not.toHaveAttribute('disabled', /.*/);
+    await expect(card.locator('.vm-problem')).toBeHidden();
+    // Data can also be changed from code, and the field shows it
+    await page.evaluate(() => {
+      const input = document.querySelector('#demo-viewmodel nx-input') as any;
+      input.value = 'Hopper';
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await expect(greeting).toContainText('Hello, Hopper!');
+  });
+});

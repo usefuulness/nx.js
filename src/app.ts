@@ -15,6 +15,12 @@ import { showMenu } from '@/components/ui/menu';
 import { command } from '@/components/ui/command';
 import { hydrate } from '@/jsx/hydrate';
 import { i18n } from '@/core/i18n';
+import { defineModel } from '@/data/model';
+import { ajax } from '@/data/proxy';
+import { createViewModel } from '@/core/viewmodel';
+import { createController } from '@/core/controller';
+import { state } from '@/core/state';
+import { Format, debounce, throttle, startTask, stopAllTasks } from '@/core/util';
 
 export type { ComponentConfig, ItemConfig } from '@/core/registry';
 
@@ -459,6 +465,28 @@ export const NX = {
     return new Store<T>(nameOrConfig);
   },
 
+  /** Describe a kind of record: typed fields, validators, change tracking, load and save (`NX.model({ fields: [...] })`). */
+  model: defineModel,
+
+  /** Reactive data with formulas, for views to bind to: `NX.viewModel({ data, formulas })`. */
+  viewModel: createViewModel,
+
+  /** Handle events for a part of the page by selector, find elements by `reference`: `NX.controller({ root, control })`. */
+  controller: createController,
+
+  /** A request that speaks JSON, fails on bad statuses and can time out: `await NX.ajax('/api/x', { method: 'POST', body })`. */
+  ajax,
+
+  /** Remembered state (`NX.state.get('sidebar')`, `.set()`), kept in the browser's storage with a safe fallback. */
+  state,
+
+  /** Number, currency, date, relative time, file size and text formatting in the page's language. */
+  format: Format,
+
+  /** Run something on an interval: `NX.task({ run, interval: 5000 })`; stop it with `.stop()` or `NX.stopTasks()`. */
+  task: startTask,
+  stopTasks: stopAllTasks,
+
   /** Open a menu at an element or mouse event (context menus). */
   menu: showMenu,
 
@@ -512,13 +540,8 @@ export const NX = {
 
     id: (prefix = 'nx') => `${prefix}-${Math.random().toString(36).slice(2, 11)}`,
 
-    debounce<A extends any[]>(fn: (...args: A) => void, delay: number): (...args: A) => void {
-      let timeout: ReturnType<typeof setTimeout>;
-      return (...args: A) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => fn(...args), delay);
-      };
-    },
+    debounce,
+    throttle,
 
     formatDate: (date: Date | string, format = 'YYYY-MM-DD') => {
       const d = typeof date === 'string' ? new Date(date) : date;
