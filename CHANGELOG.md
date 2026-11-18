@@ -2,6 +2,11 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## Unreleased
+
+### Added
+- **Segmented control:** `<nx-radio-group variant="segmented">` joins the options into one compact switch row (still native radios: keys, posting and `required` as before).
+
 ## 0.4.0 - 2026-11-17
 
 ### Added

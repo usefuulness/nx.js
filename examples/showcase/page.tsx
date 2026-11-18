@@ -364,6 +364,7 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
             </Specimen>
 
             <Specimen tag="nx-radio-group">
+              <RadioGroup name="density" label="Density" variant="segmented" value="comfortable" options={{ compact: 'Compact', comfortable: 'Comfortable', spacious: 'Spacious' }} />
               <RadioGroup name="billing" label="Billing" value="yearly" variant="cards" orientation="horizontal" options={[
                 { value: 'monthly', text: 'Monthly', description: '€12 / seat' },
                 { value: 'yearly', text: 'Yearly', description: '€10 / seat' }

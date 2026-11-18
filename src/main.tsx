@@ -279,6 +279,7 @@ const SettingsPage = () => (
         />
         <Input name="age" type="number" label="Age" min={0} max={150} />
         <DatePicker name="birthday" label="Birthday" max="2020-12-31" placeholder="Pick your birthday" />
+        <RadioGroup id="demo-segmented" name="density" label="Density" variant="segmented" value="comfortable" options={{ compact: 'Compact', comfortable: 'Comfortable', spacious: 'Spacious' }} />
         <Rating id="demo-rating" name="rating" label="How was it?" value={3} />
         <Slider name="volume" label="Notification volume" value={60} showValue unit="%" />
         <Textarea name="bio" label="Bio" placeholder="Tell us a little about yourself" style="grid-column: 1 / -1" />
