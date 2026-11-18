@@ -1,8 +1,15 @@
 import { EventEmitter } from '@/core/events/event-emitter';
+import { createProxy, type Proxy, type ProxyConfig } from '@/data/proxy';
+import type { ModelClass } from '@/data/model';
+
+export type { ProxyConfig };
 
 export interface StoreConfig<T = any> {
   data?: T[];
-  model?: any;
+  /** A class from `defineModel()`: records are converted and checked by its fields and rules */
+  model?: ModelClass<any>;
+  /** The field that identifies a record (default: the model's, else `id`) */
+  idProperty?: string;
   proxy?: ProxyConfig;
   autoLoad?: boolean;
   autoSync?: boolean;
@@ -19,28 +26,6 @@ export interface StoreConfig<T = any> {
   buffered?: boolean;
   /** Pages kept in memory for a `buffered` store; the least recently used go first (default 40) */
   maxBufferedPages?: number;
-  headers?: Record<string, string>;
-}
-
-export interface ProxyConfig {
-  type: 'rest' | 'ajax' | 'memory' | 'localstorage';
-  url?: string;
-  api?: {
-    create?: string;
-    read?: string;
-    update?: string;
-    destroy?: string;
-  };
-  reader?: {
-    rootProperty?: string;
-    totalProperty?: string;
-    successProperty?: string;
-    messageProperty?: string;
-  };
-  writer?: {
-    writeAllFields?: boolean;
-    rootProperty?: string;
-  };
   headers?: Record<string, string>;
 }
 
@@ -101,6 +86,9 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
   }
 
   private config: StoreConfig<T>;
+  /** What the store holds: every record, filtered or not */
+  private source: StoreRecord<T>[] = [];
+  /** What it shows: the records that pass the filters, in order */
   private records: StoreRecord<T>[] = [];
   private removedRecords: StoreRecord<T>[] = [];
   private proxy: Proxy<T> | null = null;
@@ -154,11 +142,11 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    */
   loadData(data: T[], append = false): void {
     if (!append) {
-      this.records = [];
+      this.source = [];
     }
     
     const records = data.map(item => this.createRecord(item));
-    this.records.push(...records);
+    this.source.push(...records);
     
     this.applyState();
     this.emit('load', { records: this.records });
@@ -320,7 +308,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
     const recordsArray = Array.isArray(records) ? records : [records];
     const newRecords = recordsArray.map(data => {
       const record = this.createRecord(data, true);
-      this.records.push(record);
+      this.source.push(record);
       return record;
     });
     
@@ -353,9 +341,9 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
     });
     
     toRemove.forEach(record => {
-      const index = this.records.indexOf(record);
+      const index = this.source.indexOf(record);
       if (index > -1) {
-        this.records.splice(index, 1);
+        this.source.splice(index, 1);
         if (!record.phantom) {
           this.removedRecords.push(record);
         }
@@ -375,18 +363,27 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    * Update a record
    */
   update(record: StoreRecord<T>, data: Partial<T>): void {
+    const model = this.config.model;
     Object.keys(data).forEach(key => {
       const typedKey = key as keyof T;
-      if (typedKey in record.data) {
-        if (record.data[typedKey] !== data[typedKey]) {
-          if (!record.modified[typedKey]) {
+      // With a model, any field it declares may be set; without one, only what the record already has
+      if (typedKey in record.data || model?.fields.some(f => f.name === key)) {
+        const next = model ? model.convertField(key, data[typedKey], record.data) : data[typedKey];
+        if (record.data[typedKey] !== next) {
+          if (!(typedKey in record.modified)) {
             record.modified[typedKey] = record.data[typedKey];
           }
-          (record.data as any)[typedKey] = data[typedKey];
+          (record.data as any)[typedKey] = next;
           record.dirty = true;
         }
       }
     });
+
+    if (model) {
+      const before = JSON.stringify(record.errors);
+      record.errors = model.validate(record.data as Record<string, any>).errors;
+      if (JSON.stringify(record.errors) !== before) this.emit('validate', { record, valid: Object.keys(record.errors).length === 0 });
+    }
     
     this.emit('update', { record, data });
     this.emit('datachanged', { records: this.records });
@@ -394,6 +391,22 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
     if (this.config.autoSync) {
       this.sync();
     }
+  }
+
+  /**
+   * Check every record against the model's rules (the store's own check, not the server's). Each
+   * record's `errors` is filled in; returns the records with a problem.
+   */
+  validate(): StoreRecord<T>[] {
+    const model = this.config.model;
+    if (!model) return [];
+    const bad: StoreRecord<T>[] = [];
+    this.source.forEach(r => {
+      r.errors = model.validate(r.data as Record<string, any>).errors;
+      if (Object.keys(r.errors).length) bad.push(r);
+    });
+    this.emit('validate', { records: bad, valid: bad.length === 0 });
+    return bad;
   }
 
   /**
@@ -426,7 +439,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
       if (toUpdate.length > 0) {
         const updated = await this.proxy.update(toUpdate.map(r => ({
           ...r.data,
-          id: r.id
+          [this.idProperty()]: r.id
         })));
         toUpdate.forEach((record, index) => {
           if (updated?.[index]) {
@@ -455,7 +468,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    * Find record by property value
    */
   findRecord(property: string, value: any): StoreRecord<T> | null {
-    return this.records.find(record => (record.data as any)[property] === value) || null;
+    return this.source.find(record => (record.data as any)[property] === value) || null;
   }
 
   /**
@@ -476,7 +489,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    * Get record by id
    */
   getById(id: string | number): StoreRecord<T> | null {
-    return this.findRecord('id', id);
+    return this.source.find(r => r.id === id || String(r.id) === String(id)) ?? null;
   }
 
   /**
@@ -491,6 +504,97 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    */
   getData(): T[] {
     return this.getRecords().map(record => record.data);
+  }
+
+  /** The first shown record */
+  first(): StoreRecord<T> | null {
+    return this.records[0] ?? null;
+  }
+
+  /** The last shown record */
+  last(): StoreRecord<T> | null {
+    return this.records[this.records.length - 1] ?? null;
+  }
+
+  /** Where a record is among the shown ones (-1 when it is filtered out or not here) */
+  indexOf(record: StoreRecord<T>): number {
+    return this.records.indexOf(record);
+  }
+
+  /** Add records at a position among the shown ones (they sort and filter like any other). */
+  insert(index: number, records: T | T[]): StoreRecord<T>[] {
+    const added = this.add(records);
+    const at = Math.max(0, Math.min(index, this.records.length));
+    // With no sorters the order is the insertion order: put them where asked
+    if (this.sorters.length === 0) {
+      added.forEach(r => { const i = this.source.indexOf(r); if (i > -1) this.source.splice(i, 1); });
+      const before = this.records[at];
+      const target = before ? this.source.indexOf(before) : this.source.length;
+      this.source.splice(target < 0 ? this.source.length : target, 0, ...added);
+      this.applyState();
+      this.emit('datachanged', { records: this.records });
+    }
+    return added;
+  }
+
+  /** Remove the record at a position among the shown ones */
+  removeAt(index: number): void {
+    const record = this.records[index];
+    if (record) this.remove(record);
+  }
+
+  getFilters(): Filter[] {
+    return [...this.filters];
+  }
+
+  getSorters(): Sorter[] {
+    return [...this.sorters];
+  }
+
+  /** The numbers in a field of the shown records (anything that is not a finite number is skipped) */
+  private numbers(field: string): number[] {
+    return this.records.map(r => (r.data as any)[field]).filter(v => v !== '' && v !== null && v !== undefined).map(Number).filter(Number.isFinite);
+  }
+
+  /** Total of a field over the shown records */
+  sum(field: string): number {
+    return this.numbers(field).reduce((a, b) => a + b, 0);
+  }
+
+  /** Average of a field over the shown records (0 when there are none) */
+  average(field: string): number {
+    const n = this.numbers(field);
+    return n.length ? n.reduce((a, b) => a + b, 0) / n.length : 0;
+  }
+
+  /** Smallest value of a field over the shown records (`undefined` when there are none) */
+  min(field: string): number | undefined {
+    const n = this.numbers(field);
+    return n.length ? Math.min(...n) : undefined;
+  }
+
+  /** Largest value of a field over the shown records (`undefined` when there are none) */
+  max(field: string): number | undefined {
+    const n = this.numbers(field);
+    return n.length ? Math.max(...n) : undefined;
+  }
+
+  /**
+   * The shown records grouped by a field, in the order each group first appears, each with its own
+   * count, sum, average, min and max for a field: `store.getGroups('country', 'revenue')`.
+   */
+  getGroups(field: string, aggregate?: string): Array<{ key: any; records: StoreRecord<T>[]; count: number; sum: number; average: number; min?: number; max?: number }> {
+    const groups = new Map<any, StoreRecord<T>[]>();
+    this.records.forEach(r => {
+      const key = (r.data as any)[field];
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(r);
+    });
+    return Array.from(groups, ([key, records]) => {
+      const n = aggregate ? records.map(r => (r.data as any)[aggregate]).filter(v => v !== '' && v !== null && v !== undefined).map(Number).filter(Number.isFinite) : [];
+      const sum = n.reduce((a, b) => a + b, 0);
+      return { key, records, count: records.length, sum, average: n.length ? sum / n.length : 0, min: n.length ? Math.min(...n) : undefined, max: n.length ? Math.max(...n) : undefined };
+    });
   }
 
   /**
@@ -519,21 +623,21 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    * Get new records
    */
   getNewRecords(): StoreRecord<T>[] {
-    return this.records.filter(r => r.phantom);
+    return this.source.filter(r => r.phantom);
   }
 
   /**
    * Get updated records
    */
   getUpdatedRecords(): StoreRecord<T>[] {
-    return this.records.filter(r => r.dirty && !r.phantom);
+    return this.source.filter(r => r.dirty && !r.phantom);
   }
 
   /**
    * Get modified records (new + updated)
    */
   getModifiedRecords(): StoreRecord<T>[] {
-    return this.records.filter(r => r.dirty || r.phantom);
+    return this.source.filter(r => r.dirty || r.phantom);
   }
 
   /**
@@ -556,7 +660,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
       record.dirty = false;
     } else {
       // Reject all changes
-      this.records.forEach(r => {
+      this.source.forEach(r => {
         Object.keys(r.modified).forEach(key => {
           (r.data as any)[key] = r.modified[key as keyof T];
         });
@@ -565,12 +669,13 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
       });
       
       // Remove phantom records
-      this.records = this.records.filter(r => !r.phantom);
+      this.source = this.source.filter(r => !r.phantom);
       
       // Clear removed records
       this.removedRecords = [];
     }
     
+    this.applyState();
     this.emit('datachanged', { records: this.records });
   }
 
@@ -583,7 +688,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
       record.dirty = false;
       record.phantom = false;
     } else {
-      this.records.forEach(r => {
+      this.source.forEach(r => {
         r.modified = {};
         r.dirty = false;
         r.phantom = false;
@@ -613,6 +718,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
       this.load().catch(() => {}); // failures are reported by the `exception` event
     } else {
       this.doSort();
+      this.emit('sortchange', { sorters: this.sorters });
       this.emit('datachanged', { records: this.records });
     }
   }
@@ -632,7 +738,8 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
     if ((this.config.remoteFilter || this.config.buffered) && this.proxy) {
       this.load().catch(() => {});
     } else {
-      this.doFilter();
+      this.applyState();
+      this.emit('filterchange', { filters: this.filters });
       this.emit('datachanged', { records: this.records });
     }
   }
@@ -672,7 +779,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    * Get snapshot of current records
    */
   snapshot(): StoreRecord<T>[] {
-    this.snapshotData = this.records.map(r => ({
+    this.snapshotData = this.source.map(r => ({
       ...r,
       data: { ...r.data },
       modified: { ...r.modified }
@@ -685,8 +792,9 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    */
   restore(): void {
     if (this.snapshotData) {
-      this.records = this.snapshotData;
+      this.source = this.snapshotData;
       this.snapshotData = null;
+      this.applyState();
       this.emit('datachanged', { records: this.records });
     }
   }
@@ -695,7 +803,8 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
    * Clear all data
    */
   removeAll(): void {
-    const removed = [...this.records];
+    const removed = [...this.source];
+    this.source = [];
     this.records = [];
     this.removedRecords.push(...removed.filter(r => !r.phantom));
     
@@ -756,12 +865,18 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
 
   // Private methods
 
+  private idProperty(): string {
+    return this.config.model?.idProperty || this.config.idProperty || 'id';
+  }
+
   private createRecord(data: T, phantom = false): StoreRecord<T> {
+    const key = this.idProperty();
+    const clean = this.config.model ? this.config.model.convert(data as Record<string, any>) : data;
     // Only a missing id gets a generated one: 0 is a perfectly good id
-    const given = (data as any).id;
+    const given = (clean as any)[key];
     const id = given === undefined || given === null || given === '' ? this.generateId() : given;
     return {
-      data: { ...data, id },
+      data: { ...clean, [key]: id },
       modified: {},
       id,
       dirty: false,
@@ -782,13 +897,21 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
       'id' in obj;
   }
 
+  /** Rebuild what the store shows from what it holds: apply the filters, then the sort. */
   private applyState(): void {
-    if (!this.config.remoteSort) {
-      this.doSort();
-    }
-    if (!this.config.remoteFilter) {
-      this.doFilter();
-    }
+    this.records = this.config.remoteFilter ? [...this.source] : this.source.filter(r => this.passes(r));
+    if (!this.config.remoteSort) this.doSort();
+  }
+
+  /** Whether a record passes every filter */
+  private passes(record: StoreRecord<T>): boolean {
+    return this.filters.every(f => {
+      if (typeof f.filterFn === 'function') return !!f.filterFn(record);
+      const matches = (value: any) => matchesFilter(value, f);
+      // `*` means any field, which is what a search box wants
+      if (f.property === '*') return Object.values(record.data).some(matches);
+      return matches((record.data as any)[f.property]);
+    });
   }
 
   private doSort(): void {
@@ -804,16 +927,19 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
           bVal = sorter.transform(bVal);
         }
         
-        if (aVal < bVal) return sorter.direction === 'ASC' ? -1 : 1;
-        if (aVal > bVal) return sorter.direction === 'ASC' ? 1 : -1;
+        // Ascending unless said otherwise, and empty values always last
+        const dir = sorter.direction === 'DESC' ? -1 : 1;
+        const aEmpty = aVal === null || aVal === undefined;
+        const bEmpty = bVal === null || bVal === undefined;
+        if (aEmpty || bEmpty) {
+          if (aEmpty && bEmpty) continue;
+          return aEmpty ? 1 : -1;
+        }
+        if (aVal < bVal) return -dir;
+        if (aVal > bVal) return dir;
       }
       return 0;
     });
-  }
-
-  private doFilter(): void {
-    // Implementation would filter records based on this.filters
-    // For now, we'll keep all records visible
   }
 
   private buildParams(options: LoadOptions): any {
@@ -873,169 +999,28 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
   }
 
   private createProxy(config: ProxyConfig): Proxy<T> {
-    switch (config.type) {
-      case 'rest':
-        return new RestProxy(config);
-      case 'ajax':
-        return new AjaxProxy(config);
-      case 'memory':
-        return new MemoryProxy(config);
-      case 'localstorage':
-        return new LocalStorageProxy(config);
-      default:
-        throw new Error(`Unknown proxy type: ${config.type}`);
-    }
-  }
-}
-
-/**
- * Base proxy class
- */
-abstract class Proxy<T> {
-  protected config: ProxyConfig;
-
-  constructor(config: ProxyConfig) {
-    this.config = config;
-  }
-
-  abstract read(params: any): Promise<any>;
-  abstract create(records: T[]): Promise<T[]>;
-  abstract update(records: any[]): Promise<any[]>;
-  abstract destroy(ids: (string | number)[]): Promise<void>;
-}
-
-/**
- * REST proxy for server communication
- */
-class RestProxy<T> extends Proxy<T> {
-  async read(params: any): Promise<any> {
-    // Relative URLs ('/api/users') resolve against the page, like fetch() does
-    const url = new URL(this.config.api?.read || this.config.url!, location.href);
-    Object.entries(params).forEach(([key, value]) => {
-      url.searchParams.append(key, String(value));
-    });
-    
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: this.config.headers
-    });
-    
-    return response.json();
-  }
-  
-  async create(records: T[]): Promise<T[]> {
-    const response = await fetch(this.config.api?.create || this.config.url!, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.config.headers
-      },
-      body: JSON.stringify(records)
-    });
-    
-    return response.json();
-  }
-  
-  async update(records: any[]): Promise<any[]> {
-    const response = await fetch(this.config.api?.update || this.config.url!, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.config.headers
-      },
-      body: JSON.stringify(records)
-    });
-    
-    return response.json();
-  }
-  
-  async destroy(ids: (string | number)[]): Promise<void> {
-    await fetch(this.config.api?.destroy || this.config.url!, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.config.headers
-      },
-      body: JSON.stringify({ ids })
-    });
-  }
-}
-
-/**
- * AJAX proxy (similar to REST but more flexible)
- */
-class AjaxProxy<T> extends RestProxy<T> {
-  // Override methods as needed for different AJAX behaviors
-}
-
-/**
- * Memory proxy for client-side data
- */
-class MemoryProxy<T> extends Proxy<T> {
-  private data: T[] = [];
-  
-  async read(_params: any): Promise<any> {
-    return { data: [...this.data], success: true };
-  }
-  
-  async create(records: T[]): Promise<T[]> {
-    this.data.push(...records);
-    return records;
-  }
-  
-  async update(records: any[]): Promise<any[]> {
-    // Update logic
-    return records;
-  }
-  
-  async destroy(_ids: (string | number)[]): Promise<void> {
-    // Remove logic
-  }
-}
-
-/**
- * LocalStorage proxy
- */
-class LocalStorageProxy<T> extends Proxy<T> {
-  private key: string;
-  
-  constructor(config: ProxyConfig) {
-    super(config);
-    this.key = config.url || 'nx-store-data';
-  }
-  
-  async read(_params: any): Promise<any> {
-    const data = localStorage.getItem(this.key);
-    return { 
-      data: data ? JSON.parse(data) : [], 
-      success: true 
-    };
-  }
-  
-  async create(records: T[]): Promise<T[]> {
-    const existing = await this.read({});
-    const newData = [...existing.data, ...records];
-    localStorage.setItem(this.key, JSON.stringify(newData));
-    return records;
-  }
-  
-  async update(records: any[]): Promise<any[]> {
-    const existing = await this.read({});
-    // Update logic
-    localStorage.setItem(this.key, JSON.stringify(existing.data));
-    return records;
-  }
-  
-  async destroy(ids: (string | number)[]): Promise<void> {
-    const existing = await this.read({});
-    const filtered = existing.data.filter((item: any) => 
-      !ids.includes(item.id)
-    );
-    localStorage.setItem(this.key, JSON.stringify(filtered));
+    return createProxy<T>({ idProperty: this.idProperty(), ...config, headers: { ...this.config.headers, ...config.headers } });
   }
 }
 
 // Export factory function
 export function createStore<T extends Record<string, any>>(config: StoreConfig<T>): Store<T> {
   return new Store(config);
+}
+
+/** One filter against one value: the operators the store understands */
+function matchesFilter(value: any, f: Filter): boolean {
+  const target = f.value;
+  switch (f.operator ?? 'eq') {
+    case 'eq': return value === target || (value != null && target != null && String(value) === String(target));
+    case 'ne': return !matchesFilter(value, { ...f, operator: 'eq' });
+    // An empty value is not less than anything (JavaScript says null <= 20)
+    case 'gt': return value != null && value !== '' && value > target;
+    case 'gte': return value != null && value !== '' && value >= target;
+    case 'lt': return value != null && value !== '' && value < target;
+    case 'lte': return value != null && value !== '' && value <= target;
+    case 'like': return value != null && String(value).toLowerCase().includes(String(target ?? '').toLowerCase());
+    case 'in': return Array.isArray(target) && target.some(t => t === value || String(t) === String(value));
+    default: return true;
+  }
 }

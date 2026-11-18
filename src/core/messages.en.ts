@@ -20,6 +20,9 @@ export const en: Messages = {
   // Components
   'breadcrumb.label': 'Breadcrumb',
   'progress.label': 'Progress',
+  'validation.presence': 'This field is required', 'validation.invalid': 'This value is not valid', 'validation.email': 'Enter an email address', 'validation.url': 'Enter a web address', 'validation.format': 'This value is in the wrong format', 'validation.inclusion': 'This is not one of the allowed values', 'validation.exclusion': 'This value is not allowed',
+  'validation.length.min': { one: 'Use at least {min} character', other: 'Use at least {min} characters' }, 'validation.length.max': { one: 'Use at most {max} character', other: 'Use at most {max} characters' },
+  'validation.range.min': 'Must be at least {min}', 'validation.range.max': 'Must be at most {max}',
   'otp.digit': 'Character {n} of {total}', 'otp.required': { one: 'Enter the {count}-character code', other: 'Enter the {count}-character code' },
   'calendar.label': 'Calendar', 'calendar.none': 'Nothing on this day', 'calendar.events': { one: '{count} event', other: '{count} events' },
   'timeline.label': 'Timeline', 'timeline.success': 'succeeded', 'timeline.warning': 'warning', 'timeline.error': 'failed', 'timeline.info': 'information',

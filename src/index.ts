@@ -44,6 +44,10 @@ export type { LoaderContext, Route, RouteConfig, RouterConfig } from '@/core/rou
 
 // Data
 export { Store, createStore } from '@/data/store';
+export { Model, defineModel, pathGet } from '@/data/model';
+export type { ModelClass, ModelConfig, ModelField, FieldType, ValidatorSpec, ValidationResult } from '@/data/model';
+export { ajax, AjaxError, createProxy, HttpProxy, MemoryProxy, LocalStorageProxy, Proxy } from '@/data/proxy';
+export type { AjaxOptions } from '@/data/proxy';
 export type { StoreConfig, StoreRecord, ProxyConfig, Sorter, Filter } from '@/data/store';
 export { NXGrid, NXDataTable } from '@/data/grid';
 export type { GridColumn, GridConfig, BadgeTone } from '@/data/grid';
