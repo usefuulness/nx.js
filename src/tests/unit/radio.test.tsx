@@ -12,6 +12,17 @@ describe('radio group', () => {
     document.body.innerHTML = '';
   });
 
+  it('the segmented variant is the same native radios in a joined row', async () => {
+    const group = (<RadioGroup name="d" label="Density" variant="segmented" value="b" options={{ a: 'A', b: 'B', c: 'C' }} />) as NXRadioGroup;
+    document.body.append(group);
+    await nextFrame();
+    expect(group.shadowRoot!.querySelector('.options')!.classList.contains('segmented')).toBe(true);
+    expect(radios(group).map(r => r.checked)).toEqual([false, true, false]);
+    radios(group)[2].click();
+    expect(group.value).toBe('c');
+    expect(group.formValue()).toBe('c');
+  });
+
   it('renders options, reflects the value and reports changes', async () => {
     const group = (<RadioGroup name="plan" label="Plan" value="pro" options={{ free: 'Free', pro: 'Pro' }} />) as NXRadioGroup;
     const changes: string[] = [];

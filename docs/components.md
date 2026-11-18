@@ -672,7 +672,7 @@ Radio group: pick one of a few options. Native radios inside, so arrow keys, for
 | `orientation` | `orientation` | `horizontal` `vertical` | Lay the options out in a column or a row |
 | `required` | `required` | `boolean` | A value is required before the form can submit |
 | `value` | `value` | `string \| number` | Value of the selected option |
-| `variant` | `variant` | `default` `cards` | `cards` draws each option as a bordered, selectable card |
+| `variant` | `variant` | `default` `cards` `segmented` | `cards` draws each option as a bordered, selectable card; `segmented` joins them into one compact switch row |
 
 ## nx-rating
 

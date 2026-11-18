@@ -173,6 +173,7 @@ export const Components = () => (
           <RadioGroup name="size" label="Size" value="m" orientation="horizontal" options={{ s: 'Small', m: 'Medium', l: 'Large' }} />
           <Combobox name="country" label="Country" value="de" placeholder="Search…"
                     options={{ de: 'Germany', fr: 'France', it: 'Italy', es: 'Spain', nl: 'Netherlands' }} />
+          <RadioGroup name="density" label="Density" variant="segmented" value="comfortable" options={{ compact: 'Compact', comfortable: 'Comfortable', spacious: 'Spacious' }} />
           <Rating name="stars" label="Rating" value={4} />
           <Slider name="volume" label="Volume" value={30} showValue unit="%" />
           <DatePicker name="due" label="Due date" value="2025-06-15" locale="en-US" />

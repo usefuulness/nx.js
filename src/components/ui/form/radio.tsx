@@ -18,8 +18,8 @@ export interface RadioGroupConfig extends FieldConfig {
   options?: Array<RadioOption | string> | Record<string, string>;
   /** Lay the options out in a column or a row */
   orientation?: 'vertical' | 'horizontal';
-  /** `cards` draws each option as a bordered, selectable card */
-  variant?: 'default' | 'cards';
+  /** `cards` draws each option as a bordered, selectable card; `segmented` joins them into one compact switch row */
+  variant?: 'default' | 'cards' | 'segmented';
   /** Error shown under the field (for example from the server); marks it invalid */
   errorText?: string;
 }
@@ -273,6 +273,37 @@ export class NXRadioGroup extends NXField {
         border-color: var(--color-primary);
         box-shadow: 0 0 0 1px var(--color-primary);
       }
+
+      /* Segmented: one rounded track, the chosen option raised inside it */
+      .options.segmented {
+        display: inline-flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-self: flex-start;
+        max-width: 100%;
+        overflow-x: auto;
+        gap: 0.125rem;
+        padding: 0.1875rem;
+        border-radius: var(--radius-lg);
+        background: var(--color-muted);
+      }
+
+      .segmented .option {
+        flex: 1 0 auto;
+        align-items: center;
+        justify-content: center;
+        padding: 0.375rem 0.625rem;
+        border-radius: var(--radius-md);
+        text-align: center;
+        transition: background-color var(--transition-duration), box-shadow var(--transition-duration);
+      }
+
+      .segmented .indicator, .segmented .description { display: none; }
+      .segmented .option-label { white-space: nowrap; }
+      .segmented .option:hover:not(.disabled) { background: color-mix(in srgb, var(--color-background) 50%, transparent); }
+      .segmented .option:has(input:checked) { background: var(--color-background); box-shadow: var(--shadow-sm); font-weight: 500; }
+      /* Inside the track, so the scrolling track never clips the ring */
+      .segmented .option:has(input:focus-visible) { outline: 2px solid var(--color-ring); outline-offset: -2px; }
 
       .invalid .indicator { border-color: var(--color-error); }
     `;
