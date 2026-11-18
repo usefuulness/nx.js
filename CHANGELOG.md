@@ -7,6 +7,9 @@ All notable changes to nx.js. The format follows [Keep a Changelog](https://keep
 ### Added
 - **Select, everywhere:** browsers that cannot theme the native dropdown (Firefox, Safari) now open a themed list on desktop: same look as the Chromium one, a labelled `listbox` with arrow keys, Home/End, type-ahead, Escape, and the top layer so nothing clips it. The native `<select>` remains the control (value, validity, forms, server HTML). Touch screens keep the native picker. New `popup` attribute (`auto`, `custom`, `native`).
 
+### Added (tooling)
+- **`create-nx.js`:** `npm create nx.js` scaffolds a project: an `app` template (Vite + TypeScript + JSX, ready to run) or an `html` template (one file, a `<script>` tag). It lives in `packages/create-nx` and is published separately.
+
 ## 0.5.0 - 2026-11-18
 
 ### Added
