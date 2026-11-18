@@ -5,6 +5,7 @@
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
 import { NXField, type FieldConfig } from '@/components/ui/form/field';
+import { place, showTopLayer, hideTopLayer, keepInView } from '@/core/position';
 
 export interface SelectOption {
   value: string | number;
@@ -26,6 +27,11 @@ export interface SelectConfig extends FieldConfig {
   icon?: string;
   /** Control height */
   size?: 'sm' | 'md' | 'lg';
+  /**
+   * Which list opens: `auto` (default) uses the browser's own list when it can be themed (Chromium 135+) or on touch
+   * screens, and a themed list of ours elsewhere; `custom` and `native` force one.
+   */
+  popup?: 'auto' | 'custom' | 'native';
   /** Error shown under the field (for example from the server); marks it invalid */
   errorText?: string;
 }
@@ -50,7 +56,7 @@ export class NXSelect extends NXField {
   static get observedAttributes(): string[] {
     return [
       'name', 'placeholder', 'label', 'helper-text', 'error-text', 'icon',
-      'required', 'disabled', 'multiple', 'size', 'value'
+      'required', 'disabled', 'multiple', 'size', 'popup', 'value'
     ];
   }
 
@@ -59,6 +65,12 @@ export class NXSelect extends NXField {
   /** Options come from <option> children (HTML/template usage) and follow them */
   private childOptions = false;
   private observer: MutationObserver | null = null;
+  /** The themed list while it is open (browsers that cannot theme the native one) */
+  private listbox: HTMLElement | null = null;
+  private active = -1;
+  private typed = '';
+  private typedAt = 0;
+  private closeOnOutside: ((e: Event) => void) | null = null;
 
   constructor(config?: SelectConfig) {
     super();
@@ -123,6 +135,13 @@ export class NXSelect extends NXField {
 
   protected beforeDisconnect(): void {
     this.observer?.disconnect();
+    this.closeList(false);
+  }
+
+  /** A redraw replaces the shadow root, and the list with it */
+  protected update(): void {
+    this.closeList(false);
+    super.update();
   }
 
   protected afterRender(): void {
@@ -184,7 +203,9 @@ export class NXSelect extends NXField {
         <select id={this.fieldId} part="select" name={this.name} multiple={!!multiple}
                 required={!!this.getProp('required', false)} disabled={!!this.getProp('disabled', false)}
                 class={{ placeholder: !this.currentValue.length }} aria-describedby={`${this.fieldId}-help`}
-                onChange={(e: Event) => this.onSelectChange(e.target as HTMLSelectElement)}>
+                onChange={(e: Event) => this.onSelectChange(e.target as HTMLSelectElement)}
+                onMouseDown={(e: MouseEvent) => this.onSelectMouseDown(e)}
+                onKeyDown={(e: KeyboardEvent) => this.onSelectKey(e)}>
           {!multiple && placeholder && (
             <option value="" selected={!this.currentValue} disabled={!!this.getProp('required', false)}>{placeholder}</option>
           )}
@@ -194,6 +215,173 @@ export class NXSelect extends NXField {
         {!multiple && <span class="chevron" aria-hidden="true" html={Icons.get('chevron-down')} />}
       </div>
     );
+  }
+
+  // ────────── The themed list (where the browser cannot theme its own) ──────────
+
+  /** Our list replaces the native popup, except on touch screens, where the native picker is better. */
+  private usesCustomList(): boolean {
+    if (this.getProp('multiple', false)) return false;
+    const mode = this.getProp<string>('popup', 'auto');
+    if (mode === 'custom') return true;
+    if (mode === 'native') return false;
+    try {
+      if (typeof CSS !== 'undefined' && CSS.supports?.('appearance', 'base-select')) return false;
+      return !!window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
+    } catch {
+      return false;
+    }
+  }
+
+  private nativeSelect(): HTMLSelectElement | null {
+    return this.control() as HTMLSelectElement | null;
+  }
+
+  private onSelectMouseDown(e: MouseEvent): void {
+    if (e.button !== 0 || !this.usesCustomList() || this.getProp('disabled', false)) return;
+    e.preventDefault(); // no native popup
+    this.nativeSelect()?.focus();
+    if (this.listbox) this.closeList(true);
+    else this.openList();
+  }
+
+  private onSelectKey(e: KeyboardEvent): void {
+    if (!this.usesCustomList() || this.getProp('disabled', false)) return;
+    const opens = e.key === 'Enter' || e.key === ' ' || ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && e.altKey);
+    if (!opens) return;
+    e.preventDefault();
+    this.openList();
+  }
+
+  private optionEls(): HTMLElement[] {
+    return Array.from(this.listbox?.querySelectorAll('[role="option"]') ?? []) as HTMLElement[];
+  }
+
+  private openList(): void {
+    const select = this.nativeSelect();
+    if (!select || this.listbox) return;
+    const make = (o: HTMLOptionElement, i: number): HTMLElement => (
+      <div role="option" id={`${this.fieldId}-o${i}`} class={['opt', { placeholder: o.value === '' }]} data-value={o.value}
+           aria-selected={String(o.selected)} aria-disabled={o.disabled ? 'true' : undefined}
+           onMouseMove={() => this.setActive(i)}
+           onMouseDown={(ev: Event) => ev.preventDefault()}
+           onClick={() => this.pick(i)}>
+        <span class="check" aria-hidden="true" html={Icons.get('check')} />
+        <span class="opt-text">{o.textContent}</span>
+      </div> as HTMLElement
+    );
+    let n = 0;
+    const children: HTMLElement[] = [];
+    Array.from(select.children).forEach(child => {
+      if (child instanceof HTMLOptionElement) children.push(make(child, n++));
+      else if (child instanceof HTMLOptGroupElement) {
+        const gid = `${this.fieldId}-g${n}`;
+        children.push(
+          <div role="group" aria-labelledby={gid}>
+            <div class="group" id={gid}>{child.label}</div>
+            {Array.from(child.children).map(o => make(o as HTMLOptionElement, n++))}
+          </div> as HTMLElement
+        );
+      }
+    });
+    const label = this.getProp<string>('label') || this.getProp<string>('placeholder') || this.name || undefined;
+    const box = (
+      <div part="listbox" class="listbox" role="listbox" tabindex="-1" aria-label={label}
+           onKeyDown={(e: KeyboardEvent) => this.onListKey(e)}
+           onBlur={(e: FocusEvent) => { if (!this.listbox?.contains(e.relatedTarget as Node | null) && e.relatedTarget !== select) this.closeList(false); }}>
+        {children}
+      </div> as HTMLElement
+    );
+    this.listbox = box;
+    this.$('.nx-control')?.append(box);
+    box.style.minWidth = `${select.offsetWidth}px`;
+    showTopLayer(box);
+    place(box, select, 'bottom-start', 4);
+    // Anything outside the list closes it, and so does moving the page under it
+    this.closeOnOutside = (ev: Event) => {
+      if (ev.type === 'scroll' && box.contains(ev.target as Node)) return;
+      if (ev.type === 'pointerdown' && ev.composedPath().some(n => n === box || n === select)) return;
+      this.closeList(false);
+    };
+    document.addEventListener('pointerdown', this.closeOnOutside, true);
+    window.addEventListener('scroll', this.closeOnOutside, true);
+    window.addEventListener('resize', this.closeOnOutside);
+    const els = this.optionEls();
+    this.setActive(Math.max(0, els.findIndex(el => el.getAttribute('aria-selected') === 'true')));
+    box.focus({ preventScroll: true });
+    keepInView(box, els[this.active]);
+  }
+
+  private closeList(refocus: boolean): void {
+    const box = this.listbox;
+    if (!box) return;
+    this.listbox = null;
+    if (this.closeOnOutside) {
+      document.removeEventListener('pointerdown', this.closeOnOutside, true);
+      window.removeEventListener('scroll', this.closeOnOutside, true);
+      window.removeEventListener('resize', this.closeOnOutside);
+      this.closeOnOutside = null;
+    }
+    hideTopLayer(box);
+    box.remove();
+    if (refocus) this.nativeSelect()?.focus({ preventScroll: true });
+  }
+
+  private setActive(index: number): void {
+    const els = this.optionEls();
+    if (!els[index]) return;
+    this.active = index;
+    els.forEach((el, i) => el.classList.toggle('active', i === index));
+    this.listbox?.setAttribute('aria-activedescendant', els[index].id);
+  }
+
+  /** The next enabled option from `from` in direction `step` (stays put at the ends) */
+  private step(from: number, step: 1 | -1): number {
+    const els = this.optionEls();
+    for (let i = from + step; i >= 0 && i < els.length; i += step) if (els[i].getAttribute('aria-disabled') !== 'true') return i;
+    return from;
+  }
+
+  private pick(index: number): void {
+    const el = this.optionEls()[index];
+    const select = this.nativeSelect();
+    if (!el || !select || el.getAttribute('aria-disabled') === 'true') return;
+    select.value = el.dataset.value ?? '';
+    this.closeList(true);
+    this.onSelectChange(select);
+  }
+
+  private onListKey(e: KeyboardEvent): void {
+    const els = this.optionEls();
+    const go = (i: number) => { e.preventDefault(); this.setActive(i); keepInView(this.listbox!, els[i]); };
+    switch (e.key) {
+      case 'ArrowDown': return go(this.step(this.active, 1));
+      case 'ArrowUp': return go(this.step(this.active, -1));
+      case 'Home': return go(this.step(-1, 1));
+      case 'End': return go(this.step(els.length, -1));
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        return this.pick(this.active);
+      case 'Escape':
+        // Closes the list only: a second Escape reaches an enclosing dialog
+        e.preventDefault();
+        e.stopPropagation();
+        return this.closeList(true);
+      case 'Tab':
+        return this.closeList(true); // focus carries on from the select
+      default:
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          // Type-ahead: letters typed together jump to the next option that starts with them
+          const now = Date.now();
+          this.typed = now - this.typedAt > 700 ? e.key.toLowerCase() : this.typed + e.key.toLowerCase();
+          this.typedAt = now;
+          const texts = els.map(el => (el.textContent ?? '').trim().toLowerCase());
+          const from = this.typed.length === 1 ? this.active + 1 : this.active;
+          const hit = [...texts.keys()].map(k => (from + k) % texts.length).find(k => texts[k].startsWith(this.typed) && els[k].getAttribute('aria-disabled') !== 'true');
+          if (hit !== undefined) go(hit);
+        }
+    }
   }
 
   private onSelectChange(select: HTMLSelectElement): void {
@@ -276,6 +464,45 @@ export class NXSelect extends NXField {
         select:not([multiple]) option:disabled:hover { background: transparent; }
         select:not([multiple]) option::checkmark { color: var(--color-primary); }
       }
+
+      /* The themed list, used where the browser cannot theme its own */
+      .listbox {
+        box-sizing: border-box;
+        position: fixed;
+        inset: auto;
+        max-height: min(20rem, 60vh);
+        overflow-y: auto;
+        margin: 0;
+        padding: 0.25rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        background: var(--color-background);
+        color: var(--color-text);
+        box-shadow: var(--shadow-lg);
+        font: inherit;
+        outline: none;
+      }
+
+      .listbox .group { padding: 0.375rem 0.5rem 0.125rem; color: var(--color-text-secondary); font-size: 0.75rem; font-weight: 600; }
+
+      .opt {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: 2rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+      }
+
+      .opt.active { background: var(--color-accent); }
+      .opt[aria-selected="true"] { font-weight: 600; }
+      .opt[aria-disabled="true"] { color: var(--color-text-secondary); cursor: default; }
+      .opt.placeholder { color: var(--color-text-secondary); }
+      .check { display: inline-flex; width: 1rem; height: 1rem; flex: none; color: var(--color-primary); visibility: hidden; }
+      .opt[aria-selected="true"] .check { visibility: visible; }
+      .check svg { width: 100%; height: 100%; }
+      .opt-text { min-width: 0; overflow-wrap: anywhere; }
 
       .multiple { padding: 0.25rem; }
       .multiple select { padding: 0 !important; min-height: 6rem; }

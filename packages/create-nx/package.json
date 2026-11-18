@@ -1,0 +1,25 @@
+{
+  "name": "create-nx.js",
+  "version": "0.1.0",
+  "description": "Scaffold an nx.js project: npm create nx.js",
+  "type": "module",
+  "bin": {
+    "create-nx.js": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "templates"
+  ],
+  "keywords": ["nx.js", "create", "scaffold", "web-components"],
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/usefuulness/nx.js.git",
+    "directory": "packages/create-nx"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -731,6 +731,7 @@ Select, styled around the native `<select>` (accessible, mobile friendly, never 
 | `multiple` | `multiple` | `boolean` | Allow several selections (the value becomes an array) |
 | `name` | `name` | `string` | Field name: the key in form values, and the name it posts under |
 | `placeholder` | `placeholder` | `string` | Text shown while empty |
+| `popup` | `popup` | `auto` `custom` `native` | Which list opens: `auto` (default) uses the browser's own list when it can be themed (Chromium 135+) or on touch screens, and a themed list of ours elsewhere; `custom` and `native` force one. |
 | `required` | `required` | `boolean` | A value is required before the form can submit |
 | `size` | `size` | `sm` `md` `lg` | Control height |
 | `value` | `value` |  | Current value |

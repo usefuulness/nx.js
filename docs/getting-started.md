@@ -2,7 +2,19 @@
 
 nx.js is a set of UI components that are standard custom elements (`<nx-button>`, `<nx-grid>`…). You can write them in JSX, as plain HTML, or as config objects, and they render the same way in each.
 
-> nx.js is not published to npm yet (`"private": true` in `package.json`). Until it is, build it from this repository (`pnpm build`) and use `dist/`, or depend on the repository directly.
+> nx.js is not on npm yet. Until it is, `npm create nx.js` and `npm install nx.js` will not find it: build it from this repository (`pnpm install && pnpm build`) and use `dist/`, or depend on the repository directly.
+
+## Start a new project
+
+```bash
+npm create nx.js my-app
+cd my-app
+npm run dev
+```
+
+It asks for a folder and a template, copies it, and installs. `app` is a Vite + TypeScript project that writes UI as JSX (the setup below, done for you); `html` is a single file with a `<script>` tag and no build step. Both also work with `pnpm create nx.js`, `yarn create nx.js` and `bun create nx.js`. Options: `--template app|html`, `--no-install`, `--force` (write into a folder that is not empty).
+
+To add nx.js to a project you already have, follow the steps below.
 
 ## With a bundler and JSX
 
