@@ -88,6 +88,69 @@ const grace = await User.load(7); // GET /api/users/7
 - **Validators:** `presence`, `email`, `url`, `length` (`min`, `max`), `range` (`min`, `max`), `format` (`matcher`), `inclusion` and `exclusion` (`list`), or a function that returns `true`, a message, or a list of messages. Every rule except `presence` lets an empty value through. Messages are translated (`validate('es')`, or the page's language), and `message` sets your own.
 - **A store can use a model:** `new Store({ model: User, data })` converts what it holds, checks every edit (`record.errors`, a `validate` event), and uses the model's id property. `store.validate()` checks everything and returns the records with problems.
 
+### Associations
+
+Models can point at each other. Nested data in the incoming record is used as it is; otherwise the other side is loaded through its own proxy.
+
+```ts
+const Order = NX.model({ name: 'order', fields: ['id', 'userId', { name: 'total', type: 'float' }], proxy: { type: 'rest', url: '/api/orders' } });
+const User = NX.model({
+  name: 'user',
+  fields: ['id', 'name'],
+  proxy: { type: 'rest', url: '/api/users' },
+  associations: [{ type: 'hasMany', name: 'orders', model: () => Order, foreignKey: 'userId' }]   // a function when the model is defined later
+});
+
+const ada = new User({ id: 1, name: 'Ada', orders: [{ id: 10, total: 5 }] });
+ada.orders();                      // a Store of her orders (from the nested data: no request), converted by Order
+ada.orders().add({ total: 3 });    // gets userId = 1 (and follows the id if ada is saved later)
+await ada.loadAssoc('orders');     // GET /api/orders?userId=1
+
+const Line = NX.model({ name: 'line', fields: ['id', 'orderId'], associations: [{ type: 'belongsTo', name: 'order', model: () => Order }] });
+line.getOrder();                   // the order if it is known (nested data, setOrder, or an earlier load), else undefined
+await line.loadAssoc('order');     // GET /api/orders/<orderId>
+line.setOrder(other);              // changes orderId; setOrder(null) clears it
+```
+
+`foreignKey` defaults to `<owner name>Id` for `hasMany` and `<name>Id` for `belongsTo`. Nested data is kept out of the record's fields, so it is never saved with it.
+
+## Sessions
+
+A session is one place records live while a screen is in use. Asking for the same record twice gives the same object, so an edit shows everywhere it is shown, and all the changes save together.
+
+```ts
+const session = NX.session();
+const ada = await session.load(User, 1);        // fetched once; the next load(User, 1) is the same object
+const cleo = session.create(User, { name: 'Cleo' });
+ada.set('name', 'Ada L.');
+session.erase(bob);
+
+session.getChanges();     // { created: [cleo], updated: [ada], erased: [bob] }
+await session.save();     // creates, then updates, then deletes: { saved: 3, errors: [] }
+session.reject();         // undo everything instead
+```
+
+One failing save does not stop the others: it is listed in `errors` and its record stays changed, so you can try again. Events: `change`, `beforesave`, `save`, `reject`.
+
+## Tree stores
+
+A tree store holds records with parents and children.
+
+```ts
+const tree = NX.treeStore({
+  root: [{ id: 'fruit', name: 'Fruit', children: [{ id: 'apple', name: 'Apple' }, { id: 'pear', name: 'Pear' }] }, { id: 'veg', name: 'Vegetables' }],
+  sorters: [{ property: 'name' }]
+});
+
+await tree.expand('fruit');            // or expandAll(), collapse(), toggle(), reveal(id)
+tree.getVisible();                     // the nodes to show: open nodes' children, in order
+tree.filter({ property: 'name', operator: 'like', value: 'app' });   // matches and the way down to them; nothing is opened for good
+tree.appendChild({ name: 'Plum' }, 'fruit');   tree.moveNode('pear', 'veg');   tree.removeNode('apple');
+treeElement.data = tree.toItems({ text: 'name' });      // feed <nx-tree>
+```
+
+A node marked `leaf: false` with no children is **loaded when first opened**: with a `proxy`, `GET <url>?node=<id>` answers a list of nodes. A node cannot be moved into itself or below itself. Events: `load`, `add`, `remove`, `move`, `expand`, `collapse`, `update`, `filterchange`, `sortchange`, `datachanged`.
+
 ## View models: data that views bind to
 
 A view model holds data and **formulas** computed from it. Bind to it, and everything bound updates, once, when the data changes.

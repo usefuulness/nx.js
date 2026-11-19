@@ -2,6 +2,14 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## 0.7.0 - 2026-11-19
+
+### Added
+- **Tree store:** `NX.treeStore()`: nodes with parents and children, expand/collapse/reveal, filtering that keeps the way down to each match without opening anything for good, sorting per level, append/move/remove (a node cannot move into itself), children loaded when a `leaf: false` node is first opened, and `toItems()` for `<nx-tree>`.
+- **Associations:** models take `associations` (`hasMany`, `belongsTo`): `user.orders()` is a store (from nested data, or loaded with the owner's id), new records get the foreign key; `order.getUser()`, `loadAssoc()`, `setAssoc()`.
+- **Sessions:** `NX.session()`: the same record is the same object, tracked creates, edits and deletions, `save()` in order with per-record errors, `reject()`, `commit()`.
+- **Events:** the data layer's `on()` and `once()` return a function that stops listening; a handler that throws no longer stops the others, and a handler that removes itself no longer skips its neighbour.
+
 ## 0.6.0 - 2026-11-19
 
 ### Added (logic layer)

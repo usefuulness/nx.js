@@ -4,11 +4,13 @@
 export class EventEmitter {
   private events = new Map<string, Set<Function>>();
 
-  on(event: string, handler: Function): void {
+  /** Listen for an event. Returns a function that stops listening. */
+  on(event: string, handler: Function): () => void {
     if (!this.events.has(event)) {
       this.events.set(event, new Set());
     }
     this.events.get(event)!.add(handler);
+    return () => this.off(event, handler);
   }
 
   off(event: string, handler: Function): void {
@@ -21,16 +23,24 @@ export class EventEmitter {
   emit(event: string, data?: any): void {
     const handlers = this.events.get(event);
     if (handlers) {
-      handlers.forEach(handler => handler(data));
+      // A copy, so a handler that adds or removes listeners does not disturb this round; one that throws does not stop the rest
+      [...handlers].forEach(handler => {
+        try {
+          handler(data);
+        } catch (error) {
+          console.error(`Error in a "${event}" handler:`, error);
+        }
+      });
     }
   }
 
-  once(event: string, handler: Function): void {
+  /** Listen for the next occurrence only. Returns a function that cancels it. */
+  once(event: string, handler: Function): () => void {
     const onceHandler = (data: any) => {
-      handler(data);
       this.off(event, onceHandler);
+      handler(data);
     };
-    this.on(event, onceHandler);
+    return this.on(event, onceHandler);
   }
 
   removeAllListeners(event?: string): void {

@@ -916,30 +916,8 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
 
   private doSort(): void {
     if (this.sorters.length === 0) return;
-    
-    this.records.sort((a, b) => {
-      for (const sorter of this.sorters) {
-        let aVal = (a.data as any)[sorter.property];
-        let bVal = (b.data as any)[sorter.property];
-        
-        if (sorter.transform) {
-          aVal = sorter.transform(aVal);
-          bVal = sorter.transform(bVal);
-        }
-        
-        // Ascending unless said otherwise, and empty values always last
-        const dir = sorter.direction === 'DESC' ? -1 : 1;
-        const aEmpty = aVal === null || aVal === undefined;
-        const bEmpty = bVal === null || bVal === undefined;
-        if (aEmpty || bEmpty) {
-          if (aEmpty && bEmpty) continue;
-          return aEmpty ? 1 : -1;
-        }
-        if (aVal < bVal) return -dir;
-        if (aVal > bVal) return dir;
-      }
-      return 0;
-    });
+    const compare = compareBy(this.sorters);
+    this.records.sort((a, b) => compare(a.data, b.data));
   }
 
   private buildParams(options: LoadOptions): any {
@@ -1008,8 +986,32 @@ export function createStore<T extends Record<string, any>>(config: StoreConfig<T
   return new Store(config);
 }
 
+/** A comparison for `Array.sort` from sorters: ascending unless `DESC`, empty values last either way */
+export function compareBy(sorters: Sorter[]): (a: any, b: any) => number {
+  return (a, b) => {
+    for (const sorter of sorters) {
+      let aVal = a?.[sorter.property];
+      let bVal = b?.[sorter.property];
+      if (sorter.transform) {
+        aVal = sorter.transform(aVal);
+        bVal = sorter.transform(bVal);
+      }
+      const dir = sorter.direction === 'DESC' ? -1 : 1;
+      const aEmpty = aVal === null || aVal === undefined;
+      const bEmpty = bVal === null || bVal === undefined;
+      if (aEmpty || bEmpty) {
+        if (aEmpty && bEmpty) continue;
+        return aEmpty ? 1 : -1;
+      }
+      if (aVal < bVal) return -dir;
+      if (aVal > bVal) return dir;
+    }
+    return 0;
+  };
+}
+
 /** One filter against one value: the operators the store understands */
-function matchesFilter(value: any, f: Filter): boolean {
+export function matchesFilter(value: any, f: Filter): boolean {
   const target = f.value;
   switch (f.operator ?? 'eq') {
     case 'eq': return value === target || (value != null && target != null && String(value) === String(target));
