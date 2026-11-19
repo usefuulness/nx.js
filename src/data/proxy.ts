@@ -5,7 +5,7 @@
 
 export interface ProxyConfig {
   /** `rest` (one request per record, ids in the URL), `ajax` (records sent together), `memory` or `localstorage` */
-  type: 'rest' | 'ajax' | 'memory' | 'localstorage';
+  type: 'rest' | 'ajax' | 'memory' | 'localstorage' | (string & {});
   /** Base URL (for `localstorage`: the storage key) */
   url?: string;
   /** Different URLs per operation */
@@ -279,7 +279,16 @@ export class LocalStorageProxy<T = any> extends MemoryProxy<T> {
   }
 }
 
+const custom = new Map<string, (config: ProxyConfig) => Proxy>();
+
+/** Add a kind of proxy that a store can name in its config: `registerProxyType('hal', config => new HalProxy(config))` */
+export function registerProxyType(type: string, factory: (config: ProxyConfig) => Proxy): void {
+  custom.set(type, factory);
+}
+
 export function createProxy<T = any>(config: ProxyConfig): Proxy<T> {
+  const make = custom.get(config.type);
+  if (make) return make(config) as Proxy<T>;
   switch (config.type) {
     case 'rest':
     case 'ajax':

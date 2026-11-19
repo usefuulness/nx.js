@@ -1214,3 +1214,67 @@ test.describe('api client', () => {
     expect(seen.at(-1)!.url).toContain('sort=');
   });
 });
+
+test.describe('clients made from a description', () => {
+  test('an OpenAPI document gives a store that feeds a grid, with the parameters the document declares', async ({ page }) => {
+    const seen: string[] = [];
+    await page.route('**/v1/pets**', route => {
+      const url = new URL(route.request().url());
+      seen.push(url.pathname + url.search);
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ id: 1, name: 'Rex', age: '3' }, { id: 2, name: 'Tom', age: '5' }]) });
+    });
+    await page.goto('/#/components');
+    await page.evaluate(async () => {
+      const NX = (window as any).NX;
+      const spec = {
+        openapi: '3.0.0', servers: [{ url: '/v1' }],
+        paths: { '/pets': { get: { operationId: 'listPets', parameters: [{ name: 'limit', in: 'query' }, { name: 'offset', in: 'query' }, { name: 'sort', in: 'query' }], responses: { 200: { content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } } } } } } } } },
+        components: { schemas: { Pet: { type: 'object', required: ['name'], properties: { id: { type: 'integer' }, name: { type: 'string' }, age: { type: 'integer' } } } } }
+      };
+      const api = await NX.openapi(spec);
+      api.register();
+      const grid = document.createElement('nx-grid') as any;
+      grid.id = 'oa-grid';
+      grid.columns = [{ field: 'name', header: 'Name', sortable: true }, { field: 'age', header: 'Age', type: 'number' }];
+      grid.setAttribute('store', 'pets');
+      document.body.append(grid);
+      await api.store('pets').load();
+    });
+    const rows = page.locator('#oa-grid').locator('tbody tr');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.first()).toContainText('Rex');
+    expect(seen[0]).toMatch(/^\/v1\/pets\?/);
+    expect(seen[0]).toContain('limit=25');
+    expect(seen[0]).toContain('offset=0');
+    expect(seen[0]).not.toContain('page=');
+  });
+
+  test('a HAL entry point gives stores by following links', async ({ page }) => {
+    const seen: string[] = [];
+    await page.route('**/hal/**', route => {
+      const url = new URL(route.request().url());
+      seen.push(url.pathname + url.search);
+      const body = url.pathname === '/hal/'
+        ? { _links: { self: { href: '/hal/' }, books: { href: '/hal/books{?page,size}', templated: true } } }
+        : { _embedded: { books: [{ title: 'Dune', _links: { self: { href: '/hal/books/1' } } }, { title: 'Emma', _links: { self: { href: '/hal/books/2' } } }] }, page: { totalElements: 2 } };
+      route.fulfill({ contentType: 'application/hal+json', body: JSON.stringify(body) });
+    });
+    await page.goto('/#/components');
+    await page.evaluate(async () => {
+      const NX = (window as any).NX;
+      const hal = NX.hal('/hal/');
+      await hal.register();
+      const grid = document.createElement('nx-grid') as any;
+      grid.id = 'hal-grid';
+      grid.columns = [{ field: 'title', header: 'Title' }, { field: 'id', header: 'Id' }];
+      grid.setAttribute('store', 'books');
+      document.body.append(grid);
+      await (await hal.store('books')).load();
+    });
+    const rows = page.locator('#hal-grid').locator('tbody tr');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.first()).toContainText('Dune');
+    await expect(rows.first()).toContainText('1'); // the id came from the record's own self link
+    expect(seen).toContain('/hal/books?page=0&size=25');
+  });
+});

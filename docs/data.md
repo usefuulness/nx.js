@@ -97,6 +97,48 @@ await api.get('/me');  await api.post('/login', { email, password });   // any o
 - **`params`** renames the parameters for a server that wants others: `params: s => ({ _page: s.page, per_page: s.limit, order: s.sort.map(x => (x.direction === 'DESC' ? '-' : '') + x.property).join(',') })`.
 - **`headers`** can be an object or an async function; `onRequest(url, options)` can change any request before it is sent, `onResponse(data, url)` sees every answer, and `onError(error, url)` sees every failure after a refresh and repeats were tried. Errors are `AjaxError`s with the status and the server's message.
 
+### Clients made from a description
+
+You do not have to write the resources out. If the server describes itself, let the client read it.
+
+**OpenAPI** (3.x or Swagger 2, as JSON: an object, a JSON string, or the URL of a document):
+
+```ts
+const api = await NX.openapi('/openapi.json', { auth: { token: () => session.token } });
+
+await api.operations.listPets({ limit: 10, species: 'cat' });      // every operation is a function, named by its operationId
+await api.operations.getPet({ petId: 7 });                         // path, query and header parameters in one object
+await api.operations.updatePet({ petId: 7 }, { name: 'Rex' });     // the JSON body is the second argument
+
+api.register();                    // and every collection with its item path is already a resource:
+// <nx-grid store="pets"></nx-grid>
+const Pet = api.model('pets');     // typed fields, required fields, lengths, ranges, patterns, enums and formats from the schema
+```
+
+- **Resources** are found where a path can be listed (`GET /pets`) and has an item path (`/pets/{petId}`). Fields come from the item's schema (`$ref`, `allOf` and `oneOf` are followed): types, defaults, `nullable`, required fields as `presence`, and `minLength`, `maxLength`, `minimum`, `maximum`, `pattern`, `enum`, `format: email|uri` as validators. `readOnly` fields are never sent back.
+- **A list** can be a bare array or an object with the array in `data`, `items`, `results` and the like; the total is read from `total`, `totalCount` and the like.
+- **Parameters** are worked out from what the list declares: `limit` or `per_page`, `offset` or `page`, `sort` (with `-name`, or a separate `order` or `direction`), and `q` or `search` for a search box. A property with a query parameter of its own is sent as that parameter.
+- The base URL comes from `servers` (or `host` and `basePath`); `baseUrl` in the config wins. Anything you list under `resources` replaces what was found. A document that is not JSON (YAML) must be converted first.
+
+**HAL** (hypermedia): start at one address and follow links.
+
+```ts
+const hal = NX.hal('/api', { auth: { token: () => session.token } });
+
+await hal.resources();             // ['orders', 'customers']: the entry document's relations, by short name
+await hal.register();              // a named store for each, so views can say store="orders"
+const orders = await hal.store('orders');
+await orders.load();               // follows  /api/orders{?page,size,sort,q}  with the template filled in
+
+const order = (await hal.follow('orders')).embedded('orders')[0];
+const customer = await order.follow('customer');         // links on any resource
+order.href('payment', { method: 'card' });               // a templated link, filled in
+```
+
+- **Stores** read the embedded records (`_embedded.orders`), take each record's id from its `id` field or its `self` link, and read the total from `page.totalElements` (or `total`, `count`). `page`, `size` and `sort` are filled in only where the link's template has them: a template with `sort` makes the server sort, one without keeps sorting in the browser. Page numbers start at zero, like Spring; pass `zeroBasedPages: false` for servers that start at one.
+- **Saving** uses each record's own links: `PUT` and `DELETE` go to its `self`, new records are `POST`ed to the collection, and what the server sends back is read as HAL.
+- **URI templates** (`{id}`, `{+path}`, `{/a,b}`, `{.ext}`, `{?a,b}`, `{&a}`, and `*` for lists) are filled in by `expandTemplate(template, vars)`. A variable you leave out is left out.
+
 ## Models
 
 A model describes a kind of record: typed fields, defaults, rules, and how to load and save it.
