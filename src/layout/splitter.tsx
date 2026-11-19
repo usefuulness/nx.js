@@ -4,6 +4,10 @@
 import { BaseComponent } from '@/components/abstracts/base';
 import { define } from '@/core/registry';
 import { inlineStep, isRtl } from '@/core/dom-utils';
+import { StateProvider } from '@/core/state';
+
+/** Where sizes are remembered: under the key the app gave, with nothing added to it */
+const layoutState = new StateProvider({ prefix: '' });
 
 export interface SplitterConfig {
   /** `horizontal` puts panes side by side (default); `vertical` stacks them */
@@ -301,7 +305,7 @@ export class NXSplitter extends BaseComponent {
     const key = this.storageKey();
     if (!key) return null;
     try {
-      const saved = JSON.parse(localStorage.getItem(key) ?? 'null');
+      const saved = layoutState.get<unknown>(key, null);
       return Array.isArray(saved) && saved.every(n => typeof n === 'number' && n >= 0) ? saved : null;
     } catch {
       return null;
@@ -311,11 +315,7 @@ export class NXSplitter extends BaseComponent {
   private save(): void {
     const key = this.storageKey();
     if (!key) return;
-    try {
-      localStorage.setItem(key, JSON.stringify(this.weights));
-    } catch {
-      // Not remembered; the splitter still works
-    }
+    layoutState.set(key, this.weights); // never throws: if storage is blocked the splitter still works
   }
 
   protected render(): Node {

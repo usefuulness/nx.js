@@ -77,6 +77,7 @@ export class NXToolbar extends BaseComponent implements ItemsAware {
 
       .nx-toolbar {
         display: flex;
+        flex-wrap: wrap; /* on a narrow screen the items go to a second line instead of overflowing */
         align-items: center;
         gap: 0.25rem;
         min-height: 3.5rem;

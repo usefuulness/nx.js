@@ -163,6 +163,8 @@ a { color: var(--sc-accent); text-underline-offset: 3px; }
   border-radius: var(--radius-sm);
   background: var(--sc-code-bg);
   color: var(--sc-code-text);
+  /* A long inline command wraps instead of pushing the page sideways on a phone */
+  overflow-wrap: anywhere;
 }
 
 .doc pre {
@@ -176,7 +178,7 @@ a { color: var(--sc-accent); text-underline-offset: 3px; }
   line-height: 1.7;
 }
 
-.doc pre code { padding: 0; background: none; font-size: 0.75rem; }
+.doc pre code { padding: 0; background: none; font-size: 0.75rem; overflow-wrap: normal; }
 
 .doc blockquote {
   margin: 0 0 1.25rem;

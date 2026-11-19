@@ -2,7 +2,22 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
-## Unreleased
+## 0.6.0 - 2026-11-19
+
+### Added (logic layer)
+- **Models:** `NX.model()` / `defineModel()`: typed fields with defaults, conversion, mapping and `persist`; validators (`presence`, `length`, `range`, `format`, `email`, `url`, `inclusion`, `exclusion`, functions) with translated messages; change tracking (`set`, `dirty`, `modified`, `commit`, `reject`, `copy`); `load()`, `save()`, `erase()` through a proxy. A store takes `model` to convert and validate what it holds.
+- **View models:** `NX.viewModel()`: reactive data with formulas (dependencies found automatically), batched bindings, parent/child models, on-demand stores; `bindElement()` and `bindAll()` bind `bind-value` (two-way), `bind-text`, `bind-hidden`, `bind-disabled`, `bind-class-x`, `bind-attr-x` attributes.
+- **Controllers:** `NX.controller()`: delegated, selector-based event handling that sees through shadow roots, `reference` lookup, an owned or shared view model.
+- **`NX.ajax()`:** JSON requests that fail on bad statuses (`AjaxError`), time out and abort.
+- **`NX.state`:** remembered JSON state in browser storage that never throws and falls back to memory. The grid and splitter use it.
+- **`NX.format`, `NX.task`, `NX.utils.throttle`:** number, currency, percent, file size, date, relative time, duration, plural and text formatting that follows the page's language; repeating tasks that never overlap; a real `debounce` and `throttle` with `cancel` and `flush`.
+- **Store:** `first`, `last`, `indexOf`, `insert`, `removeAt`, `sum`, `average`, `min`, `max`, `getGroups`, `getFilters`, `getSorters`, `validate`; `filterchange` and `sortchange` events.
+
+### Fixed (data layer)
+- `Store.filter()` did nothing for local stores; it now filters (all operators, `*` for any field). Filtered-out records stay in the store, so they still count as changes and are synced.
+- A sorter without a direction sorted descending; it is now ascending, with empty values last.
+- Editing a field whose original value was falsy (`0`, `''`) twice lost the original, so `rejectChanges()` restored the wrong value.
+- Proxies: a bad HTTP status was treated as data (now an `AjaxError`); `rest` now sends one request per record with the id in the URL and `DELETE` no longer sends a body; the memory and localStorage proxies now really update and destroy.
 
 ### Added
 - **Select, everywhere:** browsers that cannot theme the native dropdown (Firefox, Safari) now open a themed list on desktop: same look as the Chromium one, a labelled `listbox` with arrow keys, Home/End, type-ahead, Escape, and the top layer so nothing clips it. The native `<select>` remains the control (value, validity, forms, server HTML). Touch screens keep the native picker. New `popup` attribute (`auto`, `custom`, `native`).

@@ -20,6 +20,7 @@ export const guides: Guide[] = [
   { file: 'getting-started.md', title: 'Getting started', summary: 'Install, first page, <script> tag use, server templates, and per-component imports' },
   { file: 'jsx-and-html.md', title: 'JSX, configs and HTML', summary: 'The three ways to write the same UI and how props map to attributes' },
   { file: 'building-apps.md', title: 'Building apps', summary: 'App shell, routing with data loaders, data grids, stores, dialogs and menus' },
+  { file: 'data.md', title: 'Data and logic', summary: 'Stores, models and validators, proxies and NX.ajax, view models and bindings, controllers, remembered state, formatting' },
   { file: 'chat.md', title: 'Chat', summary: 'A chat window for AI: streaming replies, safe Markdown, Stop, connecting a model through your server' },
   { file: 'forms.md', title: 'Forms', summary: 'Fields, validation, native and fetch submission, and forms that work before JavaScript' },
   { file: 'server-rendering.md', title: 'Server rendering', summary: 'SSR and SSG with Declarative Shadow DOM, hydration, route data, and Twig/Blade/Jinja' },

@@ -11,6 +11,10 @@ import { keepInView } from '@/core/position';
 import { escapeHTML, MIRROR_CSS } from '@/core/dom-utils';
 import type { XlsxCell } from '@/core/xlsx';
 import { Store } from '@/data/store';
+import { StateProvider } from '@/core/state';
+
+/** Where column widths and order are remembered: under the key the app gave, with nothing added to it */
+const layoutState = new StateProvider({ prefix: '' });
 
 export type BadgeTone = 'neutral' | 'info' | 'success' | 'warning' | 'error';
 
@@ -545,7 +549,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     const key = this.storageKey();
     if (!key) return;
     try {
-      const saved = JSON.parse(localStorage.getItem(key) ?? 'null');
+      const saved = layoutState.get<{ widths?: Record<string, number>; order?: unknown[] } | null>(key, null);
       if (saved?.widths) this.widths = new Map(Object.entries(saved.widths).map(([k, v]) => [k, Number(v)]));
       if (Array.isArray(saved?.order)) this.order = saved.order.map(String);
     } catch {
@@ -573,11 +577,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   private columnsChanged(emit = true): void {
     const key = this.storageKey();
     if (key) {
-      try {
-        localStorage.setItem(key, JSON.stringify(this.getColumnState()));
-      } catch {
-        // Not persisted; the grid still works
-      }
+      layoutState.set(key, this.getColumnState()); // never throws: if storage is blocked the grid still works
     }
     this.refresh();
     if (emit) this.emit('column-change', this.getColumnState());

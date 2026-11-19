@@ -9,6 +9,39 @@ import {
   VStack, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
 
+// ────────── A view model: data, a formula, and markup that binds to it ──────────
+
+/** The bindings are plain attributes (`bind-value`, `bind-text`, `bind-disabled`), so the same markup works in a template. */
+function viewModelDemo(): HTMLElement {
+  const Person = NX.model({
+    fields: [
+      { name: 'name', validators: ['presence', { type: 'length', min: 2 }] },
+      { name: 'email', validators: ['presence', 'email'] }
+    ]
+  });
+  const vm = NX.viewModel({
+    data: { person: { name: 'Ada', email: 'ada@example.com' } },
+    formulas: {
+      errors: get => Person.validate(get('person') ?? {}).errors,
+      valid: get => Object.keys(Person.validate(get('person') ?? {}).errors).length === 0,
+      problem: get => Object.values(Person.validate(get('person') ?? {}).errors).flat()[0] ?? ''
+    }
+  });
+  const card = (
+    <Card id="demo-viewmodel" title="View model" subtitle="One set of data, bound to the markup by attributes. A formula decides whether it is valid; the model's rules say why not.">
+      <VStack gap={12}>
+        <Input {...{ 'bind-value': 'person.name' }} label="Name" />
+        <Input {...{ 'bind-value': 'person.email' }} label="Email" />
+        <p class="vm-greeting" {...{ 'bind-text': 'Hello, {person.name}! We will write to {person.email}.' }} style="margin: 0" />
+        <p class="vm-problem" role="status" {...{ 'bind-text': '{problem}', 'bind-hidden': 'valid' }} style="margin: 0; color: var(--color-error-text)" />
+        <div><Button class="vm-submit" {...{ 'bind-disabled': '!valid' }} onClick={() => NX.toast.success('Saved ' + vm.get('person.name'))}>Save</Button></div>
+      </VStack>
+    </Card>
+  ) as HTMLElement;
+  vm.bindAll(card);
+  return card;
+}
+
 // ────────── Sample data ──────────
 
 type User = { id: number; name: string; email: string; role: string; status: string; revenue: number; joined: string };
@@ -406,6 +439,8 @@ const ComponentsPage = () => (
           <Alert variant="destructive" title="Payment failed">Your card was declined.</Alert>
         </VStack>
       </Card>
+
+      {viewModelDemo()}
 
       <Card title="Calendar" subtitle="A month on the page: pick a day and see what is on it. Arrow keys, Home, End and Page Up/Down move around.">
         <div style="max-width: 24rem"><Calendar id="demo-calendar" value="2026-03-04" firstDay={1} events={[{ date: '2026-03-04', title: 'Standup', time: '09:30' }, { date: '2026-03-04', title: 'Deploy', status: 'error' }, { date: '2026-03-10', title: 'Design review', time: '14:00', status: 'success' }, { date: '2026-03-18', title: 'Release', status: 'info' }]} /></div>
