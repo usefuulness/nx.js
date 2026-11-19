@@ -12,6 +12,8 @@ export interface TreeNode {
   checked?: boolean;
   disabled?: boolean;
   children?: TreeNode[];
+  /** Has children that are not here yet: it can be opened, and `toggle` tells you when, so you can load them and set the data again */
+  lazy?: boolean;
   /** Navigate here when selected (inside an NX.app with a router) */
   route?: string;
   data?: any;
@@ -105,9 +107,9 @@ export class NXTree extends BaseComponent {
   expandAll(): void {
     const all = new Set<string>();
     const traverse = (nodes: TreeNode[]) => nodes.forEach(node => {
-      if (node.children?.length) {
+      if (node.children?.length || node.lazy) {
         all.add(NXTree.nodeId(node));
-        traverse(node.children);
+        traverse(node.children ?? []);
       }
     });
     traverse(this.getState<TreeNode[]>('data', []));
@@ -135,7 +137,7 @@ export class NXTree extends BaseComponent {
 
     return nodes.map(node => {
       const nodeId = NXTree.nodeId(node);
-      const hasChildren = !!node.children && node.children.length > 0;
+      const hasChildren = (!!node.children && node.children.length > 0) || node.lazy === true;
       const isExpanded = hasChildren && expandedNodes.has(nodeId);
       const isSelected = selectedNodes.has(nodeId);
       const iconMarkup = icons && node.icon ? Icons.get(node.icon) : '';
@@ -161,7 +163,7 @@ export class NXTree extends BaseComponent {
           </div>
           {isExpanded && (
             <div class="nx-tree-children" part="children" role="group">
-              {this.renderNodes(node.children!, level + 1)}
+              {this.renderNodes(node.children ?? [], level + 1)}
             </div>
           )}
         </div>
@@ -365,11 +367,11 @@ export class NXTree extends BaseComponent {
       case 'ArrowRight':
         e.preventDefault();
         if (inlineStep(e.key, this) === 1) {
-          if (node?.children?.length) {
+          if (node?.children?.length || node?.lazy) {
             this[ComponentState].set('focusId', nodeId);
             this.toggleNode(nodeId, true);
           }
-        } else if (node?.children?.length && this.getState<Set<string>>('expandedNodes', new Set()).has(nodeId)) {
+        } else if ((node?.children?.length || node?.lazy) && this.getState<Set<string>>('expandedNodes', new Set()).has(nodeId)) {
           this[ComponentState].set('focusId', nodeId);
           this.toggleNode(nodeId, false);
         } else {

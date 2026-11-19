@@ -204,6 +204,7 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
           <a href="#components">Components</a>
           <a href="#theming">Theming</a>
           <a href="#forms">Forms</a>
+          <a href="#data">Data</a>
           <a href="#stack">Any stack</a>
           <a href="#quality">Quality</a>
         </nav>
@@ -648,6 +649,143 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
               <pre class="sc-code" style="flex: 1"><code ref={payload}>{'// Submit the form to see what the server receives'}</code></pre>
               <p class="sc-note">In a real app this is a normal POST: validation runs in the browser, errors come back as <span class="sc-inline-code">error-text</span>.</p>
             </div>
+          </div>
+        </section>
+
+        {/* ────────── Data ────────── */}
+        <section class="sc-section" id="data" aria-labelledby="data-title">
+          <div class="sc-section-head">
+            <h2 id="data-title">Talks to your server, without the glue</h2>
+            <p>Point nx.js at an OpenAPI document or a HAL entry point and it builds the models, stores and requests itself. Everything below runs live in this page against a small server that sorts, searches, pages and validates like yours would. Watch the requests it sends.</p>
+          </div>
+
+          <div class="sc-demos">
+            <figure class="sc-specimen sc-demo" id="oa-demo" style="margin: 0">
+              <figcaption class="sc-specimen-label">{'await NX.openapi("/openapi.json")'}</figcaption>
+              <div class="sc-specimen-body">
+                <div class="sc-demo-bar">
+                  <Button id="oa-read" icon="download">Read the document</Button>
+                  <span class="sc-note" id="oa-status" role="status">Not read yet: press the button and the client reads the server's own description.</span>
+                </div>
+                <div class="sc-demo-cols">
+                  <div class="sc-demo-main">
+                    <div class="sc-chips" id="oa-ops" aria-label="Operations found in the document"></div>
+                    <DataGrid id="oa-grid" search striped emptyText="Nothing loaded yet" columns={[
+                      { field: 'id', header: 'Id', width: 64, sortable: true },
+                      { field: 'name', header: 'Name', sortable: true },
+                      { field: 'species', header: 'Species', sortable: true, width: 110 },
+                      { field: 'age', header: 'Age', type: 'number', sortable: true, width: 80 },
+                      { field: 'adopted', header: 'Adopted', type: 'boolean', width: 100 }
+                    ]} data={[]} />
+                    <Pagination id="oa-pager" total={0} pageSize={8} compact />
+                  </div>
+                  <div class="sc-demo-side">
+                    <form id="oa-form" class="sc-demo-form" novalidate>
+                      <h3>Add a pet</h3>
+                      <p class="sc-note">The rules come from the document: length, allowed values and a range. They are checked as you type, and again by the server.</p>
+                      <Input id="oa-name" name="name" label="Name" placeholder="2 to 20 characters" />
+                      <Select id="oa-species" name="species" label="Species" value="cat" options={["cat", "dog", "rabbit"]} />
+                      <Input id="oa-age" name="age" type="number" label="Age" value="1" />
+                      <Button id="oa-add" type="submit" disabled>Add</Button>
+                    </form>
+                    <div>
+                      <span class="sc-specimen-label">Operation result</span>
+                      <pre class="sc-code sc-json" id="oa-result" aria-live="polite"><code>{'// Press an operation above'}</code></pre>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <span class="sc-specimen-label">Requests</span>
+                  <ol class="sc-log" id="oa-log" aria-label="Requests sent" aria-live="polite"><li class="sc-log-empty">None yet</li></ol>
+                </div>
+              </div>
+            </figure>
+
+            <figure class="sc-specimen sc-demo" id="hal-demo" style="margin: 0">
+              <figcaption class="sc-specimen-label">{'NX.hal("/api/")'}</figcaption>
+              <div class="sc-specimen-body">
+                <div class="sc-demo-bar">
+                  <Button id="hal-start" icon="download">GET /api/</Button>
+                  <span class="sc-note" id="hal-status" role="status">One address in. Everything else is found by following links.</span>
+                </div>
+                <div class="sc-chips" id="hal-rels" aria-label="Relations offered by the entry document"></div>
+                <div class="sc-demo-cols">
+                  <div class="sc-demo-main">
+                    <DataGrid id="hal-grid" striped emptyText="Nothing loaded yet" columns={[
+                      { field: 'id', header: 'Id', width: 64 },
+                      { field: 'title', header: 'Title', sortable: true },
+                      { field: 'year', header: 'Year', sortable: true, width: 90 },
+                      { field: 'pages', header: 'Pages', type: 'number', width: 90 }
+                    ]} data={[]} />
+                    <Pagination id="hal-pager" total={0} pageSize={6} compact />
+                  </div>
+                  <div class="sc-demo-side">
+                    <span class="sc-specimen-label">The resource you are on</span>
+                    <nav class="sc-trail" id="hal-trail" aria-label="Links followed"></nav>
+                    <pre class="sc-code sc-json" id="hal-detail" aria-live="polite"><code>{'// Click a row, then follow its links'}</code></pre>
+                    <div class="sc-chips" id="hal-links" aria-label="Links on this resource"></div>
+                  </div>
+                </div>
+                <div>
+                  <span class="sc-specimen-label">Requests</span>
+                  <ol class="sc-log" id="hal-log" aria-label="Requests sent" aria-live="polite"><li class="sc-log-empty">None yet</li></ol>
+                </div>
+              </div>
+            </figure>
+
+            <figure class="sc-specimen sc-demo" id="dash-demo" style="margin: 0">
+              <figcaption class="sc-specimen-label">{'NX.viewModel({ data, formulas })'}</figcaption>
+              <div class="sc-specimen-body">
+                <p class="sc-note" style="margin: 0">One view model holds the filters. Formulas work out the numbers and the chart data from them, and everything on this card is bound to it. Nothing here is wired by hand.</p>
+                <div class="sc-demo-controls">
+                  <RadioGroup id="dash-region" name="region" label="Region" variant="segmented" value="all" options={{ all: 'All', eu: 'EU', us: 'US', apac: 'APAC' }} />
+                  <Select id="dash-category" name="category" label="Category" value="all" options={{ all: 'All categories', hardware: 'Hardware', software: 'Software', services: 'Services' }} />
+                  <Input id="dash-query" name="query" label="Search products" placeholder="e.g. cloud" />
+                </div>
+                <div class="sc-kpis" role="group" aria-label="Key figures">
+                  <div class="sc-kpi"><span class="sc-kpi-label">Revenue</span><strong id="dash-revenue">…</strong></div>
+                  <div class="sc-kpi"><span class="sc-kpi-label">Orders</span><strong id="dash-count">…</strong></div>
+                  <div class="sc-kpi"><span class="sc-kpi-label">Average order</span><strong id="dash-average">…</strong></div>
+                  <div class="sc-kpi"><span class="sc-kpi-label">Top product</span><strong id="dash-top">…</strong></div>
+                </div>
+                <div class="sc-demo-charts">
+                  <Chart id="dash-trend" type="area" label="Revenue by month" labels={['Jan']} series={[{ name: 'Revenue', data: [0] }]} />
+                  <Chart id="dash-split" type="donut" label="Revenue by region" data={[{ label: 'Loading', value: 1 }]} />
+                </div>
+                <DataGrid id="dash-grid" striped pageSize={5} emptyText="No orders match" columns={[
+                  { field: 'date', header: 'Date', width: 120, sortable: true },
+                  { field: 'product', header: 'Product', sortable: true },
+                  { field: 'region', header: 'Region', width: 90 },
+                  { field: 'amount', header: 'Amount', type: 'number', width: 110, sortable: true }
+                ]} data={[]} />
+                <div>
+                  <span class="sc-specimen-label">The view model's data</span>
+                  <pre class="sc-code sc-json" id="dash-state"><code>{'{ }'}</code></pre>
+                </div>
+              </div>
+            </figure>
+
+            <figure class="sc-specimen sc-demo" id="tree-demo" style="margin: 0">
+              <figcaption class="sc-specimen-label">{'NX.treeStore({ root, proxy })'}</figcaption>
+              <div class="sc-specimen-body">
+                <p class="sc-note" style="margin: 0">Folders marked as having children load them the first time you open them: open Pictures or Music and watch the request. Searching keeps the way down to each match, without leaving anything open afterwards.</p>
+                <div class="sc-demo-controls">
+                  <Input id="tree-query" name="treequery" label="Search files" placeholder="e.g. jpg" />
+                  <div class="sc-demo-buttons">
+                    <Button id="tree-expand" variant="outline" size="sm">Expand all</Button>
+                    <Button id="tree-collapse" variant="outline" size="sm">Collapse all</Button>
+                  </div>
+                </div>
+                <div class="sc-demo-cols">
+                  <Tree id="tree-view" data={[{ id: 'loading', text: 'Loading…' }]} />
+                  <div>
+                    <span class="sc-specimen-label">Requests</span>
+                    <ol class="sc-log" id="tree-log" aria-label="Requests sent" aria-live="polite"><li class="sc-log-empty">None yet</li></ol>
+                    <p class="sc-note" id="tree-count" role="status" style="margin-top: 0.75rem"></p>
+                  </div>
+                </div>
+              </div>
+            </figure>
           </div>
         </section>
 

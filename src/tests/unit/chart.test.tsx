@@ -100,6 +100,15 @@ describe('<nx-chart>', () => {
     expect(q(c, 'path.slice').length).toBe(2);
   });
 
+  it('writes every tick of an axis in the same style', async () => {
+    const el = await mount(`data='[{"label":"a","value":4000},{"label":"b","value":18000}]'`);
+    const ticks = q(el, 'text.tick').map(t => t.textContent).filter(t => /\d/.test(t!) && t!.length < 7);
+    expect(ticks.some(t => /K$/.test(t!))).toBe(true);
+    expect(ticks.filter(t => /,/.test(t!))).toEqual([]);   // no "5,000" beside "10K"
+    const small = await mount(`data='[{"label":"a","value":4},{"label":"b","value":9}]'`);
+    expect(q(small, 'text.tick').some(t => /K$/.test(t.textContent!))).toBe(false);
+  });
+
   it('is translated and formats numbers per language', async () => {
     document.documentElement.setAttribute('lang', 'es');
     const el = await mount(`data='[{"label":"A","value":1234.5}]'`);

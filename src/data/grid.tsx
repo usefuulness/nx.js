@@ -1511,8 +1511,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       }
       case 'boolean':
         return value
-          ? <span class="bool yes" aria-label={this.t('grid.yes')} html={Icons.get('check')} />
-          : <span class="bool no" aria-label={this.t('grid.no')} html={Icons.get('minus')} />;
+          ? <span class="bool yes" role="img" aria-label={this.t('grid.yes')} html={Icons.get('check')} />
+          : <span class="bool no" role="img" aria-label={this.t('grid.no')} html={Icons.get('minus')} />;
       case 'badge':
         return <span class={['badge', `tone-${col.badges?.[String(value)] ?? 'neutral'}`]}>{String(value)}</span>;
       default:

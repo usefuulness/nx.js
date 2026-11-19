@@ -745,6 +745,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
     }
     
     if ((this.config.remoteSort || this.config.buffered) && this.proxy) {
+      this.currentPage = 1; // a new order starts from the first page
       this.load().catch(() => {}); // failures are reported by the `exception` event
     } else {
       this.doSort();
@@ -766,6 +767,7 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
     }
     
     if ((this.config.remoteFilter || this.config.buffered) && this.proxy) {
+      this.currentPage = 1; // and so does a new search
       this.load().catch(() => {});
     } else {
       this.applyState();
@@ -953,10 +955,13 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
   }
 
   private buildParams(options: LoadOptions): any {
+    const page = options.page || this.currentPage;
+    const limit = options.limit || this.pageSize;
     const params: any = {
-      page: options.page || this.currentPage,
-      start: options.start || 0,
-      limit: options.limit || this.pageSize,
+      page,
+      // Where this page starts, unless the caller said (a buffered store always does)
+      start: options.start ?? (page - 1) * limit,
+      limit,
       ...options.params
     };
     

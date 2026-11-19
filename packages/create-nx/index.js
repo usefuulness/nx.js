@@ -10,7 +10,7 @@ import { basename, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** The nx.js versions a new project depends on. Kept in step with the library by a unit test. */
-export const NX_RANGE = '^0.9.0';
+export const NX_RANGE = '^0.10.0';
 
 export const TEMPLATES = {
   app: 'A Vite + TypeScript app that writes UI as JSX (recommended)',

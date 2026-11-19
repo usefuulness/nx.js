@@ -228,7 +228,7 @@ tree.appendChild({ name: 'Plum' }, 'fruit');   tree.moveNode('pear', 'veg');   t
 treeElement.data = tree.toItems({ text: 'name' });      // feed <nx-tree>
 ```
 
-A node marked `leaf: false` with no children is **loaded when first opened**: with a `proxy`, `GET <url>?node=<id>` answers a list of nodes. A node cannot be moved into itself or below itself. Events: `load`, `add`, `remove`, `move`, `expand`, `collapse`, `update`, `filterchange`, `sortchange`, `datachanged`.
+A node marked `leaf: false` with no children is **loaded when first opened**: with a `proxy`, `GET <url>?node=<id>` answers a list of nodes. `toItems()` marks such nodes `lazy`, so `<nx-tree>` shows an expander for them and emits `toggle` when you open one: load the children, then set the tree's data again. A node cannot be moved into itself or below itself. Events: `load`, `add`, `remove`, `move`, `expand`, `collapse`, `update`, `filterchange`, `sortchange`, `datachanged`.
 
 ## View models: data that views bind to
 

@@ -253,3 +253,16 @@ describe('TreeStore: items for <nx-tree>', () => {
     expect(s.toItems()[0].text).toBe('7');
   });
 });
+
+describe('TreeStore: what counts as lazy', () => {
+  it('only a node that says leaf: false and has no children is loaded later, even with a proxy', async () => {
+    const s = new TreeStore({ root: [{ id: 'a', name: 'File' }, { id: 'b', name: 'Folder', leaf: false }, { id: 'c', name: 'Full', children: [{ id: 'c1', name: 'x' }] }], proxy: { type: 'memory', data: [] } });
+    expect(s.getNodeById('a')!.leaf).toBe(true);
+    expect(s.getNodeById('b')!.leaf).toBe(false);
+    expect(s.getNodeById('b')!.loaded).toBe(false);
+    expect(s.getNodeById('c')!.loaded).toBe(true);
+    await s.expandAll(); // opens what can open, and asks the server only about the folder
+    expect(s.getNodeById('b')!.loaded).toBe(true);
+  });
+});
+

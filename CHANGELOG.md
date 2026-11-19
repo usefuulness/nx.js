@@ -2,6 +2,19 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## 0.10.0 - 2026-11-19
+
+### Added
+- **Showcase:** a "Talks to your server" section with four live demos running against a small server that lives in the page (sorts, searches, pages, validates, takes a moment to answer): an OpenAPI document that becomes a model, a store, a grid and a validated form, with every request shown; a HAL API explored by following links; a dashboard where one view model drives KPIs, charts, a grid and its own live state; and a file tree whose folders load when first opened.
+- `<nx-tree>` items can be `lazy` (openable before their children exist); `TreeStore.toItems()` sets it.
+
+### Fixed
+- A store that pages on the server now sends where the page starts (`start`/`offset`) as well as the page number, and sorting or searching goes back to the first page.
+- Boolean cells in the grid carry `role="img"` with their Yes/No name (a labelled plain `<span>` failed the accessibility audit).
+- Chart axis labels use one number style (`5K`, `10K`, `15K`), not `5,000` beside `10K`.
+- A tree store treats only a node marked `leaf: false` as one to load later; a node with no `leaf` and no children is complete.
+- An OpenAPI document whose `servers` address is relative resolves it against where the document was served.
+
 ## 0.9.0 - 2026-11-19
 
 ### Added
