@@ -2,7 +2,7 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
-## Unreleased
+## 0.9.0 - 2026-11-19
 
 ### Added
 - **OpenAPI client:** `NX.openapi(document | url, config)` reads an OpenAPI 3 or Swagger 2 document (JSON): every operation becomes a function (`api.operations.listPets(params, body)`), and every collection with its item path becomes a resource, with a model (types, defaults, `nullable`, required fields, length, range, pattern, enum and format validators from the schema; `readOnly` fields never sent back) and the list parameters worked out (`limit`/`offset`, `page`/`per_page`, `sort` with a direction, `q`). `$ref`, `allOf` and `oneOf` are followed.
