@@ -631,12 +631,32 @@ test.describe('right to left (Arabic)', () => {
     });
     const sw = page.locator('nx-switch').first();
     const thumb = sw.locator('.thumb');
-    // Measure once the page has switched direction and settled (a redraw and a transition may still be running)
+    // Where the thumb sits inside its own switch. The page redraws after the language change, and under load that can
+    // land late and start transitions of its own: read it only once it has stopped moving.
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-    await page.evaluate(async () => { await Promise.all(document.getAnimations().map(a => a.finished.catch(() => undefined))); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); });
-    const before = (await thumb.boundingBox())!.x;
-    await sw.click();
-    await expect.poll(async () => (await thumb.boundingBox())!.x).toBeLessThan(before - 8);
+    const offset = async () => (await thumb.boundingBox())!.x - (await sw.boundingBox())!.x;
+    const settled = async () => {
+      let last = NaN, same = 0;
+      for (let i = 0; i < 60 && same < 3; i++) {
+        const now = await offset();
+        same = Math.abs(now - last) < 0.5 ? same + 1 : 0;
+        last = now;
+        await page.waitForTimeout(100);
+      }
+      return last;
+    };
+    const isOn = () => sw.evaluate((el: any) => !!el.shadowRoot.querySelector('input').checked);
+    // The settings form starts this switch on. Put it off, then on: the page may still be redrawing after the language
+    // change, so a click is repeated until it has taken (and only if it has not).
+    const turn = async (on: boolean) => expect(async () => {
+      if ((await isOn()) !== on) await sw.click();
+      expect(await isOn()).toBe(on);
+    }).toPass({ timeout: 10000 });
+    await turn(false);
+    const before = await settled();
+    await turn(true);
+    const after = await settled();
+    expect(after).toBeLessThan(before - 8); // turning it on moves the thumb toward the end, which is the left in Arabic
   });
 
   test('a menu opens at the start edge of its button', async ({ page }) => {
@@ -1279,5 +1299,72 @@ test.describe('clients made from a description', () => {
     await expect(rows.first()).toContainText('Dune');
     await expect(rows.first()).toContainText('1'); // the id came from the record's own self link
     expect(seen).toContain('/hal/books?page=0&size=25');
+  });
+});
+
+test.describe('pets (a server-backed page)', () => {
+  const rows = (page: any) => page.locator('#pets-grid').locator('tbody tr');
+
+  test('loads from the server through the OpenAPI client, and sorts, searches and pages there', async ({ page }) => {
+    const seen: string[] = [];
+    page.on('request', () => {}); // the "server" lives in the page: its requests are shown by what the grid does
+    await page.goto('/#/pets');
+    await expect(rows(page)).toHaveCount(10);
+    await expect(page.locator('#pets-status')).toHaveText('Showing 1–10 of 48');
+    await page.locator('#pets-grid').getByRole('button', { name: 'Age' }).click();
+    const ages = () => rows(page).evaluateAll((trs: Element[]) => trs.map((tr: Element) => Number((tr.querySelectorAll('td')[3] as HTMLElement).textContent)));
+    await expect.poll(ages).toEqual(Array(10).fill(3));             // ascending: the server's youngest first
+    await page.locator('#pets-grid').getByRole('button', { name: 'Age' }).click();
+    await expect.poll(ages).toEqual(Array(10).fill(13));            // descending: the oldest first
+    await page.locator('#pets-grid').locator('.nx-grid-search input').fill('rex');
+    await expect(page.locator('#pets-status')).toHaveText('Showing 1–3 of 3'); // Rex, Rex 2 and Rex 3
+    await page.locator('#pets-grid').locator('.nx-grid-search input').fill('');
+    await expect(page.locator('#pets-status')).toHaveText('Showing 1–10 of 48');
+    await page.locator('#pets-pager').getByRole('button', { name: /next/i }).click();
+    await expect(page.locator('#pets-status')).toHaveText('Showing 11–20 of 48');
+    void seen;
+  });
+
+  test('a row opens a drawer that checks the server\'s rules, saves, and removes with a confirmation', async ({ page }) => {
+    await page.goto('/#/pets');
+    await expect(rows(page)).toHaveCount(10);
+    await page.locator('#add-pet').click();
+    const save = page.locator('#pet-save');
+    await expect(save).toHaveAttribute('disabled', '');                       // a name is required
+    await page.locator('#pet-name').getByRole('textbox').fill('X');
+    await expect(page.locator('#pet-name')).toHaveAttribute('error-text', 'Use at least 2 characters');
+    await page.locator('#pet-name').getByRole('textbox').fill('Zeta');
+    await expect(save).not.toHaveAttribute('disabled', /.*/);
+    await save.click();
+    await expect(page.getByText('Saved Zeta')).toBeVisible();
+    await expect(page.locator('#pets-status')).toHaveText('Showing 1–10 of 49');
+    // Open a row, change it, remove it
+    await rows(page).first().click();
+    await expect(page.locator('#pet-delete')).toBeVisible();
+    await page.locator('#pet-name').getByRole('textbox').fill('Renamed');
+    await page.locator('#pet-save').click();
+    await expect(page.getByText('Saved Renamed')).toBeVisible();
+    await rows(page).first().click();
+    await page.locator('#pet-delete').click();
+    await page.locator('nx-modal').getByRole('button', { name: 'Remove' }).click();
+    await expect(page.getByText(/Removed/)).toBeVisible();
+    await expect(page.locator('#pets-status')).toHaveText('Showing 1–10 of 48');
+  });
+});
+
+test.describe('dashboard insights', () => {
+  test('the range changes the figures and the chart together, and the calendar lists what is on a day', async ({ page }) => {
+    await page.goto('/');
+    const total = page.locator('#revenue-total');
+    await expect(total).toHaveText('$491,800');
+    await expect(page.locator('#revenue-change')).toContainText('% against the same months last year');
+    const points = () => page.locator('#revenue-chart').locator('table tbody tr').count();
+    expect(await points()).toBe(12);
+    await page.locator('#revenue-range').getByText('3 months', { exact: true }).click();
+    await expect(total).toHaveText('$148,600');
+    await expect.poll(points).toBe(3);
+    await expect(page.locator('#dash-calendar').locator('.ev-title').first()).toHaveText('Pricing meeting');
+    await page.locator('#dash-calendar').getByRole('button', { name: /June 17, 2026/ }).click();
+    await expect(page.locator('#dash-calendar').locator('.ev-title')).toHaveText('Release 2.4');
   });
 });

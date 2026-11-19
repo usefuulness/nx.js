@@ -365,4 +365,161 @@ export function mountDataDemos(): void {
   halDemo();
   dashboardDemo();
   treeDemo();
+  bookingDemo();
+  scaleDemo();
+}
+
+// ────────── A booking flow on one view model ──────────
+
+interface Booking { date: string; time: string; who: string }
+
+function bookingDemo(): void {
+  const q = (id: string) => $(id);
+  const steps = q('book-steps'), cal = q('book-cal'), slot = q('book-slot'), slotNote = q('book-slot-note');
+  const name = q('book-name'), email = q('book-email'), urgency = q('book-urgency'), reminder = q('book-reminder');
+  const summary = q('book-summary'), back = q('book-back'), next = q('book-next'), hint = q('book-hint');
+  const panels = [0, 1, 2, 3].map(i => q(`book-p${i}`));
+  if (!steps || !cal || !slot || !name || !email || !urgency || !reminder || !summary || !back || !next || !hint || panels.some(p => !p)) return;
+
+  const SLOTS = ['09:00', '10:30', '13:00', '15:30'];
+  const Person = NX.model({
+    fields: [
+      { name: 'name', validators: ['presence', { type: 'length', min: 2 }] },
+      { name: 'email', validators: ['presence', 'email'] }
+    ]
+  });
+  const vm = NX.viewModel({
+    data: {
+      step: 0, sel: null as { value: string } | null, slot: '', name: '', email: '', urgency: 0, reminder: true, stepEvent: null,
+      bookings: [
+        { date: '2026-03-04', time: '09:00', who: 'Standup' }, { date: '2026-03-04', time: '13:00', who: 'Design review' },
+        { date: '2026-03-10', time: '10:30', who: 'Interview' }, { date: '2026-03-18', time: '15:30', who: 'Release' }
+      ] as Booking[]
+    },
+    formulas: {
+      date: get => (get('sel') as { value: string } | null)?.value ?? '',
+      taken: get => (get('bookings') as Booking[]).filter(b => b.date === get('date')).map(b => b.time),
+      calEvents: get => (get('bookings') as Booking[]).map(b => ({ date: b.date, title: b.who, time: b.time })),
+      nameError: get => (get('name') ? Person.validate({ name: get('name'), email: 'x@y.z' }).errors.name?.[0] ?? '' : ''),
+      emailError: get => (get('email') ? Person.validate({ name: 'xx', email: get('email') }).errors.email?.[0] ?? '' : ''),
+      detailsOk: get => Person.validate({ name: get('name'), email: get('email') }).valid,
+      canNext: get => [!!get('date'), !!get('slot'), get('detailsOk'), true][get('step') as number],
+      canBack: get => (get('step') as number) > 0,
+      nextText: get => ((get('step') as number) === 3 ? 'Book it' : 'Next'),
+      hintText: get => {
+        const s = get('step') as number;
+        if (s === 0) return get('date') ? `${NX.format.date(get('date'), 'full', { locale: 'en' })}${(get('taken') as string[]).length ? `: ${(get('taken') as string[]).length} time(s) already taken` : ''}` : 'Pick a day to start.';
+        if (s === 1) return get('slot') ? `${get('slot')} on ${NX.format.date(get('date'), 'long', { locale: 'en' })}` : 'Pick a time.';
+        if (s === 2) return get('detailsOk') ? 'Looks good.' : 'Add your name and an email address.';
+        return 'Nothing is sent: this is a demo.';
+      },
+      show0: get => get('step') === 0, show1: get => get('step') === 1, show2: get => get('step') === 2, show3: get => get('step') === 3,
+      slotNoteText: get => ((get('taken') as string[]).length ? `Taken that day: ${(get('taken') as string[]).join(', ')}` : 'Everything is free that day.')
+    }
+  });
+
+  // What the controls say goes into the data; everything else reads from it
+  vm.bindElement(cal, { 'event:select': 'sel' });
+  vm.bindElement(slot, { value: 'slot' });
+  vm.bindElement(name, { value: 'name', 'attr:error-text': 'nameError' });
+  vm.bindElement(email, { value: 'email', 'attr:error-text': 'emailError' });
+  vm.bindElement(urgency, { value: 'urgency' });
+  vm.bindElement(reminder, { checked: 'reminder' });
+  vm.bindElement(steps, { 'attr:current': 'step', 'event:step-change': 'stepEvent' });
+  panels.forEach((p, i) => vm.bindElement(p!, { hidden: `!show${i}` }));
+  vm.bindElement(back, { disabled: '!canBack' });
+  vm.bindElement(next, { disabled: '!canNext' });
+  vm.bindElement(hint, { text: '{hintText}' });
+  vm.bindElement(slotNote!, { text: '{slotNoteText}' });
+
+  vm.bind('calEvents', (events: unknown) => cal.setAttribute('events', JSON.stringify(events)));
+  vm.bind('nextText', (t: string) => { next.textContent = t; });
+  // A different day: the earlier time may not fit any more
+  vm.bind('date', () => vm.set('slot', ''));
+  // The times that are still free
+  vm.bind('taken', (taken: string[]) => (slot as any).setOptions?.(SLOTS.map(t => ({ value: t, text: taken.includes(t) ? `${t} (taken)` : t, disabled: taken.includes(t) }))));
+  // Clicking an earlier step goes back to it (later steps are reached with Next)
+  vm.bind('stepEvent', (e: { index: number } | null) => { if (e && e.index < (vm.get('step') as number)) vm.set('step', e.index); });
+
+  // The last step shows what will be booked
+  vm.bind(['date', 'slot', 'name', 'email', 'reminder', 'urgency'], ([date, time, who, mail, remind, urgent]: any[]) => {
+    const item = (title: string, at: string | undefined, status: string | undefined, body: string) => {
+      const el = document.createElement('nx-timeline-item');
+      el.setAttribute('title', title);
+      if (at) el.setAttribute('time', at);
+      if (status) el.setAttribute('status', status);
+      el.textContent = body;
+      return el;
+    };
+    const urgentText = urgent ? ` Urgency: ${urgent} of 5.` : '';
+    summary.replaceChildren(
+      item(`Booking for ${who || '…'}`, date && time ? `${date}T${time}` : undefined, 'success', `${urgentText || 'Booked.'}`.trim()),
+      item('Confirmation', undefined, undefined, mail ? `Sent to ${mail}.` : 'No email yet.'),
+      ...(remind ? [item('Reminder', undefined, 'info', 'The day before, at 09:00.')] : [])
+    );
+  });
+
+  back.addEventListener('click', () => vm.set('step', Math.max(0, (vm.get('step') as number) - 1)));
+  next.addEventListener('click', () => {
+    const step = vm.get('step') as number;
+    if (step < 3) { vm.set('step', step + 1); return; }
+    const booking: Booking = { date: vm.get('date'), time: vm.get('slot'), who: vm.get('name') };
+    vm.set('bookings', [...(vm.get('bookings') as Booking[]), booking]);
+    NX.toast.success('Booked', { description: `${booking.who}, ${NX.format.date(booking.date, 'medium', { locale: 'en' })} at ${booking.time}` });
+    vm.set({ step: 0, slot: '', name: '', email: '', urgency: 0 });
+  });
+}
+
+// ────────── A grid with 20,000 rows ──────────
+
+function scaleDemo(): void {
+  const load = $('scale-load'), csv = $('scale-csv'), stats = $('scale-stats'), grid = $('scale-grid') as El | null;
+  if (!load || !csv || !stats || !grid) return;
+  const CITIES = ['Lisbon', 'Osaka', 'Austin', 'Nairobi', 'Oslo', 'Lima', 'Pune', 'Cairo'];
+  const PLANS = ['Free', 'Pro', 'Team'];
+  let loaded = false;
+  const money = (n: number) => NX.format.currency(n, 'USD', 'en');
+
+  const totals = () => {
+    const picked = grid.getSelected?.() ?? [];
+    return picked.length ? ` ${picked.length.toLocaleString('en')} selected, ${money(picked.reduce((s: number, r: any) => s + Number(r.mrr), 0))} MRR.` : '';
+  };
+
+  const run = async () => {
+    if (loaded) return;
+    loaded = true;
+    busy(load, true);
+    const started = performance.now();
+    const rows = Array.from({ length: 20000 }, (_, i) => ({
+      id: i + 1,
+      name: `Account ${String(i * 7919 % 100000).padStart(5, '0')}`,
+      city: CITIES[(i * 5) % CITIES.length],
+      plan: PLANS[(i * 7) % 3],
+      mrr: ((i * 37) % 900) + (i % 3) * 120
+    }));
+    grid.setData(rows);
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const ms = Math.round(performance.now() - started);
+    const inPage = grid.shadowRoot?.querySelectorAll('tbody tr').length ?? 0;
+    stats.textContent = `${rows.length.toLocaleString('en')} rows ready in ${ms} ms. ${inPage} row elements are in the page.`;
+    stats.dataset.base = stats.textContent;
+    csv.removeAttribute('disabled');
+    busy(load, false);
+    load.setAttribute('disabled', '');
+  };
+
+  load.addEventListener('click', run);
+  grid.addEventListener('selection-change', () => { if (stats.dataset.base) stats.textContent = `${stats.dataset.base}${totals()}`; });
+  csv.addEventListener('click', () => {
+    const url = URL.createObjectURL(new Blob([grid.toCSV()], { type: 'text/csv' }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: 'accounts.csv' });
+    a.click();
+    URL.revokeObjectURL(url);
+    NX.toast.success('Exported', { description: 'accounts.csv, with the search and sort applied' });
+  });
+  // Load by itself when it scrolls into view
+  if ('IntersectionObserver' in window) {
+    const seen = new IntersectionObserver(entries => { if (entries.some(e => e.isIntersecting)) { seen.disconnect(); void run(); } }, { rootMargin: '200px' });
+    seen.observe(grid);
+  }
 }

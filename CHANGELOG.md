@@ -2,6 +2,16 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## 0.11.0 - 2026-11-19
+
+### Added
+- **Demo app:** a Pets page built on the OpenAPI client (the grid sorts, searches and pages through the server; a drawer form checks the document's rules, saves, and removes with a confirmation); a richer dashboard (revenue against last year with a range that drives the figures and the chart through one view model, sales by channel, a calendar of what is coming up, recent activity); Pets in the navigation and the ⌘K palette.
+- **Showcase:** a booking flow (stepper, calendar, free times, validated details, rating and a confirmation timeline on one view model) and a 20,000-row grid (loads when it comes into view, shows how few row elements exist, totals a selection, exports CSV).
+
+### Fixed
+- Calendar days from the neighbouring months had less contrast than the accessibility minimum (the colour was made fainter with opacity as well).
+- Saving a changed model whose id field is read-only (as OpenAPI documents usually mark it) sent the update to the collection address instead of the record's.
+
 ## 0.10.0 - 2026-11-19
 
 ### Added
