@@ -201,6 +201,16 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
 
   // ────────── Buffered loading ──────────
 
+  /** Whether the server sorts (the store asks it each time the sort changes) */
+  isRemoteSort(): boolean {
+    return !!(this.config.remoteSort || this.config.buffered) && !!this.proxy;
+  }
+
+  /** Whether the server filters */
+  isRemoteFilter(): boolean {
+    return !!(this.config.remoteFilter || this.config.buffered) && !!this.proxy;
+  }
+
   isBuffered(): boolean {
     return !!this.config.buffered;
   }

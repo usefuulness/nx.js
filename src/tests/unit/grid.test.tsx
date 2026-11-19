@@ -776,3 +776,42 @@ describe('NXGrid JSX renderers', () => {
     });
   });
 });
+
+describe('NXGrid with a store whose server sorts and filters', () => {
+  beforeEach(() => { document.body.innerHTML = ''; });
+  const make = async (config: Record<string, any>) => {
+    const store = new Store<any>({ proxy: { type: 'memory', data: [{ name: 'Zed' }, { name: 'Amy' }, { name: 'Max' }] }, ...config });
+    await store.load();
+    const grid = mount({ store, data: undefined });
+    await nextFrame(); await nextFrame();
+    return { grid, store };
+  };
+
+  it('asks the store to sort, and shows its rows in the order the server sent them', async () => {
+    const { grid, store } = await make({ remoteSort: true });
+    const asked = vi.spyOn(store, 'sort');
+    grid.sort('name');
+    await nextFrame();
+    expect(asked).toHaveBeenCalledWith({ property: 'name', direction: 'ASC' });
+    expect(cellText(grid)).toEqual(['Zed', 'Amy', 'Max']); // the memory "server" ignored the sort: the grid must not re-sort
+  });
+
+  it('a store that sorts in the browser is still sorted by the grid', async () => {
+    const { grid, store } = await make({});
+    const asked = vi.spyOn(store, 'sort');
+    grid.sort('name');
+    await nextFrame();
+    expect(asked).not.toHaveBeenCalled();
+    expect(cellText(grid)).toEqual(['Amy', 'Max', 'Zed']);
+  });
+
+  it('sends the search to the store when the server filters, and does not filter again itself', async () => {
+    const { grid, store } = await make({ remoteFilter: true });
+    vi.useFakeTimers();
+    const asked = vi.spyOn(store, 'filter');
+    grid.setFilter('am');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(asked).toHaveBeenCalledWith({ property: '*', value: 'am', operator: 'like' });
+    vi.useRealTimers();
+  });
+});

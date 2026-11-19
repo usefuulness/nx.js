@@ -61,6 +61,42 @@ await NX.ajax('/api/users', { method: 'POST', body: { name: 'Ada' }, timeout: 50
 
 It sends `body` as JSON (strings, `FormData` and `URLSearchParams` go as they are), adds `params` to the query string, reads JSON back, and **throws an `AjaxError` for a bad status**, with the status and the server's `message`. Pass `signal` to cancel it.
 
+## The API client
+
+Describe a server once and get requests, models and stores that all go through it, so views talk to it without glue.
+
+```ts
+const api = NX.api({
+  baseUrl: 'https://api.example.com/v1',
+  auth: { token: () => session.token, refresh: async () => { await signIn.renew(); } },   // Authorization: Bearer …; on 401: renew, repeat once
+  timeout: 10_000,
+  retries: 2,                       // reads and dropped connections are repeated (a write that reached the server is not)
+  onError: error => error.status === 403 && NX.toast.error('You are not allowed to do that'),
+  resources: {
+    users: { path: '/users', fields: ['id', 'name', { name: 'age', type: 'int' }], pageSize: 25 },
+    notes: { path: '/notes', reader: { rootProperty: 'items', totalProperty: 'count' }, remote: false }   // sort and filter in the browser
+  }
+});
+
+api.register();                          // a named store per resource, so views can say store="users"
+```
+
+```html
+<nx-grid store="users"></nx-grid>       <!-- loads, sorts, searches and saves through the API -->
+```
+
+```ts
+await api.store('users').load();         // the same store every time; pass options for a separate one
+const User = api.model('users');         // a model that loads and saves through the client
+const { data, total } = await api.client('users').list({ page: 2 });
+await api.client('users').update(7, { name: 'Ada L.' });
+await api.get('/me');  await api.post('/login', { email, password });   // any other call
+```
+
+- **A store for a resource** loads with the server sorting, filtering and paging (`page`, `start`, `limit`, `sort` and `filter` as JSON), saves edits per record (`PUT /users/7`), and a grid bound to it asks the server when you sort a column or search, instead of re-sorting what it has. Set `remote: false` on a resource to keep that in the browser.
+- **`params`** renames the parameters for a server that wants others: `params: s => ({ _page: s.page, per_page: s.limit, order: s.sort.map(x => (x.direction === 'DESC' ? '-' : '') + x.property).join(',') })`.
+- **`headers`** can be an object or an async function; `onRequest(url, options)` can change any request before it is sent, `onResponse(data, url)` sees every answer, and `onError(error, url)` sees every failure after a refresh and repeats were tried. Errors are `AjaxError`s with the status and the server's message.
+
 ## Models
 
 A model describes a kind of record: typed fields, defaults, rules, and how to load and save it.

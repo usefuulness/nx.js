@@ -5,8 +5,13 @@ All notable changes to nx.js. The format follows [Keep a Changelog](https://keep
 ## 0.8.0 - 2026-11-19
 
 ### Added
+- **API client:** `NX.api({ baseUrl, auth, resources })`: requests with a base URL, headers, a bearer token, a time limit, one new token on 401 (`auth.refresh`), repeats for reads and dropped connections, and `onRequest`/`onResponse`/`onError`; `client(name)` for plain CRUD calls; `model(name)` and `store(name)` for resources, so a store loads, sorts, filters, pages and saves through the client; `register()` names every store so `<nx-grid store="users">` just works; `params` renames the query parameters for any server.
 - **View model and components:** `bind-store` hands a view model's store to a grid; `bind-selection`, `bind-selected` and `bind-event-<name>` publish a grid's selection or any event's detail into the data, so other bindings follow.
 - **Store grouping:** `groupField` / `group(field, direction)`: groups stay together (the group field sorts first), `getGroups()` uses it, `groupchange` event.
+
+### Fixed
+- A grid bound to a store whose server sorts or filters (`remoteSort`, `remoteFilter`) now asks the store when you sort a column or search, and shows the rows in the order the server sent them, instead of sorting and filtering them again itself (it only did this for buffered stores).
+- The SSG accessibility audit waits for fonts and transitions before measuring.
 
 ## 0.7.0 - 2026-11-19
 
