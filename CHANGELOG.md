@@ -2,7 +2,7 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
-## Unreleased
+## 0.11.0 - 2026-11-19
 
 ### Added
 - **Demo app:** a Pets page built on the OpenAPI client (the grid sorts, searches and pages through the server; a drawer form checks the document's rules, saves, and removes with a confirmation); a richer dashboard (revenue against last year with a range that drives the figures and the chart through one view model, sales by channel, a calendar of what is coming up, recent activity); Pets in the navigation and the ⌘K palette.
