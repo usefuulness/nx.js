@@ -631,12 +631,32 @@ test.describe('right to left (Arabic)', () => {
     });
     const sw = page.locator('nx-switch').first();
     const thumb = sw.locator('.thumb');
-    // Measure once the page has switched direction and settled (a redraw and a transition may still be running)
+    // Where the thumb sits inside its own switch. The page redraws after the language change, and under load that can
+    // land late and start transitions of its own: read it only once it has stopped moving.
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-    await page.evaluate(async () => { await Promise.all(document.getAnimations().map(a => a.finished.catch(() => undefined))); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); });
-    const before = (await thumb.boundingBox())!.x;
-    await sw.click();
-    await expect.poll(async () => (await thumb.boundingBox())!.x).toBeLessThan(before - 8);
+    const offset = async () => (await thumb.boundingBox())!.x - (await sw.boundingBox())!.x;
+    const settled = async () => {
+      let last = NaN, same = 0;
+      for (let i = 0; i < 60 && same < 3; i++) {
+        const now = await offset();
+        same = Math.abs(now - last) < 0.5 ? same + 1 : 0;
+        last = now;
+        await page.waitForTimeout(100);
+      }
+      return last;
+    };
+    const isOn = () => sw.evaluate((el: any) => !!el.shadowRoot.querySelector('input').checked);
+    // The settings form starts this switch on. Put it off, then on: the page may still be redrawing after the language
+    // change, so a click is repeated until it has taken (and only if it has not).
+    const turn = async (on: boolean) => expect(async () => {
+      if ((await isOn()) !== on) await sw.click();
+      expect(await isOn()).toBe(on);
+    }).toPass({ timeout: 10000 });
+    await turn(false);
+    const before = await settled();
+    await turn(true);
+    const after = await settled();
+    expect(after).toBeLessThan(before - 8); // turning it on moves the thumb toward the end, which is the left in Arabic
   });
 
   test('a menu opens at the start edge of its button', async ({ page }) => {
