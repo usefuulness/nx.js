@@ -2,7 +2,7 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
-## Unreleased
+## 0.7.0 - 2026-11-19
 
 ### Added
 - **Tree store:** `NX.treeStore()`: nodes with parents and children, expand/collapse/reveal, filtering that keeps the way down to each match without opening anything for good, sorting per level, append/move/remove (a node cannot move into itself), children loaded when a `leaf: false` node is first opened, and `toItems()` for `<nx-tree>`.
