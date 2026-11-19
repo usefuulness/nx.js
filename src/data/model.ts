@@ -6,6 +6,7 @@
 import { EventEmitter } from '@/core/events/event-emitter';
 import { i18n } from '@/core/i18n';
 import { createProxy, type Proxy, type ProxyConfig } from '@/data/proxy';
+import { Store } from '@/data/store';
 
 export type FieldType = 'string' | 'int' | 'float' | 'number' | 'boolean' | 'date' | 'auto';
 
@@ -36,7 +37,20 @@ export interface ModelField {
   persist?: boolean;
 }
 
+export interface AssociationConfig {
+  /** `hasMany`: this record owns a list of others (`user.orders()`); `belongsTo`: it points at one (`order.getUser()`) */
+  type: 'hasMany' | 'belongsTo';
+  /** The name it is reached by (and where embedded data sits in the incoming data) */
+  name: string;
+  /** The other model (a function, when it is defined later or refers back to this one) */
+  model: ModelClass<any> | (() => ModelClass<any>);
+  /** The field that holds the owner's id: on the other record for `hasMany`, on this one for `belongsTo`. Default: `<owner model name>Id` / `<name>Id`. */
+  foreignKey?: string;
+}
+
 export interface ModelConfig {
+  /** A name for the model, used to name foreign keys (`user` → `userId`) */
+  name?: string;
   /** The field that identifies a record (default `id`) */
   idProperty?: string;
   fields: Array<ModelField | string>;
@@ -44,6 +58,8 @@ export interface ModelConfig {
   validators?: Record<string, ValidatorSpec[]>;
   /** Where `load()`, `save()` and `erase()` go */
   proxy?: ProxyConfig;
+  /** Links to other models */
+  associations?: AssociationConfig[];
 }
 
 export interface ValidationResult {
@@ -133,6 +149,8 @@ export interface ModelClass<T extends Record<string, any> = Record<string, any>>
   new (data?: Partial<T>): Model<T>;
   readonly idProperty: string;
   readonly fields: ReadonlyArray<ModelField>;
+  readonly proxyConfig: ProxyConfig | undefined;
+  readonly associations: ReadonlyArray<AssociationConfig & { foreignKey: string }>;
   /** Clean up raw data: defaults, mappings and conversion, as a record would */
   convert(raw: Record<string, any>): T;
   /** Convert a single value for a field (unknown fields pass through) */
@@ -151,6 +169,8 @@ export class Model<T extends Record<string, any> = Record<string, any>> extends 
   modified: Partial<T> = {};
   /** Not saved yet: created here, without an id from a server */
   phantom: boolean;
+  private embedded = new Map<string, unknown>();
+  private related = new Map<string, unknown>();
   /** The class this came from (set by `defineModel`) */
   declare ['constructor']: ModelClass<T>;
 
@@ -158,6 +178,10 @@ export class Model<T extends Record<string, any> = Record<string, any>> extends 
     super();
     const cls = this.constructor;
     this.data = cls.convert(data as Record<string, any>);
+    // Nested data for an association is kept apart, so it is neither saved with this record nor mistaken for a field
+    for (const a of cls.associations) {
+      if (a.name in (this.data as any)) { this.embedded.set(a.name, (this.data as any)[a.name]); delete (this.data as any)[a.name]; }
+    }
     const id = (this.data as any)[cls.idProperty];
     this.phantom = id === undefined || id === null || id === '';
   }
@@ -238,6 +262,65 @@ export class Model<T extends Record<string, any> = Record<string, any>> extends 
     return out;
   }
 
+  private association(name: string) {
+    const a = this.constructor.associations.find(x => x.name === name);
+    if (!a) throw new Error(`No association "${name}" on this model`);
+    return { ...a, target: typeof a.model === 'function' && !('fields' in a.model) ? (a.model as () => ModelClass<any>)() : (a.model as ModelClass<any>) };
+  }
+
+  /**
+   * The other side of an association. For `hasMany` it is a store of the related records (made the first
+   * time, from nested data if there was any; new records added to it get the foreign key). For `belongsTo` it
+   * is the related record if it is known (nested data, `setAssoc`, or an earlier `loadAssoc`), else `undefined`.
+   */
+  assoc(name: string): any {
+    const a = this.association(name);
+    if (a.type === 'belongsTo') {
+      if (!this.related.has(name) && this.embedded.get(name) && typeof this.embedded.get(name) === 'object') {
+        const m = new a.target(this.embedded.get(name) as Record<string, any>);
+        m.phantom = false;
+        this.related.set(name, m);
+      }
+      return this.related.get(name);
+    }
+    let store = this.related.get(name) as Store<any> | undefined;
+    if (!store) {
+      const rows = this.embedded.get(name);
+      const proxyConfig = a.target.proxyConfig;
+      store = new Store<any>({
+        model: a.target,
+        data: Array.isArray(rows) ? (rows as any[]).map(r => ({ ...r, [a.foreignKey]: this.id ?? r?.[a.foreignKey] })) : undefined,
+        proxy: proxyConfig && { ...proxyConfig, extraParams: { ...proxyConfig.extraParams, [a.foreignKey]: this.id } }
+      });
+      store.on('add', (e: any) => e.records.forEach((r: any) => { r.data[a.foreignKey] = this.id; }));
+      this.related.set(name, store);
+    }
+    return store;
+  }
+
+  /** Fetch the other side: a `hasMany` store loads its records; a `belongsTo` loads the record its foreign key points at */
+  async loadAssoc(name: string): Promise<any> {
+    const a = this.association(name);
+    if (a.type === 'hasMany') {
+      const store = this.assoc(name) as Store<any>;
+      await store.load();
+      return store;
+    }
+    const key = (this.data as any)[a.foreignKey];
+    if (key === undefined || key === null || key === '') return undefined;
+    const found = await a.target.load(key);
+    this.related.set(name, found);
+    return found;
+  }
+
+  /** Point a `belongsTo` at a record (or `null` to clear it): the foreign key follows */
+  setAssoc(name: string, model: Model<any> | null): void {
+    const a = this.association(name);
+    if (a.type !== 'belongsTo') throw new Error(`"${name}" is a hasMany: add to its store instead`);
+    this.set(a.foreignKey as any, model ? model.id : null);
+    if (model) this.related.set(name, model); else this.related.delete(name);
+  }
+
   private proxy(): Proxy {
     const config = proxies.get(this.constructor);
     if (!config) throw new Error('This model has no proxy: give defineModel() a `proxy`');
@@ -254,6 +337,11 @@ export class Model<T extends Record<string, any> = Record<string, any>> extends 
       this.data = fresh as T;
     }
     this.commit();
+    // Children added before this record had an id now point at it
+    for (const a of this.constructor.associations) {
+      if (a.type !== 'hasMany') continue;
+      (this.related.get(a.name) as Store<any> | undefined)?.each(r => { if (r.data[a.foreignKey] !== this.id) r.data[a.foreignKey] = this.id; });
+    }
     return this;
   }
 
@@ -295,10 +383,16 @@ export function defineModel<T extends Record<string, any> = Record<string, any>>
   const fields: ModelField[] = config.fields.map(f => (typeof f === 'string' ? { name: f } : { ...f }));
   if (!fields.some(f => f.name === idProperty)) fields.unshift({ name: idProperty, type: 'auto', allowNull: true });
   const byName = new Map(fields.map(f => [f.name, f]));
+  const associations = (config.associations ?? []).map(a => ({
+    ...a,
+    foreignKey: a.foreignKey || (a.type === 'hasMany' ? `${config.name || 'parent'}Id` : `${a.name}Id`)
+  }));
 
   class Defined extends Model<T> {
     static readonly idProperty = idProperty;
     static readonly fields: ReadonlyArray<ModelField> = fields;
+    static readonly proxyConfig: ProxyConfig | undefined = config.proxy;
+    static readonly associations = associations;
 
     static convert(raw: Record<string, any>): T {
       const input = raw ?? {};
@@ -349,5 +443,12 @@ export function defineModel<T extends Record<string, any> = Record<string, any>>
   }
 
   if (config.proxy) proxies.set(Defined, config.proxy);
+  // Handy names for the links: `user.orders()`, `order.getUser()`, `order.setUser(user)`
+  for (const a of associations) {
+    const cap = a.name.charAt(0).toUpperCase() + a.name.slice(1);
+    const add = (key: string, fn: (this: Model<any>, ...args: any[]) => unknown) => { if (!(key in Defined.prototype)) Object.defineProperty(Defined.prototype, key, { value: fn, writable: true, configurable: true }); };
+    if (a.type === 'hasMany') add(a.name, function (this: Model<any>) { return this.assoc(a.name); });
+    else { add(`get${cap}`, function (this: Model<any>) { return this.assoc(a.name); }); add(`set${cap}`, function (this: Model<any>, m: Model<any> | null) { this.setAssoc(a.name, m); }); }
+  }
   return Defined as unknown as ModelClass<T>;
 }

@@ -16,6 +16,8 @@ import { command } from '@/components/ui/command';
 import { hydrate } from '@/jsx/hydrate';
 import { i18n } from '@/core/i18n';
 import { defineModel } from '@/data/model';
+import { createTreeStore } from '@/data/treestore';
+import { createSession } from '@/data/session';
 import { ajax } from '@/data/proxy';
 import { createViewModel } from '@/core/viewmodel';
 import { createController } from '@/core/controller';
@@ -467,6 +469,12 @@ export const NX = {
 
   /** Describe a kind of record: typed fields, validators, change tracking, load and save (`NX.model({ fields: [...] })`). */
   model: defineModel,
+
+  /** A tree of records: expand and collapse, filter keeping the way to each match, move, load children when first opened. */
+  treeStore: createTreeStore,
+
+  /** One place records live while a screen is in use: the same record is the same object, and every change saves together. */
+  session: createSession,
 
   /** Reactive data with formulas, for views to bind to: `NX.viewModel({ data, formulas })`. */
   viewModel: createViewModel,
