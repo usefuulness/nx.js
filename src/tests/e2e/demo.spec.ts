@@ -1281,3 +1281,70 @@ test.describe('clients made from a description', () => {
     expect(seen).toContain('/hal/books?page=0&size=25');
   });
 });
+
+test.describe('pets (a server-backed page)', () => {
+  const rows = (page: any) => page.locator('#pets-grid').locator('tbody tr');
+
+  test('loads from the server through the OpenAPI client, and sorts, searches and pages there', async ({ page }) => {
+    const seen: string[] = [];
+    page.on('request', () => {}); // the "server" lives in the page: its requests are shown by what the grid does
+    await page.goto('/#/pets');
+    await expect(rows(page)).toHaveCount(10);
+    await expect(page.locator('#pets-status')).toHaveText('Showing 1–10 of 48');
+    await page.locator('#pets-grid').getByRole('button', { name: 'Age' }).click();
+    const ages = () => rows(page).evaluateAll((trs: Element[]) => trs.map((tr: Element) => Number((tr.querySelectorAll('td')[3] as HTMLElement).textContent)));
+    await expect.poll(ages).toEqual(Array(10).fill(3));             // ascending: the server's youngest first
+    await page.locator('#pets-grid').getByRole('button', { name: 'Age' }).click();
+    await expect.poll(ages).toEqual(Array(10).fill(13));            // descending: the oldest first
+    await page.locator('#pets-grid').locator('.nx-grid-search input').fill('rex');
+    await expect(page.locator('#pets-status')).toHaveText('Showing 1–3 of 3'); // Rex, Rex 2 and Rex 3
+    await page.locator('#pets-grid').locator('.nx-grid-search input').fill('');
+    await expect(page.locator('#pets-status')).toHaveText('Showing 1–10 of 48');
+    await page.locator('#pets-pager').getByRole('button', { name: /next/i }).click();
+    await expect(page.locator('#pets-status')).toHaveText('Showing 11–20 of 48');
+    void seen;
+  });
+
+  test('a row opens a drawer that checks the server\'s rules, saves, and removes with a confirmation', async ({ page }) => {
+    await page.goto('/#/pets');
+    await expect(rows(page)).toHaveCount(10);
+    await page.locator('#add-pet').click();
+    const save = page.locator('#pet-save');
+    await expect(save).toHaveAttribute('disabled', '');                       // a name is required
+    await page.locator('#pet-name').getByRole('textbox').fill('X');
+    await expect(page.locator('#pet-name')).toHaveAttribute('error-text', 'Use at least 2 characters');
+    await page.locator('#pet-name').getByRole('textbox').fill('Zeta');
+    await expect(save).not.toHaveAttribute('disabled', /.*/);
+    await save.click();
+    await expect(page.getByText('Saved Zeta')).toBeVisible();
+    await expect(page.locator('#pets-status')).toHaveText('Showing 1–10 of 49');
+    // Open a row, change it, remove it
+    await rows(page).first().click();
+    await expect(page.locator('#pet-delete')).toBeVisible();
+    await page.locator('#pet-name').getByRole('textbox').fill('Renamed');
+    await page.locator('#pet-save').click();
+    await expect(page.getByText('Saved Renamed')).toBeVisible();
+    await rows(page).first().click();
+    await page.locator('#pet-delete').click();
+    await page.locator('nx-modal').getByRole('button', { name: 'Remove' }).click();
+    await expect(page.getByText(/Removed/)).toBeVisible();
+    await expect(page.locator('#pets-status')).toHaveText('Showing 1–10 of 48');
+  });
+});
+
+test.describe('dashboard insights', () => {
+  test('the range changes the figures and the chart together, and the calendar lists what is on a day', async ({ page }) => {
+    await page.goto('/');
+    const total = page.locator('#revenue-total');
+    await expect(total).toHaveText('$491,800');
+    await expect(page.locator('#revenue-change')).toContainText('% against the same months last year');
+    const points = () => page.locator('#revenue-chart').locator('table tbody tr').count();
+    expect(await points()).toBe(12);
+    await page.locator('#revenue-range').getByText('3 months', { exact: true }).click();
+    await expect(total).toHaveText('$148,600');
+    await expect.poll(points).toBe(3);
+    await expect(page.locator('#dash-calendar').locator('.ev-title').first()).toHaveText('Pricing meeting');
+    await page.locator('#dash-calendar').getByRole('button', { name: /June 17, 2026/ }).click();
+    await expect(page.locator('#dash-calendar').locator('.ev-title')).toHaveText('Release 2.4');
+  });
+});

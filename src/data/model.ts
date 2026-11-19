@@ -331,7 +331,8 @@ export class Model<T extends Record<string, any> = Record<string, any>> extends 
   async save(): Promise<this> {
     const proxy = this.proxy();
     const sent = this.toJSON();
-    const [answer] = this.phantom ? await proxy.create([sent]) : await proxy.update([sent]);
+    // An update needs the id to find the record, even when the id is a field that is never sent as data (read-only)
+    const [answer] = this.phantom ? await proxy.create([sent]) : await proxy.update([{ ...sent, [this.constructor.idProperty]: this.id }]);
     if (answer && typeof answer === 'object') {
       const fresh = this.constructor.convert({ ...this.data, ...(answer as Record<string, any>) });
       this.data = fresh as T;

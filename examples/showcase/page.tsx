@@ -786,6 +786,65 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
                 </div>
               </div>
             </figure>
+
+            <figure class="sc-specimen sc-demo" id="book-demo" style="margin: 0">
+              <figcaption class="sc-specimen-label">{'Stepper + Calendar + Rating, on one view model'}</figcaption>
+              <div class="sc-specimen-body">
+                <p class="sc-note" style="margin: 0">A booking flow. The steps, the calendar's dots, the times you can still pick, the form's messages and the Next button all read from one view model. Pick a day with a dot to see a taken time.</p>
+                <Stepper id="book-steps" current={0}>
+                  <Step title="Day" description="Pick a date" />
+                  <Step title="Time" description="Pick a slot" />
+                  <Step title="Details" description="Who is coming" />
+                  <Step title="Confirm" description="Check and book" />
+                </Stepper>
+                <div id="book-panels" class="sc-book-panels">
+                  <section id="book-p0" aria-label="Pick a day">
+                    <Calendar id="book-cal" firstDay={1} value="" month="2026-03-01" events={[]} />
+                  </section>
+                  <section id="book-p1" aria-label="Pick a time" hidden>
+                    <RadioGroup id="book-slot" name="slot" label="Available times" variant="segmented" options={['09:00', '10:30', '13:00', '15:30']} />
+                    <p class="sc-note" id="book-slot-note" style="margin-top: 0.5rem" />
+                  </section>
+                  <section id="book-p2" aria-label="Your details" hidden>
+                    <div class="sc-demo-controls">
+                      <Input id="book-name" name="bookname" label="Name" placeholder="Your name" />
+                      <Input id="book-email" name="bookemail" type="email" label="Email" placeholder="name@example.com" />
+                    </div>
+                    <div class="sc-demo-controls" style="margin-top: 1rem">
+                      <Rating id="book-urgency" name="urgency" label="How urgent is it?" />
+                      <Switch id="book-reminder" name="reminder" label="Remind me the day before" checked />
+                    </div>
+                  </section>
+                  <section id="book-p3" aria-label="Confirm" hidden>
+                    <Timeline id="book-summary" label="Your booking" />
+                  </section>
+                </div>
+                <div class="sc-demo-bar">
+                  <Button id="book-back" variant="outline" disabled>Back</Button>
+                  <Button id="book-next" disabled>Next</Button>
+                  <span class="sc-note" id="book-hint" role="status">Pick a day to start.</span>
+                </div>
+              </div>
+            </figure>
+
+            <figure class="sc-specimen sc-demo" id="scale-demo" style="margin: 0">
+              <figcaption class="sc-specimen-label">{'<nx-grid virtual> with 20,000 rows'}</figcaption>
+              <div class="sc-specimen-body">
+                <p class="sc-note" style="margin: 0">Only the rows in view are in the page. Scroll fast, sort, search, edit a cell (double-click) or select some: the totals follow.</p>
+                <div class="sc-demo-bar">
+                  <Button id="scale-load" icon="download">Load 20,000 rows</Button>
+                  <Button id="scale-csv" variant="outline" disabled>Export CSV</Button>
+                  <span class="sc-note" id="scale-stats" role="status">Press the button, or scroll here: it loads when it comes into view.</span>
+                </div>
+                <DataGrid id="scale-grid" virtual rowHeight={40} height={320} search selectable="multiple" checkboxSelection striped emptyText="Nothing loaded yet" data={[]} columns={[
+                  { field: 'id', header: 'Id', width: 90, type: 'number', pinned: 'left' },
+                  { field: 'name', header: 'Account', editable: true, sortable: true },
+                  { field: 'city', header: 'City', width: 150, sortable: true },
+                  { field: 'plan', header: 'Plan', width: 120, type: 'badge', badges: { Free: 'neutral', Pro: 'info', Team: 'success' }, editable: true, editor: 'select', options: ['Free', 'Pro', 'Team'] },
+                  { field: 'mrr', header: 'MRR', width: 160, type: 'currency', sortable: true, summary: 'sum' }
+                ]} />
+              </div>
+            </figure>
           </div>
         </section>
 

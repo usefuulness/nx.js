@@ -9,6 +9,9 @@ import {
   VStack, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
 
+import { RevenuePanel, ActivityPanels } from '@/demo/insights';
+import { PetsPage, loadPets } from '@/demo/pets';
+
 // ────────── A view model: data, a formula, and markup that binds to it ──────────
 
 /** The bindings are plain attributes (`bind-value`, `bind-text`, `bind-disabled`), so the same markup works in a template. */
@@ -151,6 +154,22 @@ const DashboardPage = () => (
     </Grid>
 
     <Grid columns={3} gap={16}>
+      {RevenuePanel()}
+      <Card title="Goals" subtitle="Q2 progress" style="align-self: start">
+        <VStack gap={20}>
+          {([['New customers', 72], ['Revenue target', 54], ['NPS survey', 91]] as const).map(([label, value]) => (
+            <VStack gap={8}>
+              <div class="goal"><span>{label}</span><span class="muted">{value}%</span></div>
+              <Progress value={value} size="sm" />
+            </VStack>
+          ))}
+        </VStack>
+      </Card>
+    </Grid>
+
+    {ActivityPanels()}
+
+    <Grid columns={3} gap={16}>
       <DataGrid
         id="orders-grid"
         title="Recent orders"
@@ -180,16 +199,6 @@ const DashboardPage = () => (
             editable: true, editor: 'select', options: ['Info', 'Warn', 'Error'] }
         ]}
       />
-      <Card title="Goals" subtitle="Q2 progress">
-        <VStack gap={20}>
-          {([['New customers', 72], ['Revenue target', 54], ['NPS survey', 91]] as const).map(([label, value]) => (
-            <VStack gap={8}>
-              <div class="goal"><span>{label}</span><span class="muted">{value}%</span></div>
-              <Progress value={value} size="sm" />
-            </VStack>
-          ))}
-        </VStack>
-      </Card>
     </Grid>
   </Page>
 );
@@ -573,6 +582,7 @@ const commands = () => [
   { text: 'Dashboard', icon: 'dashboard', group: 'Go to', handler: () => app.navigate('/') },
   { text: 'Users', icon: 'users', group: 'Go to', handler: () => app.navigate('/users') },
   { text: 'Settings', icon: 'settings', group: 'Go to', keywords: ['profile', 'preferences'], handler: () => app.navigate('/forms') },
+  { text: 'Pets', icon: 'heart', group: 'Go to', keywords: ['server', 'openapi', 'api'], handler: () => app.navigate('/pets') },
   { text: 'Components', icon: 'components', group: 'Go to', handler: () => app.navigate('/components') },
   { text: 'Toggle theme', icon: 'theme', group: 'Actions', shortcut: '⇧D', keywords: ['dark', 'light'], handler: () => NX.theme.toggle() },
   { text: 'Invite user', icon: 'plus', group: 'Actions', keywords: ['add', 'new'], handler: () => NX.toast('Invite sent') }
@@ -610,6 +620,7 @@ const app = NX.app({
       <Tree data={[
         { id: 'dashboard', text: 'Dashboard', icon: 'dashboard', route: '/' },
         { id: 'users', text: 'Users', icon: 'users', route: '/users' },
+        { id: 'pets', text: 'Pets', icon: 'heart', route: '/pets' },
         { id: 'forms', text: 'Settings', icon: 'settings', route: '/forms' },
         { id: 'components', text: 'Components', icon: 'components', route: '/components' }
       ]} />
@@ -621,6 +632,7 @@ const app = NX.app({
   router: [
     { path: '/', title: 'Dashboard', view: DashboardPage },
     { path: '/users', title: 'Users', view: UsersPage },
+    { path: '/pets', title: 'Pets', loader: loadPets, view: (route: Route) => <PetsPage api={route.data.api} store={route.data.store} Page={Page} /> },
     { path: '/forms', title: 'Settings', view: SettingsPage },
     { path: '/components', title: 'Components', view: ComponentsPage },
     {

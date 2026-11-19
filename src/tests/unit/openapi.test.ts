@@ -211,6 +211,15 @@ describe('OpenApiClient', () => {
     expect(new Pet({ id: 1, name: 'Rex' }).toJSON().id).toBeUndefined(); // read-only: never sent back
   });
 
+  it('saving a changed record goes to its own address even though the document marks its id read-only', async () => {
+    const Pet = make().model('pets');
+    answer = () => ({ body: { id: 5, name: 'Rex', species: 'dog' } });
+    const pet = new Pet({ id: 5, name: 'Rexy', species: 'dog' });
+    expect(pet.toJSON().id).toBeUndefined();   // read-only: not sent as data…
+    await pet.save();
+    expect(`${calls.at(-1)!.method} ${new URL(calls.at(-1)!.url).pathname}`).toBe('PUT /v2/pets/5'); // …but still used to find the record
+  });
+
   it('config resources override what was found', () => {
     const api = make({ resources: { pets: { path: '/v2-pets', fields: ['id'] } } });
     expect(api.config.resources!.pets.path).toBe('/v2-pets');

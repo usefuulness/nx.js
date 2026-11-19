@@ -152,6 +152,68 @@ test.describe('tree store demo', () => {
   });
 });
 
+test.describe('booking flow demo', () => {
+  test('one view model drives the steps, the calendar, the free times, the form messages and the buttons', async ({ page }) => {
+    const errors = await open(page);
+    const next = page.locator('#book-next'), back = page.locator('#book-back');
+    const disabled = (l: ReturnType<Page['locator']>) => l.getAttribute('disabled');
+    await page.locator('#book-demo').scrollIntoViewIfNeeded();
+    expect(await disabled(next)).not.toBeNull();                                  // no day yet
+    await page.locator('#book-cal').getByRole('button', { name: /March 4, 2026/ }).click();
+    await expect(page.locator('#book-hint')).toContainText('Wednesday, March 4, 2026: 2 time(s) already taken');
+    await expect(next).not.toHaveAttribute('disabled', /.*/);
+    await next.click();
+    await expect(page.locator('#book-p1')).toBeVisible();
+    await expect(page.locator('#book-p0')).toBeHidden();
+    await expect(page.locator('#book-slot-note')).toHaveText('Taken that day: 09:00, 13:00');
+    await expect(page.locator('#book-slot').getByRole('radio', { name: '09:00 (taken)' })).toBeDisabled();
+    await expect(next).toHaveAttribute('disabled', '');                           // no time yet
+    await page.locator('#book-slot').getByText('10:30', { exact: true }).click();
+    await next.click();
+    // Details: messages appear for what you have typed, and Next waits for valid input
+    await expect(next).toHaveAttribute('disabled', '');
+    await page.locator('#book-email').getByRole('textbox').fill('nope');
+    await expect(page.locator('#book-email')).toHaveAttribute('error-text', 'Enter an email address');
+    await page.locator('#book-name').getByRole('textbox').fill('Ada');
+    await page.locator('#book-email').getByRole('textbox').fill('ada@example.com');
+    await expect(page.locator('#book-email')).not.toHaveAttribute('error-text', /.+/);
+    await next.click();
+    await expect(next).toHaveText('Book it');
+    await expect(page.locator('#book-summary')).toContainText('Booking for Ada');
+    await expect(page.locator('#book-summary')).toContainText('ada@example.com');
+    await back.click();
+    await expect(page.locator('#book-p2')).toBeVisible();
+    await next.click();
+    await next.click();
+    // Booked: the calendar shows the new event, and the flow starts again
+    await expect(page.getByText('Booked', { exact: true })).toBeVisible();
+    await expect(page.locator('#book-p0')).toBeVisible();
+    await page.locator('#book-cal').getByRole('button', { name: /March 4, 2026/ }).click();
+    await expect(page.locator('#book-cal').getByRole('button', { name: /March 4, 2026, 3 events/ })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('grid at scale demo', () => {
+  test('loads 20,000 rows when it comes into view, keeps few elements in the page, totals a selection and exports CSV', async ({ page }) => {
+    const errors = await open(page);
+    await page.locator('#scale-demo').scrollIntoViewIfNeeded();
+    await expect(page.locator('#scale-stats')).toContainText('20,000 rows ready in', { timeout: 15000 });
+    const inPage = await page.locator('#scale-grid').locator('tbody tr').count();
+    expect(inPage).toBeGreaterThan(5);
+    expect(inPage).toBeLessThan(60);
+    await page.locator('#scale-grid').locator('input.check-row').first().check();
+    await page.locator('#scale-grid').locator('input.check-row').nth(1).check();
+    await expect(page.locator('#scale-stats')).toContainText('2 selected');
+    const download = page.waitForEvent('download');
+    await page.locator('#scale-csv').click();
+    expect((await download).suggestedFilename()).toBe('accounts.csv');
+    await page.locator('#scale-grid').locator('.nx-grid-search input').fill('Account 00007');
+    await expect(page.locator('#scale-grid').locator('tbody tr').first()).toContainText('Account 00007');
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe('the data section is accessible', () => {
   for (const scheme of ['light', 'dark'] as const) {
     test(`axe finds nothing in the demos once they have run (${scheme})`, async ({ page }) => {

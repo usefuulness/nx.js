@@ -295,7 +295,8 @@ export class NXCalendar extends BaseComponent {
 
       .day { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; min-height: 2.75rem; padding: 0.125rem 0; border: none; border-radius: var(--radius-md); background: transparent; color: var(--color-text); font: inherit; cursor: pointer; }
       .day:hover { background: var(--color-accent); }
-      .day.outside .num { color: var(--color-text-secondary); opacity: 0.7; }
+      /* Days of the neighbouring months: quieter, but never below the contrast a reader needs (no opacity on top of the colour) */
+      .day.outside .num { color: var(--color-text-secondary); }
       .day.today .num { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
       .day.selected { background: var(--color-primary); color: var(--color-primary-foreground); }
       .day.selected .num { color: inherit; opacity: 1; }
