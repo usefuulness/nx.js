@@ -2,7 +2,7 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
-## Unreleased
+## 0.10.0 - 2026-11-19
 
 ### Added
 - **Showcase:** a "Talks to your server" section with four live demos running against a small server that lives in the page (sorts, searches, pages, validates, takes a moment to answer): an OpenAPI document that becomes a model, a store, a grid and a validated form, with every request shown; a HAL API explored by following links; a dashboard where one view model drives KPIs, charts, a grid and its own live state; and a file tree whose folders load when first opened.
