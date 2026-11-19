@@ -194,3 +194,36 @@ describe('Store: local filtering, sorting, aggregates and groups', () => {
     expect(s.getCount()).toBe(5);
   });
 });
+
+describe('Store: grouping', () => {
+  const rows = () => [
+    { id: 1, name: 'Ada', team: 'b', pts: 3 }, { id: 2, name: 'Bob', team: 'a', pts: 5 },
+    { id: 3, name: 'Cleo', team: 'b', pts: 1 }, { id: 4, name: 'Dan', team: 'a', pts: 2 }
+  ];
+  it('keeps groups together, sorted by the group first and then by the other sorters', () => {
+    const s = new Store<any>({ data: rows(), groupField: 'team', sorters: [{ property: 'pts', direction: 'DESC' }] });
+    s.sort();
+    expect(s.getData().map((r: any) => r.name)).toEqual(['Bob', 'Dan', 'Ada', 'Cleo']);
+    expect(s.getGroups(undefined, 'pts').map(g => [g.key, g.count, g.sum])).toEqual([['a', 2, 7], ['b', 2, 4]]);
+  });
+
+  it('group() changes it, with an event; no argument removes it', () => {
+    const s = new Store<any>({ data: rows() });
+    const seen: any[] = [];
+    s.on('groupchange', (e: any) => seen.push(e.field));
+    s.group('team', 'DESC');
+    expect(s.getData().map((r: any) => r.team)).toEqual(['b', 'b', 'a', 'a']);
+    expect(s.getGroupField()).toBe('team');
+    s.group();
+    expect(s.getGroupField()).toBeNull();
+    expect(s.getGroups()).toEqual([]);
+    expect(seen).toEqual(['team', null]);
+  });
+
+  it('works together with a filter', () => {
+    const s = new Store<any>({ data: rows(), groupField: 'team' });
+    s.filter({ property: 'pts', operator: 'gt', value: 1 });
+    expect(s.getGroups().map(g => [g.key, g.count])).toEqual([['a', 2], ['b', 1]]);
+  });
+});
+

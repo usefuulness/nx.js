@@ -25,6 +25,7 @@ users.getGroups('country', 'revenue');    // [{ key, records, count, sum, averag
 - **Sorting** is ascending unless you say `DESC`, and empty values come last either way.
 - **Changes** are tracked: `update(record, { name: 'Ada L.' })`, `add()`, `remove()`; then `getModifiedRecords()`, `isDirty()`, `rejectChanges()`, `commitChanges()`. `sync()` sends them through the proxy.
 - **Events:** `load`, `add`, `remove`, `update`, `datachanged`, `filterchange`, `sortchange`, `validate`, `exception`, `beforesync`, `sync`.
+- **Grouping:** `groupField: 'country'` in the config, or `users.group('country', 'DESC')` later (`group()` removes it). Groups stay together (the group field is the first thing the store sorts by), `getGroups()` uses it, and a `groupchange` event fires.
 - Also `first()`, `last()`, `indexOf()`, `insert(index, records)`, `removeAt(index)`, `getFilters()`, `getSorters()`.
 
 `NX.store('name', config)` registers a store under a name so a component can say `store="name"`.
@@ -186,7 +187,7 @@ vm.bindAll(document.querySelector('#form')!);    // reads every bind-… attribu
 vm.bindElement(input, { value: 'user.first' });  // or one element, from code
 ```
 
-`value` and `checked` are two-way: typing sets the data. `text` is always text, never markup. `hidden`, `disabled`, `readonly` and `required` toggle the attribute; `class:name` toggles a class; `attr:name` sets an attribute (`false` or `null` removes it). Both return `{ destroy() }`.
+`store` hands one of the view model's stores to a grid (`bind-store="users"`). `value` and `checked` are two-way: typing sets the data. `text` is always text, never markup. `hidden`, `disabled`, `readonly` and `required` toggle the attribute; `class:name` toggles a class; `attr:name` sets an attribute (`false` or `null` removes it). Going the other way, from a component into the data: `selection` (a grid's selected rows), `selected` (the first, or `null`) and `event:name` (any event's detail), as in `<nx-grid bind-store="users" bind-selection="picked" bind-event-sort-change="sort">`; then `<p bind-text="{picked.length} selected">` follows. Both return `{ destroy() }`.
 
 ## Controllers
 

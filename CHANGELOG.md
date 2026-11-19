@@ -2,6 +2,12 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## Unreleased
+
+### Added
+- **View model and components:** `bind-store` hands a view model's store to a grid; `bind-selection`, `bind-selected` and `bind-event-<name>` publish a grid's selection or any event's detail into the data, so other bindings follow.
+- **Store grouping:** `groupField` / `group(field, direction)`: groups stay together (the group field sorts first), `getGroups()` uses it, `groupchange` event.
+
 ## 0.7.0 - 2026-11-19
 
 ### Added

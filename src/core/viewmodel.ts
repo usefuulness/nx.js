@@ -345,12 +345,22 @@ export class ViewModel {
    * `value` and `checked` are two-way on form fields (they listen for `change` and `input`). Others are
    * one-way: `text` (as text, never markup), `hidden`, `disabled`, `readonly`, `required`, `title`,
    * `class:name` (toggles a class), `attr:name` (an attribute; `null` or `false` removes it) and any
-   * property by name.
+   * property by name. `store` hands a store to a grid. The other way, from the element into the data: `selection`
+   * (the selected rows), `selected` (the first one, or `null`) and `event:name` (the event's detail).
    */
   bindElement(el: Element, bindings: Record<string, string>): Binding {
     const subs: Binding[] = [];
     const cleanups: Array<() => void> = [];
     for (const [key, expr] of Object.entries(bindings)) {
+      // Things the element tells us: its selection, or the detail of any event. They go from the element into the data.
+      const published = publishedBy(key);
+      if (published) {
+        const path = expr.replace(/^\{|\}$/g, '');
+        const handler = (e: Event) => this.set(path, published.read(e, el));
+        el.addEventListener(published.event, handler);
+        cleanups.push(() => el.removeEventListener(published.event, handler));
+        continue;
+      }
       const apply = (value: any) => applyToElement(el, key, value);
       subs.push(this.bind(expr, apply));
       const twoWay = (key === 'value' || key === 'checked') && /^\{?[\w.$]+\}?$/.test(expr) && !expr.startsWith('!');
@@ -378,7 +388,7 @@ export class ViewModel {
         const m = /^bind-(.+)$/.exec(attr.name);
         if (!m) continue;
         // bind-class-open → class:open, bind-attr-href → attr:href
-        const key = m[1].replace(/^class-/, 'class:').replace(/^attr-/, 'attr:');
+        const key = m[1].replace(/^class-/, 'class:').replace(/^attr-/, 'attr:').replace(/^event-/, 'event:');
         bindings[key] = attr.value;
       }
       if (Object.keys(bindings).length) subs.push(this.bindElement(el, bindings));
@@ -387,9 +397,19 @@ export class ViewModel {
   }
 }
 
+/** Bindings that go the other way: the element's selection (`selection`, `selected`) or an event's detail (`event:name`) */
+function publishedBy(key: string): { event: string; read: (e: Event, el: Element) => unknown } | null {
+  if (key === 'selection') return { event: 'selection-change', read: (e, el) => (e as CustomEvent).detail?.selected ?? (el as any).getSelected?.() ?? [] };
+  if (key === 'selected') return { event: 'selection-change', read: (e, el) => ((e as CustomEvent).detail?.selected ?? (el as any).getSelected?.() ?? [])[0] ?? null };
+  if (key.startsWith('event:')) return { event: key.slice(6), read: e => (e as CustomEvent).detail };
+  return null;
+}
+
 const BOOLEAN_PROPS = new Set(['hidden', 'disabled', 'readonly', 'required', 'checked', 'selected', 'open']);
 
 function applyToElement(el: Element, key: string, value: any): void {
+  // A store goes to a component through its `setStore()` (a grid, a pager…)
+  if (key === 'store') { (el as any).setStore?.(value); return; }
   if (key === 'text') { el.textContent = value === null || value === undefined ? '' : String(value); return; }
   if (key.startsWith('class:')) { el.classList.toggle(key.slice(6), !!value); return; }
   if (key.startsWith('attr:')) {

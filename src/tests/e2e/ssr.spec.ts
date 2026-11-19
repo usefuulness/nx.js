@@ -342,6 +342,12 @@ for (const theme of ['light', 'dark']) {
       await context.addCookies([{ name: 'nx-theme', value: theme, url: 'http://localhost:5173' }]);
       await page.goto(`/ssg/${name}.html`);
       await page.waitForFunction(() => !!customElements.get('nx-card'));
+      // Let fonts load and transitions finish: a colour caught halfway through one is not what a visitor sees
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        await Promise.all(document.getAnimations().map(a => a.finished.catch(() => undefined)));
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      });
       const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
       const summary = results.violations.map(v => `${v.id} × ${v.nodes.length}: ${v.nodes.slice(0, 3).map(n => n.target.join(' >>> ')).join(', ')}`);
       expect(summary, summary.join('\n')).toEqual([]);

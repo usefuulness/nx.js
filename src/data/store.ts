@@ -15,6 +15,8 @@ export interface StoreConfig<T = any> {
   autoSync?: boolean;
   sorters?: Sorter[];
   filters?: Filter[];
+  /** Keep records together by this field: they sort by it first, and `getGroups()` uses it */
+  groupField?: string;
   pageSize?: number;
   remoteSort?: boolean;
   remoteFilter?: boolean;
@@ -109,6 +111,8 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
   private sorters: Sorter[] = [];
   private filters: Filter[] = [];
   private snapshotData: StoreRecord<T>[] | null = null;
+  private groupField: string | null = null;
+  private groupDirection: 'ASC' | 'DESC' = 'ASC';
 
   constructor(config: StoreConfig<T> = {}) {
     super();
@@ -128,6 +132,8 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
     if (config.filters) {
       this.filters = [...config.filters];
     }
+
+    this.groupField = config.groupField ?? null;
     
     // Load initial data
     if (config.data) {
@@ -543,6 +549,19 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
     if (record) this.remove(record);
   }
 
+  /** Keep records together by a field (the sort puts it first); `group()` with no field removes the grouping. */
+  group(field?: string | null, direction: 'ASC' | 'DESC' = 'ASC'): void {
+    this.groupField = field || null;
+    this.groupDirection = direction;
+    if (!this.config.remoteSort && !this.config.buffered) this.doSort();
+    this.emit('groupchange', { field: this.groupField, direction });
+    this.emit('datachanged', { records: this.records });
+  }
+
+  getGroupField(): string | null {
+    return this.groupField;
+  }
+
   getFilters(): Filter[] {
     return [...this.filters];
   }
@@ -580,10 +599,11 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
   }
 
   /**
-   * The shown records grouped by a field, in the order each group first appears, each with its own
-   * count, sum, average, min and max for a field: `store.getGroups('country', 'revenue')`.
+   * The shown records grouped by a field (default: the store's `groupField`), in the order each group first
+   * appears, each with its own count, sum, average, min and max for a field: `store.getGroups('country', 'revenue')`.
    */
-  getGroups(field: string, aggregate?: string): Array<{ key: any; records: StoreRecord<T>[]; count: number; sum: number; average: number; min?: number; max?: number }> {
+  getGroups(field: string | undefined = this.groupField ?? undefined, aggregate?: string): Array<{ key: any; records: StoreRecord<T>[]; count: number; sum: number; average: number; min?: number; max?: number }> {
+    if (!field) return [];
     const groups = new Map<any, StoreRecord<T>[]>();
     this.records.forEach(r => {
       const key = (r.data as any)[field];
@@ -915,8 +935,10 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
   }
 
   private doSort(): void {
-    if (this.sorters.length === 0) return;
-    const compare = compareBy(this.sorters);
+    // Grouped records stay together: the group field is the first thing they sort by
+    const sorters = this.groupField ? [{ property: this.groupField, direction: this.groupDirection }, ...this.sorters.filter(x => x.property !== this.groupField)] : this.sorters;
+    if (sorters.length === 0) return;
+    const compare = compareBy(sorters);
     this.records.sort((a, b) => compare(a.data, b.data));
   }
 
