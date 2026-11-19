@@ -631,6 +631,9 @@ test.describe('right to left (Arabic)', () => {
     });
     const sw = page.locator('nx-switch').first();
     const thumb = sw.locator('.thumb');
+    // Measure once the page has switched direction and settled (a redraw and a transition may still be running)
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+    await page.evaluate(async () => { await Promise.all(document.getAnimations().map(a => a.finished.catch(() => undefined))); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); });
     const before = (await thumb.boundingBox())!.x;
     await sw.click();
     await expect.poll(async () => (await thumb.boundingBox())!.x).toBeLessThan(before - 8);

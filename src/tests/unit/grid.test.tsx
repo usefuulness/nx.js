@@ -815,3 +815,14 @@ describe('NXGrid with a store whose server sorts and filters', () => {
     vi.useRealTimers();
   });
 });
+
+describe('NXGrid boolean cells', () => {
+  beforeEach(() => { document.body.innerHTML = ''; });
+  it('say yes or no to assistive technology as an image with a name (a plain span may not carry a label)', async () => {
+    const grid = NX.create<NXGrid>({ xtype: 'grid', columns: [{ field: 'on', header: 'On', type: 'boolean' as const }], data: [{ on: true }, { on: false }] });
+    document.body.appendChild(grid);
+    await nextFrame(); await nextFrame();
+    const marks = Array.from(grid.shadowRoot!.querySelectorAll('.bool'));
+    expect(marks.map(m => [m.getAttribute('role'), m.getAttribute('aria-label')])).toEqual([['img', 'Yes'], ['img', 'No']]);
+  });
+});

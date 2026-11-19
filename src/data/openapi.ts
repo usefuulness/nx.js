@@ -301,6 +301,12 @@ export async function openApiClient(source: string | object, config: ApiConfig =
       } catch (e) {
         throw new Error(`Could not read the OpenAPI document at ${text}: ${(e as AjaxError).message}`);
       }
+      // A `servers` address without a scheme or a leading slash is relative to where the document was served
+      const declared = readOpenApi(document).baseUrl;
+      if (!config.baseUrl && declared && !/^([a-z][a-z0-9+.-]*:)?\/|^$/i.test(declared)) {
+        const from = new URL(text, typeof location !== 'undefined' ? location.href : 'http://localhost/');
+        config = { ...config, baseUrl: new URL(declared.replace(/\/*$/, '/'), from).href.replace(/\/$/, '') };
+      }
     } else {
       throw new Error('YAML is not read here: pass the document as JSON (an object, a JSON string, or a URL that serves JSON)');
     }

@@ -101,8 +101,9 @@ export class NXChart extends BaseComponent {
     return { labels, series: series.map(s => ({ name: String(s.name ?? ''), data: Array.from({ length: n }, (_, i) => num(s.data[i])) })) };
   }
 
-  private fmt(v: number): string {
-    try { return new Intl.NumberFormat(this.locale(), { maximumFractionDigits: 2, notation: Math.abs(v) >= 10000 ? 'compact' : 'standard' }).format(v); } catch { return String(v); }
+  /** `compact` forces short numbers (20K) for every value: axis labels all use the same style, whatever their size */
+  private fmt(v: number, compact = Math.abs(v) >= 10000): string {
+    try { return new Intl.NumberFormat(this.locale(), { maximumFractionDigits: 2, notation: compact ? 'compact' : 'standard' }).format(v); } catch { return String(v); }
   }
 
   protected render(): Node {
@@ -148,11 +149,13 @@ export class NXChart extends BaseComponent {
     const y = (v: number) => PAD.top + ih - ((v - scale.min) / (scale.max - scale.min)) * ih;
     const n = labels.length;
     const band = iw / n;
+    // One style for the whole axis: not "5,000" next to "10K"
+    const compactAxis = Math.max(Math.abs(scale.min), Math.abs(scale.max)) >= 10000;
     const x = (i: number) => PAD.left + band * i + band / 2;
 
     for (let v = scale.min; v <= scale.max + scale.step / 2; v += scale.step) {
       svg.append(el('line', { x1: PAD.left, x2: W - PAD.right, y1: y(v), y2: y(v), class: v === 0 ? 'zero' : 'grid' }));
-      svg.append(el('text', { x: PAD.left - 8, y: y(v), class: 'tick', 'text-anchor': 'end', 'dominant-baseline': 'middle' }, this.fmt(Math.round(v * 1e6) / 1e6)));
+      svg.append(el('text', { x: PAD.left - 8, y: y(v), class: 'tick', 'text-anchor': 'end', 'dominant-baseline': 'middle' }, this.fmt(Math.round(v * 1e6) / 1e6, compactAxis)));
     }
     // Thin out the category labels so they never overlap
     const every = Math.ceil(n / Math.max(1, Math.floor(iw / 56)));

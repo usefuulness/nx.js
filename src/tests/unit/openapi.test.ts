@@ -238,6 +238,14 @@ describe('openApiClient', () => {
     expect((await openApiClient('/openapi.json')).operationInfo.length).toBe(8);
   });
 
+  it('a relative servers address is relative to where the document was served', async () => {
+    const rel = JSON.stringify({ openapi: '3.0.0', servers: [{ url: 'v1' }], paths: { '/pets': { get: { responses: { 200: { description: 'ok' } } } } } });
+    (fetch as any).mockImplementation(async () => ({ ok: true, status: 200, statusText: '', text: async () => rel }) as Response);
+    const api = await openApiClient('http://docs.test/__mock__/openapi.json');
+    expect(api.config.baseUrl).toBe('http://docs.test/__mock__/v1');
+    expect((await openApiClient('http://docs.test/x/openapi.json', { baseUrl: 'http://other.test/api' })).config.baseUrl).toBe('http://other.test/api');
+  });
+
   it('says what is wrong', async () => {
     await expect(openApiClient('{not json')).rejects.toThrow('not valid JSON');
     await expect(openApiClient('openapi: 3.0.0\npaths: {}')).rejects.toThrow(/YAML is not read/);

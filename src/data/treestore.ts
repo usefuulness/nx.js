@@ -11,7 +11,7 @@ export interface TreeNodeData {
   id?: string | number;
   /** Children given inline */
   children?: TreeNodeData[];
-  /** `true`: never has children. `false` with no `children`: children are loaded when it is first expanded. */
+  /** `true`: never has children. `false` with no `children`: children are loaded when it is first expanded. Left out: it is what it looks like (children given, or none). */
   leaf?: boolean;
   /** Start open */
   expanded?: boolean;
@@ -76,6 +76,9 @@ export class TreeNode {
 
 let seq = 0;
 
+/** What `toItems()` gives `<nx-tree>` */
+export interface TreeItem { id: string | number; text: string; icon?: string; expanded?: boolean; lazy?: boolean; children?: TreeItem[]; data: Record<string, any> }
+
 export class TreeStore extends EventEmitter {
   private root = new TreeNode('root', {}, false, true);
   private byId = new Map<string | number, TreeNode>();
@@ -104,7 +107,8 @@ export class TreeStore extends EventEmitter {
     if (this.byId.has(id)) throw new Error(`The tree already has a node with id ${String(id)}`);
     fields[this.idKey] = id;
     const hasKids = Array.isArray(kids);
-    const node = new TreeNode(id, fields, leaf, hasKids || leaf === true || !this.proxy);
+    // Children are fetched later only for a node that says `leaf: false` and has none: anything else is complete as it is
+    const node = new TreeNode(id, fields, leaf, hasKids || leaf !== false || !this.proxy);
     node.parent = parent;
     this.byId.set(id, node);
     if (hasKids) for (const k of kids as TreeNodeData[]) node.children.push(this.make(k, node));
@@ -178,14 +182,14 @@ export class TreeStore extends EventEmitter {
    * The tree as the items `<nx-tree>` takes (`tree.data = store.toItems()`): what the filter lets through, with
    * each node's open state. `text` is the field (or a function) that gives a node its label.
    */
-  toItems(options: { text?: string | ((node: TreeNode) => string); icon?: string | ((node: TreeNode) => string | undefined) } = {}): Array<{ id: string | number; text: string; icon?: string; expanded?: boolean; children?: any[]; data: Record<string, any> }> {
+  toItems(options: { text?: string | ((node: TreeNode) => string); icon?: string | ((node: TreeNode) => string | undefined) } = {}): TreeItem[] {
     const label = (n: TreeNode) => String(typeof options.text === 'function' ? options.text(n) : n.data[options.text ?? 'text'] ?? n.data.name ?? n.id);
-    const walk = (nodes: TreeNode[]): any[] => nodes
+    const walk = (nodes: TreeNode[]): TreeItem[] => nodes
       .filter(n => !this.matched || this.matched.has(n))
       .map(n => {
         const kids = walk(n.children);
         const icon = typeof options.icon === 'function' ? options.icon(n) : options.icon ? n.data[options.icon] : undefined;
-        return { id: n.id, text: label(n), ...(icon ? { icon } : {}), ...(n.expanded || (this.matched && kids.length) ? { expanded: true } : {}), ...(kids.length ? { children: kids } : {}), data: n.data };
+        return { id: n.id, text: label(n), ...(icon ? { icon } : {}), ...(n.expanded || (this.matched && kids.length) ? { expanded: true } : {}), ...(kids.length ? { children: kids } : {}), ...(!n.loaded && !n.leaf && n.children.length === 0 ? { lazy: true } : {}), data: n.data };
       });
     return walk(this.root.children);
   }

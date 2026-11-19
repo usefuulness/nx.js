@@ -227,3 +227,33 @@ describe('Store: grouping', () => {
   });
 });
 
+
+describe('Store: paging with a server', () => {
+  const make = (extra = {}) => {
+    const sent: any[] = [];
+    const store = new Store<any>({ pageSize: 10, remoteSort: true, remoteFilter: true, proxy: { type: 'memory', data: [] }, ...extra });
+    (store as any).proxy.read = async (p: any) => { sent.push(p); return { data: [{ id: 1 }], total: 95, success: true }; };
+    return { store, sent };
+  };
+
+  it('sends where the page starts, worked out from the page', async () => {
+    const { store, sent } = make();
+    await store.loadPage(3);
+    expect(sent[0]).toMatchObject({ page: 3, start: 20, limit: 10 });
+    await store.load();
+    expect(sent[1]).toMatchObject({ page: 3, start: 20 }); // a plain reload stays where it was
+  });
+
+  it('a new sort or search starts again from the first page, with the right offset', async () => {
+    const { store, sent } = make();
+    await store.loadPage(4);
+    store.sort({ property: 'name', direction: 'ASC' });
+    await new Promise(r => setTimeout(r, 0));
+    expect(sent.at(-1)).toMatchObject({ page: 1, start: 0 });
+    await store.loadPage(2);
+    store.filter({ property: 'name', value: 'x' });
+    await new Promise(r => setTimeout(r, 0));
+    expect(sent.at(-1)).toMatchObject({ page: 1, start: 0 });
+    expect(store.getCurrentPage()).toBe(1);
+  });
+});
