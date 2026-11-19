@@ -1179,3 +1179,38 @@ test.describe('view model', () => {
     await expect(greeting).toContainText('Hello, Hopper!');
   });
 });
+
+test.describe('api client', () => {
+  test('stores made from an API description feed a grid, with the token sent and the server sorting', async ({ page }) => {
+    const seen: Array<{ url: string; auth: string | undefined }> = [];
+    await page.route('**/api/people**', route => {
+      const url = new URL(route.request().url());
+      seen.push({ url: url.pathname + url.search, auth: route.request().headers()['authorization'] });
+      const desc = url.searchParams.get('sort')?.includes('DESC');
+      const rows = [{ id: 1, name: 'Ada' }, { id: 2, name: 'Bob' }, { id: 3, name: 'Cleo' }];
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify({ data: desc ? [...rows].reverse() : rows, total: 3 }) });
+    });
+    await page.goto('/#/components');
+    await page.evaluate(() => {
+      const NX = (window as any).NX;
+      const api = NX.api({ baseUrl: '/api', auth: { token: () => 'tok-123' }, resources: { people: { path: '/people', fields: ['id', 'name'], pageSize: 5 } } });
+      api.register(); // <nx-grid store="people"> finds it by name
+      const grid = document.createElement('nx-grid') as any;
+      grid.id = 'api-grid';
+      grid.columns = [{ field: 'name', header: 'Name', sortable: true }];
+      grid.setAttribute('store', 'people');
+      document.body.append(grid);
+      return api.store('people').load();
+    });
+    const rows = page.locator('#api-grid').locator('tbody tr');
+    await expect(rows).toHaveCount(3);
+    await expect(rows.first()).toContainText('Ada');
+    expect(seen[0].auth).toBe('Bearer tok-123');
+    expect(seen[0].url).toContain('/api/people?');
+    // Sorting by the header asks the server (a descending sort comes back reversed)
+    await page.locator('#api-grid').getByRole('button', { name: 'Name' }).click();
+    await page.locator('#api-grid').getByRole('button', { name: 'Name' }).click();
+    await expect(rows.first()).toContainText('Cleo');
+    expect(seen.at(-1)!.url).toContain('sort=');
+  });
+});

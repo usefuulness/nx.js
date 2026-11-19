@@ -30,6 +30,8 @@ export interface ProxyConfig {
     rootProperty?: string;
   };
   headers?: Record<string, string>;
+  /** Send requests through this instead of `ajax` (an API client uses it to add its base URL, auth and error handling) */
+  request?: <R = any>(url: string, options: AjaxOptions) => Promise<R>;
   /** Added to every read */
   extraParams?: Record<string, any>;
   /** Give up on a request after this many milliseconds (default: no limit) */
@@ -171,7 +173,7 @@ export class HttpProxy<T = any> extends Proxy<T> {
   }
 
   private request<R = any>(url: string, options: AjaxOptions): Promise<R> {
-    return ajax<R>(url, { headers: this.config.headers, timeout: this.config.timeout, ...options });
+    return (this.config.request ?? ajax)<R>(url, { headers: this.config.headers, timeout: this.config.timeout, ...options });
   }
 
   async read(params: any): Promise<any> {

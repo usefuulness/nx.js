@@ -48,6 +48,8 @@ export { Model, defineModel, pathGet } from '@/data/model';
 export { TreeStore, TreeNode as TreeStoreNode, createTreeStore } from '@/data/treestore';
 export type { TreeStoreConfig, TreeNodeData } from '@/data/treestore';
 export { Session, createSession } from '@/data/session';
+export { Api, createApi } from '@/data/api';
+export type { ApiConfig, ApiResource, ResourceClient } from '@/data/api';
 export type { SessionChanges, SaveResult } from '@/data/session';
 export type { AssociationConfig, ModelClass, ModelConfig, ModelField, FieldType, ValidatorSpec, ValidationResult } from '@/data/model';
 export { ajax, AjaxError, createProxy, HttpProxy, MemoryProxy, LocalStorageProxy, Proxy } from '@/data/proxy';

@@ -18,6 +18,7 @@ import { i18n } from '@/core/i18n';
 import { defineModel } from '@/data/model';
 import { createTreeStore } from '@/data/treestore';
 import { createSession } from '@/data/session';
+import { createApi } from '@/data/api';
 import { ajax } from '@/data/proxy';
 import { createViewModel } from '@/core/viewmodel';
 import { createController } from '@/core/controller';
@@ -472,6 +473,9 @@ export const NX = {
 
   /** A tree of records: expand and collapse, filter keeping the way to each match, move, load children when first opened. */
   treeStore: createTreeStore,
+
+  /** Describe a server once (address, sign-in, resources) and get requests, stores and models that go through it: `NX.api({ baseUrl, resources })`. */
+  api: createApi,
 
   /** One place records live while a screen is in use: the same record is the same object, and every change saves together. */
   session: createSession,

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import '@/index';
 import { ViewModel, createViewModel, sameData } from '@/core/viewmodel';
 import { Store } from '@/data/store';
 
@@ -375,5 +376,64 @@ describe('ViewModel: elements', () => {
     vm.set('name', 'Bob');
     await tick();
     expect(root.querySelector('span')!.textContent).toBe('Hi Ada');
+  });
+});
+
+describe('ViewModel: stores and components', () => {
+  const mountGrid = () => {
+    const el = document.createElement('div');
+    el.innerHTML = '<nx-grid selectable></nx-grid>';
+    document.body.append(el);
+    return el.firstElementChild as any;
+  };
+  const rows = [{ id: 1, name: 'Ada' }, { id: 2, name: 'Bob' }, { id: 3, name: 'Cleo' }];
+
+  it('hands a view model store to a grid, and the grid follows the store', async () => {
+    const vm = createViewModel({ stores: { people: { data: rows } } });
+    const grid = document.createElement('nx-grid') as any;
+    grid.columns = [{ field: 'name', header: 'Name' }];
+    document.body.append(grid);
+    const shown = () => grid.shadowRoot.querySelectorAll('tbody tr').length;
+    vm.bindElement(grid, { store: 'people' });
+    await tick(); await new Promise(r => setTimeout(r, 30));
+    expect(shown()).toBe(3);
+    vm.getStore('people')!.add({ id: 4, name: 'Dan' });
+    await new Promise(r => setTimeout(r, 30));
+    expect(shown()).toBe(4);
+  });
+
+  it('publishes a grid\'s selection into the data, and bindings elsewhere follow', async () => {
+    const vm = createViewModel({});
+    const grid = mountGrid();
+    vm.bindElement(grid, { selection: 'picked', selected: 'first' });
+    const label = document.createElement('p');
+    vm.bindElement(label, { text: 'Picked {count}' });
+    vm.bind('picked', () => {});
+    grid.dispatchEvent(new CustomEvent('selection-change', { detail: { selected: rows.slice(0, 2) } }));
+    expect(vm.get('picked')).toEqual(rows.slice(0, 2));
+    expect(vm.get('first')).toEqual(rows[0]);
+    grid.dispatchEvent(new CustomEvent('selection-change', { detail: { selected: [] } }));
+    expect(vm.get('first')).toBeNull();
+  });
+
+  it('event:name publishes any event\'s detail, from code and from bind-event-… attributes', async () => {
+    const vm = createViewModel({});
+    const root = document.createElement('div');
+    root.innerHTML = '<button bind-event-ping="last"></button><span bind-text="Got {last}"></span>';
+    vm.bindAll(root);
+    root.querySelector('button')!.dispatchEvent(new CustomEvent('ping', { detail: 'pong' }));
+    await tick();
+    expect(vm.get('last')).toBe('pong');
+    expect(root.querySelector('span')!.textContent).toBe('Got pong');
+  });
+
+  it('stops publishing when destroyed', () => {
+    const vm = createViewModel({});
+    const el = document.createElement('div');
+    const b = vm.bindElement(el, { 'event:x': 'v' });
+    el.dispatchEvent(new CustomEvent('x', { detail: 1 }));
+    b.destroy();
+    el.dispatchEvent(new CustomEvent('x', { detail: 2 }));
+    expect(vm.get('v')).toBe(1);
   });
 });

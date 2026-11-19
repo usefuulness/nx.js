@@ -308,7 +308,9 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     if (this.isBuffered()) return this.store!.getData();
     // A tree: every node that matches, parents first, whether or not its parent is expanded
     if (this.isTree()) return this.flattenTree(this.buildTree(this.rows, 0, null), true).map(node => node.row);
-    return this.sortRows(this.query ? this.rows.filter(row => this.matchesQuery(row)) : this.rows);
+    // A store whose server filters or sorts has done that already: its rows are the ones to show, in its order
+    const matched = this.query && !this.store?.isRemoteFilter() ? this.rows.filter(row => this.matchesQuery(row)) : this.rows;
+    return this.store?.isRemoteSort() ? matched : this.sortRows(matched);
   }
 
   private matchesQuery(row: T): boolean {
@@ -356,7 +358,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     this.sortDirection = direction ?? (this.sortField === key && this.sortDirection === 'asc' ? 'desc' : 'asc');
     this.sortField = key;
     this.emit('sort-change', { field: key, direction: this.sortDirection });
-    if (this.isBuffered()) {
+    if (this.isBuffered() || this.store?.isRemoteSort()) {
+      // The server sorts: ask the store, and show the rows in the order it sends them
       (this.$('.nx-grid-body') as HTMLElement | null)?.scrollTo?.(0, 0);
       this.store!.sort({ property: key, direction: this.sortDirection === 'asc' ? 'ASC' : 'DESC' });
       this.refresh();
@@ -371,7 +374,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     this.page = 1;
     const input = this.$('.nx-grid-search input') as HTMLInputElement | null;
     if (input && input.value !== query) input.value = query;
-    if (this.isBuffered()) {
+    if (this.isBuffered() || this.store?.isRemoteFilter()) {
       // The server searches: send it as a filter on `*`, once typing pauses
       clearTimeout(this.searchTimer);
       this.searchTimer = setTimeout(() => {
