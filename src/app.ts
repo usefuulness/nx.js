@@ -19,6 +19,8 @@ import { defineModel } from '@/data/model';
 import { createTreeStore } from '@/data/treestore';
 import { createSession } from '@/data/session';
 import { createApi } from '@/data/api';
+import { openApiClient } from '@/data/openapi';
+import { createHal } from '@/data/hal';
 import { ajax } from '@/data/proxy';
 import { createViewModel } from '@/core/viewmodel';
 import { createController } from '@/core/controller';
@@ -476,6 +478,12 @@ export const NX = {
 
   /** Describe a server once (address, sign-in, resources) and get requests, stores and models that go through it: `NX.api({ baseUrl, resources })`. */
   api: createApi,
+
+  /** A client made from an OpenAPI (or Swagger) document: every operation is a function, every collection a store and a model. `await NX.openapi('/openapi.json', { auth })`. */
+  openapi: openApiClient,
+
+  /** A client for a HAL API, made from its entry address: every link on it is a store, found by following links. `NX.hal('/api')`. */
+  hal: createHal,
 
   /** One place records live while a screen is in use: the same record is the same object, and every change saves together. */
   session: createSession,

@@ -2,6 +2,13 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## 0.9.0 - 2026-11-19
+
+### Added
+- **OpenAPI client:** `NX.openapi(document | url, config)` reads an OpenAPI 3 or Swagger 2 document (JSON): every operation becomes a function (`api.operations.listPets(params, body)`), and every collection with its item path becomes a resource, with a model (types, defaults, `nullable`, required fields, length, range, pattern, enum and format validators from the schema; `readOnly` fields never sent back) and the list parameters worked out (`limit`/`offset`, `page`/`per_page`, `sort` with a direction, `q`). `$ref`, `allOf` and `oneOf` are followed.
+- **HAL client:** `NX.hal(entry, config)` finds its stores by following links: `resources()`, `store(rel)`, `register()`, `follow()`; stores fill in templated links (`page`, `size`, `sort`, `q`), read `_embedded` records and totals, take ids from `self` links, and save through each record's own links. `expandTemplate()` fills RFC 6570 URI templates.
+- `registerProxyType()` lets a store name a custom kind of proxy; `ApiResource.mapParams` overrides the parameter mapping per resource.
+
 ## 0.8.0 - 2026-11-19
 
 ### Added

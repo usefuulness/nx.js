@@ -24,6 +24,8 @@ export interface ApiResource {
   /** Added to every request for this resource */
   params?: Record<string, any>;
   idProperty?: string;
+  /** How this resource's store parameters become query parameters (overrides the client's `params`) */
+  mapParams?: ApiConfig['params'];
 }
 
 export interface ApiConfig {
@@ -206,7 +208,7 @@ export class Api {
     const remote = r.remote !== false;
     const model = r.model || r.fields ? this.model<T>(name) : undefined;
     const proxy = this.proxyFor(name);
-    const mapParams = this.config.params;
+    const mapParams = r.mapParams ?? this.config.params;
     if (mapParams) {
       // Rename the store's own parameters (page, limit, sort, filter) the way this server wants them
       const base = proxy.request!;
