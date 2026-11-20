@@ -70,6 +70,16 @@ export interface GridColumn<T = any> {
   renderer?: (value: any, row: T, column: GridColumn<T>) => Node | string;
 }
 
+/** Everything a user sets up in a grid: what they searched and filtered, how it is sorted, and the columns. */
+export interface GridView {
+  query?: string;
+  filters?: Record<string, string>;
+  sort?: { field: string; direction: 'asc' | 'desc' } | null;
+  hidden?: string[];
+  order?: string[];
+  widths?: Record<string, number>;
+}
+
 export interface GridConfig<T extends Record<string, any> = any> {
   columns: GridColumn<T>[];
   /** Inline rows… */
@@ -84,6 +94,8 @@ export interface GridConfig<T extends Record<string, any> = any> {
   filters?: boolean;
   /** A "Columns" button that shows and hides columns (remembered with `stateKey`) */
   columnMenu?: boolean;
+  /** A "Views" button: save the search, filters, sort and columns under a name, and come back to them (kept under `stateKey`) */
+  savedViews?: boolean;
   /** Alternate row shading */
   striped?: boolean;
   /** Highlight the row under the pointer */
@@ -206,7 +218,7 @@ const isNumeric = (col: GridColumn): boolean =>
 export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   static get observedAttributes(): string[] {
     return [
-      'title', 'search', 'filters', 'column-menu', 'striped', 'hoverable', 'dense', 'bordered',
+      'title', 'search', 'filters', 'column-menu', 'saved-views', 'striped', 'hoverable', 'dense', 'bordered',
       'selectable', 'checkbox-selection', 'page-size', 'empty-text', 'store', 'virtual', 'row-height', 'height', 'resizable', 'reorderable', 'state-key', 'group-by', 'group-collapsed', 'tree', 'children-field', 'tree-column', 'tree-expanded'
     ];
   }
@@ -222,6 +234,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   private hiddenFields = new Set<string>();
   private colFilters = new Map<string, string>();
   private menuClosedAt = 0;
+  private viewsClosedAt = 0;
+  private views: Array<{ name: string; view: GridView }> | null = null;
   private page = 1;
   private scrollFrame = 0;
   private searchTimer = 0;
@@ -445,6 +459,126 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
   getColumnFilters(): Record<string, string> {
     return Object.fromEntries(this.colFilters);
+  }
+
+  // ────────── Views ──────────
+
+  /** The current search, filters, sort and columns, as something to save and `setView()` later. */
+  getView(): GridView {
+    const state = this.getColumnState();
+    return {
+      query: this.query,
+      filters: Object.fromEntries(this.colFilters),
+      sort: this.sortField ? { field: this.sortField, direction: this.sortDirection } : null,
+      hidden: state.hidden,
+      order: state.order,
+      widths: state.widths
+    };
+  }
+
+  /** Go to a saved view: the search, filters, sort and columns are all set at once. */
+  setView(view: GridView): void {
+    this.loadState();
+    this.query = view.query ?? '';
+    this.colFilters = new Map(Object.entries(view.filters ?? {}).filter(([, v]) => v !== ''));
+    this.hiddenFields = new Set((view.hidden ?? []).map(String));
+    this.order = (view.order ?? []).map(String);
+    this.widths = new Map(Object.entries(view.widths ?? {}).map(([k, v]) => [k, Number(v)]));
+    this.sortField = view.sort?.field ?? null;
+    this.sortDirection = view.sort?.direction ?? 'asc';
+    this.page = 1;
+    const search = this.$('.nx-grid-search input') as HTMLInputElement | null;
+    if (search) search.value = this.query;
+    if (this.isBuffered() || this.store?.isRemoteFilter() || this.store?.isRemoteSort()) {
+      if (this.sortField && (this.isBuffered() || this.store?.isRemoteSort())) this.store?.sort({ property: this.sortField, direction: this.sortDirection === 'asc' ? 'ASC' : 'DESC' });
+      this.sendFilters();
+    }
+    this.columnsChanged(false);
+    this.syncColumnMenu();
+    this.emit('view-change', { view: this.getView() });
+  }
+
+  private viewsKey(): string | null {
+    const key = this.getProp<string>('state-key');
+    return key ? `nx-grid:${key}:views` : null;
+  }
+
+  /** The views saved under `state-key`. */
+  getSavedViews(): Array<{ name: string; view: GridView }> {
+    if (this.views) return this.views;
+    const key = this.viewsKey();
+    const saved = key ? layoutState.get<unknown>(key, []) : [];
+    this.views = Array.isArray(saved) ? saved.filter((v: any) => v && typeof v.name === 'string' && v.view) : [];
+    return this.views;
+  }
+
+  /** Save the current view under a name (replacing one with that name). */
+  saveView(name: string): void {
+    const clean = name.trim();
+    if (!clean) return;
+    this.views = [...this.getSavedViews().filter(v => v.name !== clean), { name: clean, view: this.getView() }];
+    const key = this.viewsKey();
+    if (key) layoutState.set(key, this.views);
+    this.syncViews();
+    this.emit('views-change', { views: this.views });
+  }
+
+  deleteView(name: string): void {
+    this.views = this.getSavedViews().filter(v => v.name !== name);
+    const key = this.viewsKey();
+    if (key) layoutState.set(key, this.views);
+    this.syncViews();
+    this.emit('views-change', { views: this.views });
+  }
+
+  private syncViews(): void {
+    const list = this.$('.view-list');
+    if (list) list.replaceChildren(...this.renderViewItems());
+  }
+
+  private renderViewItems(): Node[] {
+    const views = this.getSavedViews();
+    if (!views.length) return [<li class="view-empty">{this.t('grid.noViews')}</li> as Node];
+    return views.map(v => (
+      <li class="view-item">
+        <button type="button" class="view-apply" onClick={() => { this.setView(v.view); (this.$('.view-panel') as any)?.hidePopover?.(); }}>{v.name}</button>
+        <button type="button" class="view-delete" aria-label={this.t('grid.deleteView', { name: v.name })} html={Icons.get('close')} onClick={() => this.deleteView(v.name)} />
+      </li>
+    ) as Node);
+  }
+
+  private renderViewsMenu(): Node {
+    return (
+      <div class="nx-grid-views">
+        <button type="button" class="col-button views-button" part="views-button" aria-haspopup="true" aria-expanded="false"
+                onClick={(e: MouseEvent) => {
+                  if (Date.now() - this.viewsClosedAt < 200) return;
+                  const panel = this.$('.view-panel') as HTMLElement;
+                  showTopLayer(panel, 'auto');
+                  place(panel, e.currentTarget as HTMLElement, 'bottom-end');
+                }}>
+          <span html={Icons.get('bookmark')} aria-hidden="true" />
+          {this.t('grid.views')}
+        </button>
+        <div class="col-menu view-panel" part="views-menu" popover="auto" role="group" aria-label={this.t('grid.views')}
+             onToggle={(e: Event) => {
+               const open = (e as ToggleEvent).newState === 'open';
+               this.$('.views-button')?.setAttribute('aria-expanded', String(open));
+               if (!open) this.viewsClosedAt = Date.now();
+             }}>
+          <ul class="view-list">{this.renderViewItems()}</ul>
+          <form class="view-save" onSubmit={(e: Event) => {
+            e.preventDefault();
+            const input = this.$('.view-name') as HTMLInputElement;
+            this.saveView(input.value);
+            input.value = '';
+          }}>
+            <input class="filter view-name" type="text" aria-label={this.t('grid.viewName')} placeholder={this.t('grid.viewName')} maxlength={60} />
+            <button type="submit" class="col-button">{this.t('grid.saveView')}</button>
+          </form>
+        </div>
+      </div>
+    );
   }
 
   /** Remove the search and every column filter. */
@@ -1358,7 +1492,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     const search = this.getProp('search', false);
     const columnMenu = this.getProp('column-menu', false);
     const hasBulk = !!this.querySelector(':scope > [slot="bulk"]');
-    const hasToolbar = title || search || columnMenu || hasBulk || this.querySelector(':scope > [slot="toolbar"]');
+    const savedViews = this.getProp('saved-views', false);
+    const hasToolbar = title || search || columnMenu || savedViews || hasBulk || this.querySelector(':scope > [slot="toolbar"]');
 
     return (
       <div part="grid" class={['nx-grid', { bordered: this.getProp('bordered', true), dense: this.getProp('dense', false), virtual: this.isVirtual() }]}
@@ -1383,6 +1518,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
               <slot name="bulk" />
             </div>
             {columnMenu && this.renderColumnMenu()}
+            {savedViews && this.renderViewsMenu()}
             {search && (
               <label class="nx-grid-search">
                 <span html={Icons.get('search')} />
@@ -1870,6 +2006,16 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       .col-button:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
       .col-menu { margin: 0; padding: 0.375rem; min-width: 11rem; max-height: 20rem; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-popover, var(--color-card)); color: var(--color-text); box-shadow: var(--shadow-lg); }
       .col-menu:popover-open { display: flex; flex-direction: column; }
+      .nx-grid-views { position: relative; }
+      .view-list { list-style: none; margin: 0 0 0.25rem; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+      .view-item { display: flex; align-items: center; gap: 0.25rem; }
+      .view-apply { flex: 1; text-align: start; padding: 0.375rem 0.5rem; border: 0; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; font-size: 0.875rem; cursor: pointer; }
+      .view-apply:hover, .view-delete:hover { background: var(--color-accent); }
+      .view-delete { display: inline-flex; padding: 0.375rem; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+      .view-apply:focus-visible, .view-delete:focus-visible { outline: 2px solid var(--color-ring); outline-offset: -2px; }
+      .view-empty { padding: 0.375rem 0.5rem; font-size: 0.8125rem; color: var(--color-text-secondary); }
+      .view-save { display: flex; gap: 0.375rem; padding-top: 0.375rem; border-top: 1px solid var(--color-border); }
+      .view-save .filter { flex: 1; min-width: 0; }
       .col-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.875rem; cursor: pointer; }
       .col-item:hover { background: var(--color-accent); }
       .col-item input { accent-color: var(--color-primary); }

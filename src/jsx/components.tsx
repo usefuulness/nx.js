@@ -34,6 +34,7 @@ import type { TabPanelConfig } from '@/components/ui/tabpanel';
 import type { TreeConfig } from '@/components/ui/tree';
 import type { ListConfig } from '@/components/ui/list';
 import type { NavConfig } from '@/components/ui/nav';
+import type { NotificationsConfig } from '@/components/ui/notifications';
 import type { StatConfig } from '@/components/ui/stat';
 import type { PageHeaderConfig } from '@/components/ui/page-header';
 import type { EmptyConfig } from '@/components/ui/empty';
@@ -163,6 +164,7 @@ declare module './jsx-runtime' {
     'nx-tree': Props<TreeConfig>;
     'nx-list': Props<ListConfig>;
     'nx-nav': Props<NavConfig>;
+    'nx-notifications': Props<NotificationsConfig>;
     'nx-stat': Props<StatConfig>;
     'nx-page-header': Props<PageHeaderConfig>;
     'nx-empty': Props<EmptyConfig>;
@@ -279,6 +281,8 @@ export const PageHeader = (props: Props<PageHeaderConfig>) => <nx-page-header {.
 export const Empty = (props: Props<EmptyConfig>) => <nx-empty {...props} />;
 /** Label and value pairs for a record's details */
 export const Descriptions = (props: Props<DescriptionsConfig>) => <nx-descriptions {...props} />;
+/** A bell with an unread count and a panel of notifications */
+export const Notifications = (props: Props<NotificationsConfig>) => <nx-notifications {...props} />;
 /** Side navigation: grouped links, badges, sub-items, an icon-only rail */
 export const Nav = (props: Props<NavConfig>) => <nx-nav {...props} />;
 /** Store-bound listbox with templates, selection and reordering */

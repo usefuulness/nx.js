@@ -37,6 +37,7 @@ import '@/components/ui/toolbar';
 import '@/components/ui/tree';
 import '@/components/ui/list';
 import '@/components/ui/nav';
+import '@/components/ui/notifications';
 import '@/components/ui/stat';
 import '@/components/ui/page-header';
 import '@/components/ui/empty';

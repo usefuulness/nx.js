@@ -63,6 +63,14 @@ export const en: Messages = {
   'pagination.range': '{from}–{to} of {total}',
   'pagination.perPage': 'Rows per page',
 
+  // Notifications
+  'notifications.label': 'Notifications',
+  'notifications.unread': '{label}, {count} unread',
+  'notifications.unreadItem': 'Unread:',
+  'notifications.markAll': 'Mark all as read',
+  'notifications.empty': 'You are all caught up',
+  'notifications.new': 'New notification: {title}',
+
   // Nav
   'nav.collapse': 'Collapse menu',
   'nav.expand': 'Expand menu',
@@ -141,6 +149,11 @@ export const en: Messages = {
   'grid.expand': 'Expand {label}',
   'grid.collapse': 'Collapse {label}',
   'grid.columns': 'Columns',
+  'grid.views': 'Views',
+  'grid.noViews': 'No saved views yet',
+  'grid.viewName': 'Name this view',
+  'grid.saveView': 'Save',
+  'grid.deleteView': 'Delete view {name}',
   'grid.filter': 'Filter',
   'grid.filterColumn': 'Filter {label}',
   'grid.all': 'All',

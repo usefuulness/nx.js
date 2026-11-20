@@ -6,7 +6,7 @@ import {
   NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, FileUpload, Form, Grid,
   HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Calendar, OtpInput, Rating, Slider, Spacer, Timeline, TimelineItem, Splitter, Switch, Tab, Tabs, TagInput, Chat, Chart, Stepper, Step, type NXChat,
   Textarea, Toolbar, Tooltip, Tree,
-  VStack, PageHeader, Stat, Nav, type Child, type GridColumn, type NXGrid, type NXForm, type Route
+  VStack, PageHeader, Stat, Nav, Notifications, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
 
 import { RevenuePanel, ActivityPanels } from '@/demo/insights';
@@ -597,6 +597,17 @@ const app = NX.app({
           setTimeout(() => NX.get<NXGrid>('users-grid')?.setFilter(e.detail.value));
         }}
       />
+      <Notifications id="bell" data={[
+        { id: 1, title: 'Invoice #3052 paid', description: 'Acme Corp paid $2,400 by card.', time: new Date(Date.now() - 6 * 60000), icon: 'check', tone: 'success', href: '#/orders' },
+        { id: 2, title: 'Webhook failing', description: 'billing → ledger returned 502 four times.', time: new Date(Date.now() - 3 * 3600000), icon: 'error', tone: 'error' },
+        { id: 3, title: 'New pet adopted', time: new Date(Date.now() - 26 * 3600000), icon: 'heart', href: '#/pets', read: true }
+      ]} />
+      <Menu id="user-menu" icon="user" tooltip="Account" items={[
+        { text: 'Settings', icon: 'settings', handler: () => app.navigate('/forms') },
+        { text: 'Toggle theme', icon: 'theme', handler: () => NX.theme.toggle() },
+        '-',
+        { text: 'Sign out', icon: 'logout', handler: () => NX.toast('Signed out (this is a demo)') }
+      ]} />
       <Button ref={themeButton} id="theme-toggle" icon={themeIcon()} tooltip="Toggle theme" onClick={() => NX.theme.toggle()} />
       <Button icon="github" tooltip="Source" href="https://github.com/usefuulness/nx.js" />
     </Toolbar>,

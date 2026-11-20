@@ -41,6 +41,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-menubar>`](#nx-menubar) | `MenuBar` | Application menu bar (File / Edit / View …). Once a menu is open, hovering or arrowing to a neighbour switches menus, like a desktop app. |
 | [`<nx-modal>`](#nx-modal) | — | Modal dialog built on the native `<dialog>` element (focus trap, Escape, top layer and inert background for free). |
 | [`<nx-nav>`](#nx-nav) | `Nav` | Side navigation for an app: grouped links with icons and badges, the current page marked (`aria-current`), sub-items that open, and an icon-only rail. Arrow keys move between the links. |
+| [`<nx-notifications>`](#nx-notifications) | `Notifications` | A bell with the number of unread notifications, and a panel listing them: read or unread (said in text, not only by a dot), "Mark all as read", and a live announcement when a new one arrives. |
 | [`<nx-otp-input>`](#nx-otp-input) | `OtpInput` | One-time code input: a box per character that moves on as you type, steps back on **Backspace**, and takes a pasted code (or the one your phone offers) in one go. The code posts as a single value, and the first box asks the browser for `one-time-code` autofill. |
 | [`<nx-page-header>`](#nx-page-header) | `PageHeader` | The top of an admin page: breadcrumb, title with status badges, a description, actions on the end, and tabs or filters underneath. Content goes in slots: `breadcrumb`, `meta`, `actions`, `footer`. |
 | [`<nx-pagination>`](#nx-pagination) | `Pagination` | Page navigation: previous, numbered pages with gaps, next, and optionally a range label and a page-size selector. It only tracks the page; you load that page's data. |
@@ -347,6 +348,7 @@ Flex/grid layout box. Children are regular light-DOM elements.
 | `reorderable` | `reorderable` | `boolean` | Reorder columns by dragging headers, or with Alt+Left/Right on a focused header |
 | `resizable` | `resizable` | `boolean` | Drag a header's right edge to resize (also focusable: Left/Right arrows, Shift for bigger steps, Enter or double-click resets) |
 | `row-height` | `rowHeight` | `number` | Row height in px for a `virtual` grid (default 48, or 36 when `dense`) |
+| `saved-views` | `savedViews` | `boolean` | A "Views" button: save the search, filters, sort and columns under a name, and come back to them (kept under `stateKey`) |
 | `search` | `search` | `boolean` | Show a search box that filters across all visible columns |
 | `selectable` | `selectable` | `boolean \| 'single' \| 'multiple'` | Row selection: `true` or `'single'` for one row, `'multiple'` for several |
 | `state-key` | `stateKey` | `string` | Remember column widths and order in localStorage under this key |
@@ -518,6 +520,7 @@ Data grid: sorting, search, selection, paging, row virtualization, column resize
 | `reorderable` | `reorderable` | `boolean` | Reorder columns by dragging headers, or with Alt+Left/Right on a focused header |
 | `resizable` | `resizable` | `boolean` | Drag a header's right edge to resize (also focusable: Left/Right arrows, Shift for bigger steps, Enter or double-click resets) |
 | `row-height` | `rowHeight` | `number` | Row height in px for a `virtual` grid (default 48, or 36 when `dense`) |
+| `saved-views` | `savedViews` | `boolean` | A "Views" button: save the search, filters, sort and columns under a name, and come back to them (kept under `stateKey`) |
 | `search` | `search` | `boolean` | Show a search box that filters across all visible columns |
 | `selectable` | `selectable` | `boolean \| 'single' \| 'multiple'` | Row selection: `true` or `'single'` for one row, `'multiple'` for several |
 | `state-key` | `stateKey` | `string` | Remember column widths and order in localStorage under this key |
@@ -660,6 +663,20 @@ Side navigation for an app: grouped links with icons and badges, the current pag
 | `value` | `value` | `string` | The id of the current item (default: found from the address, by each item's `route` or `href`) |
 
 **Events:** `select`, `route`, `collapse-change`, `toggle`
+
+## nx-notifications
+
+`<nx-notifications>` · JSX: `<Notifications>` · [source](../src/components/ui/notifications.tsx)
+
+A bell with the number of unread notifications, and a panel listing them: read or unread (said in text, not only by a dot), "Mark all as read", and a live announcement when a new one arrives.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `data` | `data` |  | The notifications, newest first |
+| `empty-text` | `emptyText` | `string` | Shown when there are none |
+| `label` | `label` | `string` | Accessible name and heading (default "Notifications") |
+
+**Events:** `select`, `read`, `clear`
 
 ## nx-otp-input
 

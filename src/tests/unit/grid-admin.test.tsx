@@ -117,4 +117,51 @@ describe('grid: column filters, column menu, bulk actions', () => {
     await frames();
     expect(bar().hidden).toBe(true);
   });
+
+  it('getView / setView: the search, filters, sort and columns go and come back together', async () => {
+    const el = await mount({ filters: true, search: true });
+    const box = (f: string) => el.shadowRoot!.querySelector(`[data-filter="${f}"]`) as any;
+    await type(box('name'), 'a');
+    el.setColumnVisible('active', false);
+    (el.shadowRoot!.querySelector('th[data-field="name"] .sort-btn') as HTMLElement).click();
+    await frames();
+    const view = el.getView();
+    expect(view).toMatchObject({ filters: { name: 'a' }, sort: { field: 'name', direction: 'asc' }, hidden: ['active'] });
+    el.clearFilters();
+    el.setColumnVisible('active', true);
+    await frames();
+    expect(names(el)).toHaveLength(4);
+    el.setView(view);
+    await frames();
+    expect(names(el)).toEqual(['Ada', 'Grace', 'Margaret']);
+    expect((box('name') as HTMLInputElement).value).toBe('a');
+    expect(el.getColumnList().find(c => c.field === 'active')!.visible).toBe(false);
+  });
+
+  it('saved views: save by name, apply, delete, and remember them with the state key', async () => {
+    const el = await mount({ savedViews: true, filters: true, stateKey: 'views-test' });
+    const panel = () => el.shadowRoot!.querySelector('.view-panel') as HTMLElement;
+    expect(el.shadowRoot!.querySelector('.views-button')!.textContent).toContain('Views');
+    expect(panel().querySelector('.view-empty')!.textContent).toBe('No saved views yet');
+    await type(el.shadowRoot!.querySelector('[data-filter="name"]') as HTMLInputElement, 'gr');
+    const input = panel().querySelector('.view-name') as HTMLInputElement;
+    input.value = 'Grace only';
+    panel().querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await frames();
+    expect(panel().querySelectorAll('.view-item')).toHaveLength(1);
+    expect(el.getSavedViews()[0].name).toBe('Grace only');
+    el.clearFilters();
+    await frames();
+    expect(names(el)).toHaveLength(4);
+    (panel().querySelector('.view-apply') as HTMLElement).click();
+    await frames();
+    expect(names(el)).toEqual(['Grace']);
+    const again = await mount({ savedViews: true, stateKey: 'views-test' });
+    expect(again.getSavedViews().map(v => v.name)).toEqual(['Grace only']);
+    expect((panel().querySelector('.view-delete') as HTMLElement).getAttribute('aria-label')).toBe('Delete view Grace only');
+    (panel().querySelector('.view-delete') as HTMLElement).click();
+    await frames();
+    expect(el.getSavedViews()).toEqual([]);
+    expect(panel().querySelector('.view-empty')).toBeTruthy();
+  });
 });

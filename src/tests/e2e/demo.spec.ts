@@ -464,7 +464,7 @@ test('Export Excel downloads a real .xlsx of the rows the grid shows', async ({ 
   await page.locator('#users-grid .nx-grid-search input').fill('ada');
   await expect(page.locator('#users-grid tbody tr')).toHaveCount(3);
 
-  await page.locator('nx-menu').first().click();
+  await page.locator('nx-menu:not(#user-menu)').first().click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('menuitem', { name: 'Export Excel' }).click()
@@ -1462,4 +1462,39 @@ test('the orders grid: filter under a heading, hide a column from the Columns me
   await page.keyboard.press('Escape');
   await page.reload();
   await expect(grid.locator('th[data-field="placed"]')).toHaveCount(0);
+});
+
+test('the bell: unread count, mark all as read, a new notification announced', async ({ page }) => {
+  await page.goto('/#/');
+  const bell = page.locator('#bell');
+  await expect(bell.getByRole('button', { name: 'Notifications, 2 unread' })).toBeVisible();
+  await bell.getByRole('button', { name: /Notifications/ }).click();
+  await expect(bell.getByText('Invoice #3052 paid')).toBeVisible();
+  await bell.getByRole('button', { name: 'Mark all as read' }).click();
+  await expect(bell.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => (document.getElementById('bell') as any).add({ id: 99, title: 'Refund issued', time: new Date() }));
+  await expect(bell.locator('[role="status"]')).toHaveText('New notification: Refund issued');
+  await expect(bell.getByRole('button', { name: 'Notifications, 1 unread' })).toBeVisible();
+});
+
+test('the orders grid: save a view, change the filters, come back to the view', async ({ page }) => {
+  await page.goto('/#/orders');
+  const grid = page.locator('#or-grid');
+  const rows = grid.locator('tbody tr');
+  const before = await rows.count();
+  await grid.locator('[data-filter="status"]').selectOption('pending');
+  await expect.poll(() => rows.count()).toBeLessThan(before);
+  const pending = await rows.count();
+  await grid.getByRole('button', { name: 'Views' }).click();
+  await grid.getByRole('textbox', { name: 'Name this view' }).fill('Pending');
+  await grid.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(grid.getByRole('button', { name: 'Pending', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await grid.locator('[data-filter="status"]').selectOption('');
+  await expect.poll(() => rows.count()).toBe(before);
+  await page.reload();
+  await grid.getByRole('button', { name: 'Views' }).click();
+  await grid.getByRole('button', { name: 'Pending', exact: true }).click();
+  await expect.poll(() => rows.count()).toBe(pending);
 });

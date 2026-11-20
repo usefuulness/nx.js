@@ -8,7 +8,7 @@
 import {
   NX, Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardFooter, Checkbox, Combobox,
   Command, DataGrid, DatePicker, Dialog, DialogFooter, Drawer, DrawerFooter, Form, Input, Menu, MenuBar, Popover,
-  PopoverTrigger, Calendar, OtpInput, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, List, Nav, Stat, PageHeader, Empty, Descriptions, Sidebar, Switcher, Cluster, Box, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
+  PopoverTrigger, Calendar, OtpInput, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, List, Nav, Notifications, Stat, PageHeader, Empty, Descriptions, Sidebar, Switcher, Cluster, Box, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
   type CommandItem, type Child, type NXChat
 } from 'nx.js';
 
@@ -389,6 +389,14 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
                 { field: 'status', header: 'Status', width: 110 },
                 { field: 'duration', header: 'Duration', width: 110, align: 'right' },
                 { field: 'commit', header: 'Commit', width: 110 }
+              ]} />
+            </Specimen>
+
+            <Specimen tag="nx-notifications">
+              <Notifications label="Notifications" data={[
+                { id: 1, title: 'Invoice #3052 paid', description: 'Acme Corp paid $2,400.', time: new Date(Date.now() - 6 * 60000), icon: 'success', tone: 'success' },
+                { id: 2, title: 'Webhook failing', time: new Date(Date.now() - 3 * 3600000), icon: 'error', tone: 'error' },
+                { id: 3, title: 'Workspace created', read: true }
               ]} />
             </Specimen>
 
