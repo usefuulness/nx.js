@@ -148,7 +148,7 @@ export class NXNav extends BaseComponent {
     const collapsed = this.getProp('collapsed', false);
     return items.map((item, i) => {
       const id = this.idOf(item, `${prefix}${i}`);
-      if (item.heading) return <li class="heading" part="heading" role="presentation"><span>{item.text}</span></li>;
+      if (item.heading) return <li class="heading" part="heading"><span>{item.text}</span></li>;
       const hasKids = !!item.children?.length;
       const isOpen = hasKids && (open.has(id) || this.hasCurrent(item, id)) && !collapsed;
       const current = this.isCurrent(item, id);
