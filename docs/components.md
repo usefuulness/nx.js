@@ -40,6 +40,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-menu>`](#nx-menu) | `Menu` | A trigger button with a dropdown menu. |
 | [`<nx-menubar>`](#nx-menubar) | `MenuBar` | Application menu bar (File / Edit / View …). Once a menu is open, hovering or arrowing to a neighbour switches menus, like a desktop app. |
 | [`<nx-modal>`](#nx-modal) | — | Modal dialog built on the native `<dialog>` element (focus trap, Escape, top layer and inert background for free). |
+| [`<nx-nav>`](#nx-nav) | `Nav` | Side navigation for an app: grouped links with icons and badges, the current page marked (`aria-current`), sub-items that open, and an icon-only rail. Arrow keys move between the links. |
 | [`<nx-otp-input>`](#nx-otp-input) | `OtpInput` | One-time code input: a box per character that moves on as you type, steps back on **Backspace**, and takes a pasted code (or the one your phone offers) in one go. The code posts as a single value, and the first box asks the browser for `one-time-code` autofill. |
 | [`<nx-page-header>`](#nx-page-header) | `PageHeader` | The top of an admin page: breadcrumb, title with status badges, a description, actions on the end, and tabs or filters underneath. Content goes in slots: `breadcrumb`, `meta`, `actions`, `footer`. |
 | [`<nx-pagination>`](#nx-pagination) | `Pagination` | Page navigation: previous, numbered pages with gaps, next, and optionally a range label and a page-size selector. It only tracks the page; you load that page's data. |
@@ -638,6 +639,23 @@ Modal dialog built on the native `<dialog>` element (focus trap, Escape, top lay
 | `title` | `title` | `string` | Dialog heading |
 
 **Events:** `open`, `close`
+
+## nx-nav
+
+`<nx-nav>` · JSX: `<Nav>` · [source](../src/components/ui/nav.tsx)
+
+Side navigation for an app: grouped links with icons and badges, the current page marked (`aria-current`), sub-items that open, and an icon-only rail. Arrow keys move between the links.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `base` | `base` | `string` | Put this in front of a `route` to make its link (default `#`, for a hash router; use an empty string for the history router) |
+| `collapsed` | `collapsed` | `boolean` | Icons only, for a narrow rail (the text stays as each item's accessible name and tooltip) |
+| `collapsible` | `collapsible` | `boolean` | Show a button that collapses and expands it |
+| `data` | `data` |  | The items, with headings to group them |
+| `label` | `label` | `string` | Accessible name of the navigation |
+| `value` | `value` | `string` | The id of the current item (default: found from the address, by each item's `route` or `href`) |
+
+**Events:** `select`, `route`, `collapse-change`, `toggle`
 
 ## nx-otp-input
 

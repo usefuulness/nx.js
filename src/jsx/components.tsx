@@ -33,6 +33,7 @@ import type { ToolbarConfig } from '@/components/ui/toolbar';
 import type { TabPanelConfig } from '@/components/ui/tabpanel';
 import type { TreeConfig } from '@/components/ui/tree';
 import type { ListConfig } from '@/components/ui/list';
+import type { NavConfig } from '@/components/ui/nav';
 import type { StatConfig } from '@/components/ui/stat';
 import type { PageHeaderConfig } from '@/components/ui/page-header';
 import type { EmptyConfig } from '@/components/ui/empty';
@@ -161,6 +162,7 @@ declare module './jsx-runtime' {
     'nx-tab': Props<TabProps>;
     'nx-tree': Props<TreeConfig>;
     'nx-list': Props<ListConfig>;
+    'nx-nav': Props<NavConfig>;
     'nx-stat': Props<StatConfig>;
     'nx-page-header': Props<PageHeaderConfig>;
     'nx-empty': Props<EmptyConfig>;
@@ -277,6 +279,8 @@ export const PageHeader = (props: Props<PageHeaderConfig>) => <nx-page-header {.
 export const Empty = (props: Props<EmptyConfig>) => <nx-empty {...props} />;
 /** Label and value pairs for a record's details */
 export const Descriptions = (props: Props<DescriptionsConfig>) => <nx-descriptions {...props} />;
+/** Side navigation: grouped links, badges, sub-items, an icon-only rail */
+export const Nav = (props: Props<NavConfig>) => <nx-nav {...props} />;
 /** Store-bound listbox with templates, selection and reordering */
 export const List = (props: Props<ListConfig>) => <nx-list {...props} />;
 export const Menu = (props: Props<MenuConfig>) => <nx-menu {...props} />;

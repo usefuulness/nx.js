@@ -137,6 +137,8 @@ export { NXEmpty } from '@/components/ui/empty';
 export type { EmptyConfig } from '@/components/ui/empty';
 export { NXDescriptions } from '@/components/ui/descriptions';
 export type { DescriptionsConfig, DescriptionItem } from '@/components/ui/descriptions';
+export { NXNav } from '@/components/ui/nav';
+export type { NavConfig, NavItem } from '@/components/ui/nav';
 export { NXList } from '@/components/ui/list';
 export type { ListConfig } from '@/components/ui/list';
 export { NXTree } from '@/components/ui/tree';

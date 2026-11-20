@@ -63,6 +63,10 @@ export const en: Messages = {
   'pagination.range': '{from}–{to} of {total}',
   'pagination.perPage': 'Rows per page',
 
+  // Nav
+  'nav.collapse': 'Collapse menu',
+  'nav.expand': 'Expand menu',
+
   // Stat
   'stat.up': 'up',
   'stat.down': 'down',

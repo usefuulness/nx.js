@@ -1,6 +1,6 @@
 {
   "name": "nx.js",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "type": "module",
   "description": "Declarative, zero-dependency web components with an ExtJS-style config API and a shadcn-style look.",
   "keywords": [

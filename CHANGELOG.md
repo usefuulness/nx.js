@@ -2,6 +2,12 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## 0.14.0 - 2026-11-20
+
+### Added
+- **`<nx-nav>`** (`nx.js/components/nav`): side navigation with group headings, icons, badges, sub-items that open, the current page marked with `aria-current` (found from the address, or `value`), arrow-key movement between links, and an icon-only rail (`collapsible`, `collapsed`, `collapse-change`) whose links keep their names and tooltips. Items with a `route` make an NX.app navigate; items with an `href` are plain links that work without JavaScript.
+- **Demo app:** the sidebar is the new nav (grouped, with a badge, collapsible to a rail that is remembered).
+
 ## 0.13.0 - 2026-11-20
 
 ### Added

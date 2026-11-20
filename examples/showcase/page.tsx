@@ -8,7 +8,7 @@
 import {
   NX, Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardFooter, Checkbox, Combobox,
   Command, DataGrid, DatePicker, Dialog, DialogFooter, Drawer, DrawerFooter, Form, Input, Menu, MenuBar, Popover,
-  PopoverTrigger, Calendar, OtpInput, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, List, Stat, PageHeader, Empty, Descriptions, Sidebar, Switcher, Cluster, Box, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
+  PopoverTrigger, Calendar, OtpInput, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, List, Nav, Stat, PageHeader, Empty, Descriptions, Sidebar, Switcher, Cluster, Box, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
   type CommandItem, type Child, type NXChat
 } from 'nx.js';
 
@@ -390,6 +390,15 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
                 { field: 'duration', header: 'Duration', width: 110, align: 'right' },
                 { field: 'commit', header: 'Commit', width: 110 }
               ]} />
+            </Specimen>
+
+            <Specimen tag="nx-nav">
+              <Nav label="Sections" value="orders" data={[
+  { id: 'home', text: 'Dashboard', icon: 'dashboard', href: '#' },
+  { heading: true, text: 'Sales' },
+  { id: 'orders', text: 'Orders', icon: 'cart', href: '#', badge: 12 },
+  { id: 'reports', text: 'Reports', icon: 'chart', expanded: true, children: [{ id: 'monthly', text: 'Monthly', href: '#' }, { id: 'yearly', text: 'Yearly', href: '#' }] }
+]} />
             </Specimen>
 
             <Specimen tag="nx-stat">
