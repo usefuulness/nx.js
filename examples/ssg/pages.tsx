@@ -6,7 +6,7 @@
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
   Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Chart, Calendar, OtpInput, Timeline, TimelineItem, Rating, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
-  List, Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
+  List, Stat, PageHeader, Empty, Descriptions, Sidebar, Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
 
 type Openable = HTMLElement & { open(): void; close(): void };
@@ -214,6 +214,15 @@ export const Components = () => (
     </Card>
 
     <Grid minColumnWidth="18rem" gap={16}>
+      <Panel title="Admin pieces">
+        <Stat label="Revenue" value="$48,200" delta={12.5} deltaLabel="vs last month" trend={[4, 6, 5, 8, 7, 9, 12]} />
+        <Descriptions columns={2} data={[{ label: 'Customer', value: 'Acme Corp' }, { label: 'Total', value: '$2,400' }]} />
+        <Empty icon="inbox" title="No orders yet" description="They appear here." />
+        <PageHeader title="Orders" level={2} description="This week"><Button slot="actions" size="sm">New</Button></PageHeader>
+      </Panel>
+      <Panel title="Sidebar layout">
+        <Sidebar sideWidth="8rem" gap={8}><span>Side</span><span>Content</span></Sidebar>
+      </Panel>
       <Panel title="List">
         <List label="Tasks" reorderable field="title" descriptionField="due" data={[
           { id: 1, title: 'Send invoices', due: 'Mon' }, { id: 2, title: 'Review pricing', due: 'Tue' }, { id: 3, title: 'Fix webhook', due: 'Wed' }

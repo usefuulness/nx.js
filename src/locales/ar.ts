@@ -14,6 +14,7 @@ i18n.extend('ar', {
   'region.toggle': 'تبديل المنطقة', 'panel.expand': 'توسيع اللوحة', 'panel.collapse': 'طي اللوحة', 'panel.close': 'إغلاق اللوحة',
   'pagination.label': 'ترقيم الصفحات', 'pagination.previous': 'الصفحة السابقة', 'pagination.next': 'الصفحة التالية', 'pagination.page': 'صفحة {page}',
   'pagination.status': 'صفحة {page} من {pages}', 'pagination.range': '{from}–{to} من {total}', 'pagination.perPage': 'عدد الصفوف في الصفحة',
+  'stat.up': 'ارتفاع', 'stat.down': 'انخفاض', 'stat.flat': 'دون تغيير',
   'list.empty': 'لا شيء للعرض', 'list.moved': 'تم نقل {item} إلى الموضع {to} من {total}', 'list.drag': 'اسحب لإعادة الترتيب',
   'upload.drop': 'أسقط الملفات هنا أو انقر للاختيار', 'upload.dropOne': 'أسقط ملفًا هنا أو انقر للاختيار', 'upload.release': 'حرّر للإضافة', 'upload.remove': 'إزالة {name}',
   'upload.required': 'اختر ملفًا واحدًا على الأقل', 'upload.tooLarge': '{name} أكبر من {max}', 'upload.wrongType': '{name} ليس نوع ملف مقبولًا',

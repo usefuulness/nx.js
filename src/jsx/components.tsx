@@ -33,6 +33,10 @@ import type { ToolbarConfig } from '@/components/ui/toolbar';
 import type { TabPanelConfig } from '@/components/ui/tabpanel';
 import type { TreeConfig } from '@/components/ui/tree';
 import type { ListConfig } from '@/components/ui/list';
+import type { StatConfig } from '@/components/ui/stat';
+import type { PageHeaderConfig } from '@/components/ui/page-header';
+import type { EmptyConfig } from '@/components/ui/empty';
+import type { DescriptionsConfig } from '@/components/ui/descriptions';
 import type { GridConfig } from '@/data/grid';
 import type { FormConfig } from '@/components/ui/form';
 import type { RadioGroupConfig } from '@/components/ui/form/radio';
@@ -72,8 +76,12 @@ export type Props<C = {}, T extends HTMLElement = HTMLElement> = Omit<KnownProps
 } & LooseProps;
 
 export interface ContainerConfig {
-  /** `hbox` (row), `vbox` (column), `grid`, or `fit` (one child fills it) */
-  layout?: 'vbox' | 'hbox' | 'grid' | 'fit';
+  /**
+   * `hbox` (row), `vbox` (column), `grid`, `fit` (one child fills it), `stack` (column with a gap), `cluster` (wrapping row),
+   * `sidebar` (side next to content, stacking when narrow), `switcher` (row that becomes a column below `threshold`),
+   * `center` (centered column with a `maxWidth`), `masonry`, `table` (grid; children take `span="2"`), `card` (one child at a time)
+   */
+  layout?: 'vbox' | 'hbox' | 'grid' | 'fit' | 'stack' | 'cluster' | 'sidebar' | 'switcher' | 'center' | 'masonry' | 'table' | 'card';
   /** Space between children (px number or CSS length) */
   gap?: number | string;
   /** Inner padding (px number or CSS length) */
@@ -90,6 +98,18 @@ export interface ContainerConfig {
   minColumnWidth?: number | string;
   /** Scroll when the content overflows */
   scrollable?: boolean;
+  /** sidebar layout: which child is the side */
+  side?: 'start' | 'end';
+  /** sidebar layout: width of the side (default 16rem) */
+  sideWidth?: number | string;
+  /** sidebar layout: the content stacks under the side when it would be narrower than this (default 50%) */
+  contentMin?: number | string;
+  /** switcher layout: the width below which the row becomes a column (default 30rem) */
+  threshold?: number | string;
+  /** center layout: widest the column gets (default 60rem) */
+  maxWidth?: number | string;
+  /** card layout: the child shown, by position from 0 or by its `id` / `name` */
+  active?: number | string;
 }
 
 export interface MenuConfig {
@@ -141,6 +161,10 @@ declare module './jsx-runtime' {
     'nx-tab': Props<TabProps>;
     'nx-tree': Props<TreeConfig>;
     'nx-list': Props<ListConfig>;
+    'nx-stat': Props<StatConfig>;
+    'nx-page-header': Props<PageHeaderConfig>;
+    'nx-empty': Props<EmptyConfig>;
+    'nx-descriptions': Props<DescriptionsConfig>;
     'nx-grid': Props<GridConfig>;
     'nx-form': Props<FormConfig>;
     'nx-textfield': Props<TextFieldConfig>;
@@ -211,6 +235,18 @@ export const HStack = (props: Props<Omit<ContainerConfig, 'layout'>>) => <nx-con
 export const VStack = (props: Props<Omit<ContainerConfig, 'layout'>>) => <nx-container layout="vbox" {...props} />;
 /** CSS grid. Give `columns` or `minColumnWidth`. */
 export const Grid = (props: Props<Omit<ContainerConfig, 'layout'>>) => <nx-container layout="grid" {...props} />;
+/** A column with a gap */
+export const Stack = (props: Props<Omit<ContainerConfig, 'layout'>>) => <nx-container layout="stack" {...props} />;
+/** A row that wraps, items centered: tags, buttons, filters */
+export const Cluster = (props: Props<Omit<ContainerConfig, 'layout'>>) => <nx-container layout="cluster" {...props} />;
+/** A side and content: first child is the side (`side="end"` for the last); stacks when narrow */
+export const Sidebar = (props: Props<Omit<ContainerConfig, 'layout'>>) => <nx-container layout="sidebar" {...props} />;
+/** A row that becomes a column below `threshold` */
+export const Switcher = (props: Props<Omit<ContainerConfig, 'layout'>>) => <nx-container layout="switcher" {...props} />;
+/** A centered column with a maximum width */
+export const Center = (props: Props<Omit<ContainerConfig, 'layout'>>) => <nx-container layout="center" {...props} />;
+/** One child at a time (wizards, steps): `active` picks it, `next()` and `previous()` move */
+export const CardLayout = (props: Props<Omit<ContainerConfig, 'layout'>>) => <nx-container layout="card" {...props} />;
 export const Spacer = (props: Props) => <nx-spacer {...props} />;
 export const Separator = (props: Props) => <nx-separator {...props} />;
 export const Divider = (props: Props<{ label?: string }>) => <nx-divider {...props} />;
@@ -233,6 +269,14 @@ export const CardActions = ({ children, ...rest }: Props<{}, HTMLDivElement>) =>
 export const Tabs = (props: Props<TabPanelConfig>) => <nx-tabs {...props} />;
 export const Tab = (props: Props<TabProps>) => <nx-tab {...props} />;
 export const Tree = (props: Props<TreeConfig>) => <nx-tree {...props} />;
+/** A key figure with its change against the last period */
+export const Stat = (props: Props<StatConfig>) => <nx-stat {...props} />;
+/** Top of an admin page: breadcrumb, title, description, actions (slots `breadcrumb`, `meta`, `actions`, `footer`) */
+export const PageHeader = (props: Props<PageHeaderConfig>) => <nx-page-header {...props} />;
+/** Empty state with actions */
+export const Empty = (props: Props<EmptyConfig>) => <nx-empty {...props} />;
+/** Label and value pairs for a record's details */
+export const Descriptions = (props: Props<DescriptionsConfig>) => <nx-descriptions {...props} />;
 /** Store-bound listbox with templates, selection and reordering */
 export const List = (props: Props<ListConfig>) => <nx-list {...props} />;
 export const Menu = (props: Props<MenuConfig>) => <nx-menu {...props} />;

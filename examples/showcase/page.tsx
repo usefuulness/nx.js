@@ -8,7 +8,7 @@
 import {
   NX, Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardFooter, Checkbox, Combobox,
   Command, DataGrid, DatePicker, Dialog, DialogFooter, Drawer, DrawerFooter, Form, Input, Menu, MenuBar, Popover,
-  PopoverTrigger, Calendar, OtpInput, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, List, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
+  PopoverTrigger, Calendar, OtpInput, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, List, Stat, PageHeader, Empty, Descriptions, Sidebar, Switcher, Cluster, Box, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
   type CommandItem, type Child, type NXChat
 } from 'nx.js';
 
@@ -202,6 +202,7 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
         <a class="sc-brand" href="#top"><code>{'<nx/>'}</code>nx.js</a>
         <nav class="sc-nav" aria-label="Sections">
           <a href="#components">Components</a>
+          <a href="#layouts">Layouts</a>
           <a href="#theming">Theming</a>
           <a href="#forms">Forms</a>
           <a href="#data">Data</a>
@@ -389,6 +390,32 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
                 { field: 'duration', header: 'Duration', width: 110, align: 'right' },
                 { field: 'commit', header: 'Commit', width: 110 }
               ]} />
+            </Specimen>
+
+            <Specimen tag="nx-stat">
+              <Stat label="Revenue" value="$48,200" delta={12.5} deltaLabel="vs last month" icon="dollar" trend={[4, 6, 5, 8, 7, 9, 12]} />
+            </Specimen>
+
+            <Specimen tag="nx-descriptions">
+              <Descriptions columns={2} data={[
+                { label: 'Customer', value: 'Acme Corp' }, { label: 'Total', value: '$2,400' },
+                { label: 'Placed', value: 'June 11, 2026' }, { label: 'Phone', value: '' }
+              ]} />
+            </Specimen>
+
+            <Specimen tag="nx-empty">
+              <Empty icon="inbox" title="No orders yet" description="Orders appear here as soon as a customer checks out.">
+                <Button size="sm">Create order</Button>
+              </Empty>
+            </Specimen>
+
+            <Specimen tag="nx-page-header" span>
+              <PageHeader title="Orders" description="Everything customers bought this week.">
+                <Breadcrumb slot="breadcrumb" items={[{ text: 'Home', href: '#' }, { text: 'Orders' }]} />
+                <Badge slot="meta" variant="success">Live</Badge>
+                <Button slot="actions" variant="outline" size="sm">Export</Button>
+                <Button slot="actions" size="sm">New order</Button>
+              </PageHeader>
             </Specimen>
 
             <Specimen tag="nx-list">
@@ -583,6 +610,63 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
               </Splitter>
               <p class="sc-note">Drag a divider, or focus one and use the arrow keys, Home, End and Enter.</p>
             </Specimen>
+          </div>
+        </section>
+
+        {/* ────────── Layouts ────────── */}
+        <section class="sc-section" id="layouts" aria-labelledby="layouts-title">
+          <div class="sc-section-head">
+            <h2 id="layouts-title">Layouts that adapt on their own</h2>
+            <p>
+              One container, a <code>layout</code> attribute. These respond to the space they are given, not to the
+              screen, so they work in a narrow column as well as a wide page. Drag the corner of a box to try it.
+            </p>
+          </div>
+          <div class="sc-grid sc-wide">
+            <figure class="sc-specimen" style="margin: 0">
+              <figcaption class="sc-specimen-label">{'<nx-container layout="sidebar">'}</figcaption>
+              <div class="sc-specimen-body sc-resizable">
+                <Sidebar sideWidth="9rem" contentMin="55%" gap={12}>
+                  <Card title="Filters"><span class="sc-note">A fixed side</span></Card>
+                  <Card title="Results"><span class="sc-note">The content takes the rest, and drops under the side when it would get too narrow.</span></Card>
+                </Sidebar>
+              </div>
+            </figure>
+            <figure class="sc-specimen" style="margin: 0">
+              <figcaption class="sc-specimen-label">{'<nx-container layout="switcher">'}</figcaption>
+              <div class="sc-specimen-body sc-resizable">
+                <Switcher threshold="24rem" gap={12}>
+                  <Card title="Plan A"><span class="sc-note">A row while there is room</span></Card>
+                  <Card title="Plan B"><span class="sc-note">a column when there is not</span></Card>
+                  <Card title="Plan C"><span class="sc-note">no media queries</span></Card>
+                </Switcher>
+              </div>
+            </figure>
+            <figure class="sc-specimen" style="margin: 0">
+              <figcaption class="sc-specimen-label">{'<nx-container layout="table">'}</figcaption>
+              <div class="sc-specimen-body">
+                <Box layout="table" columns={3} gap={10}>
+                  <Card span="2" title="Wide"><span class="sc-note">span="2"</span></Card>
+                  <Card title="Narrow"><span class="sc-note">one</span></Card>
+                  <Card title="One"><span class="sc-note">one</span></Card>
+                  <Card span="2" title="Two"><span class="sc-note">span="2"</span></Card>
+                </Box>
+              </div>
+            </figure>
+            <figure class="sc-specimen" style="margin: 0">
+              <figcaption class="sc-specimen-label">{'<nx-container layout="card">'}</figcaption>
+              <div class="sc-specimen-body">
+                <Box layout="card" id="lay-card" active="0" gap={10}>
+                  <Card title="Step 1: Account"><span class="sc-note">One child at a time, like a wizard.</span></Card>
+                  <Card title="Step 2: Plan"><span class="sc-note">The server's HTML already shows the right one.</span></Card>
+                  <Card title="Step 3: Done"><span class="sc-note">next() and previous() move; activechange tells you.</span></Card>
+                </Box>
+                <Cluster gap={8} style="margin-top: 0.75rem">
+                  <Button id="lay-prev" size="sm" variant="outline" onClick={() => (document.getElementById('lay-card') as any)?.previous()}>Back</Button>
+                  <Button id="lay-next" size="sm" onClick={() => (document.getElementById('lay-card') as any)?.next()}>Next</Button>
+                </Cluster>
+              </div>
+            </figure>
           </div>
         </section>
 

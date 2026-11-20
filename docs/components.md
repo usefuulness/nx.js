@@ -23,12 +23,14 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-checkbox>`](#nx-checkbox) | `Checkbox` | Checkbox or toggle switch. |
 | [`<nx-combobox>`](#nx-combobox) | `Combobox` | Combobox: a text input that filters a list of options — a searchable select. |
 | [`<nx-command>`](#nx-command) | `Command` | Command menu: a search box over a list of actions (shadcn's Command / ⌘K). Type to filter, arrow keys to move, Enter to run. |
-| [`<nx-container>`](#nx-container) | `Box`, `HStack`, `VStack`, `Grid` | Flex/grid layout box. Children are regular light-DOM elements. |
+| [`<nx-container>`](#nx-container) | `Box`, `HStack`, `VStack`, `Grid`, `Stack`, `Cluster`, `Sidebar`, `Switcher`, `Center`, `CardLayout` | Flex/grid layout box. Children are regular light-DOM elements. |
 | [`<nx-data-table>`](#nx-data-table) | — | `<nx-data-table>` — kept for compatibility; identical to `<nx-grid>`. |
 | [`<nx-datepicker>`](#nx-datepicker) | `DatePicker` | Date picker: a button that opens a calendar. Full keyboard support in the calendar grid (arrows, Home/End, Page Up/Down for months, with Shift for years), localized names, `min`/`max`, and a `YYYY-MM-DD` form value. |
+| [`<nx-descriptions>`](#nx-descriptions) | `Descriptions` | Label and value pairs for a record's details, as a real description list (`<dl>`). |
 | [`<nx-dialog>`](#nx-dialog) | `Dialog` | `<nx-dialog>`: the HTML name matching `<Dialog>` in JSX. |
 | [`<nx-divider>`](#nx-divider) | `Divider` | Horizontal rule, optionally with a label. |
 | [`<nx-drawer>`](#nx-drawer) | `Drawer` | Slide-in panel (a "sheet"), built on the native `<dialog>` element: focus trap, Escape, top layer and inert background come from the browser. |
+| [`<nx-empty>`](#nx-empty) | `Empty` | Empty state: an icon, what is missing, what to do next, and the actions for it (in the default slot). |
 | [`<nx-file-upload>`](#nx-file-upload) | `FileUpload` | File upload: a drop zone and a file list that behave like a form field. The zone is a real file input underneath, so keyboard, screen readers and native pickers work, and a plain `<form>` posts the files. Files are checked against `accept`, `max-size` and `max-files`; rejected ones are announced and reported in the `reject` event. |
 | [`<nx-form>`](#nx-form) | `Form` | Form container: collects values from named fields, validates, and fires `submit`. Works with nx fields and plain `<input>`/`<select>`/`<textarea>` elements. |
 | [`<nx-grid>`](#nx-grid) | `DataGrid` | Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, tree rows, store binding. |
@@ -39,6 +41,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-menubar>`](#nx-menubar) | `MenuBar` | Application menu bar (File / Edit / View …). Once a menu is open, hovering or arrowing to a neighbour switches menus, like a desktop app. |
 | [`<nx-modal>`](#nx-modal) | — | Modal dialog built on the native `<dialog>` element (focus trap, Escape, top layer and inert background for free). |
 | [`<nx-otp-input>`](#nx-otp-input) | `OtpInput` | One-time code input: a box per character that moves on as you type, steps back on **Backspace**, and takes a pasted code (or the one your phone offers) in one go. The code posts as a single value, and the first box asks the browser for `one-time-code` autofill. |
+| [`<nx-page-header>`](#nx-page-header) | `PageHeader` | The top of an admin page: breadcrumb, title with status badges, a description, actions on the end, and tabs or filters underneath. Content goes in slots: `breadcrumb`, `meta`, `actions`, `footer`. |
 | [`<nx-pagination>`](#nx-pagination) | `Pagination` | Page navigation: previous, numbered pages with gaps, next, and optionally a range label and a page-size selector. It only tracks the page; you load that page's data. |
 | [`<nx-panel>`](#nx-panel) | `Panel` | General-purpose container with an optional header. Inside a viewport, set `region` to dock it (`north`, `west`, `center`, ...). |
 | [`<nx-popover>`](#nx-popover) | `Popover` | Popover: a panel of rich content anchored to a trigger. Click the trigger to toggle; Escape, clicking outside or opening another popover closes it. |
@@ -52,6 +55,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-spacer>`](#nx-spacer) | `Spacer` | Flexible space. In a toolbar or hbox, pushes following items to the end. Shorthand in items arrays: `'->'`. |
 | [`<nx-spinner>`](#nx-spinner) | `Spinner` | Loading spinner. |
 | [`<nx-splitter>`](#nx-splitter) | `Splitter` | Resizable panes: put two or more elements inside, and a draggable divider appears between each pair. A pane's starting share comes from its `size` attribute (any number: shares are relative) and its smallest size, in pixels, from `min-size` (default 48). |
+| [`<nx-stat>`](#nx-stat) | `Stat` | A key figure: label, value, change against the last period (written out for screen readers, never only colour or an arrow), an optional icon and a small trend line. |
 | [`<nx-stepper>`](#nx-stepper) | `Stepper` | Progress through a sequence of steps. Steps are `<nx-step>` children; the current step is the `current` attribute, so server HTML carries it. It shows progress; the content of each step is yours. |
 | [`<nx-switch>`](#nx-switch) | `Switch` | `<nx-switch>`: a toggle switch, like `<Switch>` in JSX. |
 | [`<nx-tab>`](#nx-tab) | `Tab` | A tab inside `<nx-tabpanel>`: `<nx-tab title="Account" icon="user" closable>…</nx-tab>`. |
@@ -295,21 +299,29 @@ Command menu: a search box over a list of actions (shadcn's Command / ⌘K). Typ
 
 ## nx-container
 
-`<nx-container>` · JSX: `<Box>`, `<HStack>`, `<VStack>`, `<Grid>` · [source](../src/layout/container.tsx)
+`<nx-container>` · JSX: `<Box>`, `<HStack>`, `<VStack>`, `<Grid>`, `<Stack>`, `<Cluster>`, `<Sidebar>`, `<Switcher>`, `<Center>`, `<CardLayout>` · [source](../src/layout/container.tsx)
 
 Flex/grid layout box. Children are regular light-DOM elements.
 
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
+| `active` | `active` | `string \| number` | card layout: the child shown, by position from 0 or by its `id` / `name` |
 | `align` | `align` | `start` `end` `center` `stretch` `baseline` | Cross-axis alignment of the children |
 | `columns` | `columns` | `number` | grid layout: fixed column count |
+| `content-min` | `contentMin` | `string \| number` | sidebar layout: the content stacks under the side when it would be narrower than this (default 50%) |
 | `gap` | `gap` | `string \| number` | Space between children (px number or CSS length) |
-| `layout` | `layout` | `vbox` `hbox` `grid` `fit` | `hbox` (row), `vbox` (column), `grid`, or `fit` (one child fills it) |
+| `layout` | `layout` | `vbox` `hbox` `grid` `fit` `stack` `cluster` `sidebar` `switcher` `center` `masonry` `table` `card` | `hbox` (row), `vbox` (column), `grid`, `fit` (one child fills it), `stack` (column with a gap), `cluster` (wrapping row), `sidebar` (side next to content, stacking when narrow), `switcher` (row that becomes a column below `threshold`), `center` (centered column with a `maxWidth`), `masonry`, `table` (grid; children take `span="2"`), `card` (one child at a time) |
+| `max-width` | `maxWidth` | `string \| number` | center layout: widest the column gets (default 60rem) |
 | `min-column-width` | `minColumnWidth` | `string \| number` | grid layout: responsive columns of at least this width |
 | `pack` | `pack` | `start` `end` `center` `between` `around` `evenly` | Main-axis distribution of the children |
 | `padding` | `padding` | `string \| number` | Inner padding (px number or CSS length) |
 | `scrollable` | `scrollable` | `boolean` | Scroll when the content overflows |
+| `side` | `side` | `start` `end` | sidebar layout: which child is the side |
+| `side-width` | `sideWidth` | `string \| number` | sidebar layout: width of the side (default 16rem) |
+| `threshold` | `threshold` | `string \| number` | switcher layout: the width below which the row becomes a column (default 30rem) |
 | `wrap` | `wrap` | `boolean` | Let children wrap onto new lines |
+
+**Events:** `activechange`
 
 ## nx-data-table
 
@@ -367,6 +379,19 @@ Date picker: a button that opens a calendar. Full keyboard support in the calend
 
 **Events:** `change`
 
+## nx-descriptions
+
+`<nx-descriptions>` · JSX: `<Descriptions>` · [source](../src/components/ui/descriptions.tsx)
+
+Label and value pairs for a record's details, as a real description list (`<dl>`).
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `columns` | `columns` | `number` | How many columns (default: as many as fit) |
+| `data` | `data` |  | The facts to show |
+| `empty-text` | `emptyText` | `string` | Shown for a missing value (default `—`) |
+| `layout` | `layout` | `vertical` `horizontal` | Label above the value, or beside it (default `vertical`) |
+
 ## nx-dialog
 
 `<nx-dialog>` · JSX: `<Dialog>` · [source](../src/components/ui/modal.tsx)
@@ -415,6 +440,18 @@ Slide-in panel (a "sheet"), built on the native `<dialog>` element: focus trap, 
 | `title` | `title` | `string` | Drawer heading |
 
 **Events:** `open`, `close`
+
+## nx-empty
+
+`<nx-empty>` · JSX: `<Empty>` · [source](../src/components/ui/empty.tsx)
+
+Empty state: an icon, what is missing, what to do next, and the actions for it (in the default slot).
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `description` | `description` | `string` | What to do about it |
+| `icon` | `icon` | `string` | Icon above the title |
+| `title` | `title` | `string` | What is missing ("No orders yet") |
 
 ## nx-file-upload
 
@@ -622,6 +659,18 @@ One-time code input: a box per character that moves on as you type, steps back o
 
 **Events:** `input`, `change`, `complete`
 
+## nx-page-header
+
+`<nx-page-header>` · JSX: `<PageHeader>` · [source](../src/components/ui/page-header.tsx)
+
+The top of an admin page: breadcrumb, title with status badges, a description, actions on the end, and tabs or filters underneath. Content goes in slots: `breadcrumb`, `meta`, `actions`, `footer`.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `description` | `description` | `string` | One line under the title |
+| `level` | `level` | `1 \| 2 \| 3 \| 4` | Heading level of the title (default 1) |
+| `title` | `title` | `string` | The page's title (the page's `<h1>`) |
+
 ## nx-pagination
 
 `<nx-pagination>` · JSX: `<Pagination>` · [source](../src/components/ui/pagination.tsx)
@@ -713,7 +762,7 @@ Radio group: pick one of a few options. Native radios inside, so arrow keys, for
 | `helper-text` | `helperText` | `string` | Hint shown under the field |
 | `label` | `label` | `string` | Label shown with the field |
 | `name` | `name` | `string` | Field name: the key in form values, and the name it posts under |
-| `orientation` | `orientation` | `horizontal` `vertical` | Lay the options out in a column or a row |
+| `orientation` | `orientation` | `vertical` `horizontal` | Lay the options out in a column or a row |
 | `required` | `required` | `boolean` | A value is required before the form can submit |
 | `value` | `value` | `string \| number` | Value of the selected option |
 | `variant` | `variant` | `default` `cards` `segmented` | `cards` draws each option as a bordered, selectable card; `segmented` joins them into one compact switch row |
@@ -831,10 +880,27 @@ Resizable panes: put two or more elements inside, and a draggable divider appear
 
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
-| `orientation` | `orientation` | `horizontal` `vertical` | `horizontal` puts panes side by side (default); `vertical` stacks them |
+| `orientation` | `orientation` | `vertical` `horizontal` | `horizontal` puts panes side by side (default); `vertical` stacks them |
 | `state-key` | `stateKey` | `string` | Remember the sizes in localStorage under this key |
 
 **Events:** `resize`
+
+## nx-stat
+
+`<nx-stat>` · JSX: `<Stat>` · [source](../src/components/ui/stat.tsx)
+
+A key figure: label, value, change against the last period (written out for screen readers, never only colour or an arrow), an optional icon and a small trend line.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `delta` | `delta` | `number` | Change against the last period, as a percentage (`12.5` is +12.5%) |
+| `delta-label` | `deltaLabel` | `string` | What the change is measured against ("vs last month") |
+| `icon` | `icon` | `string` | Icon in the corner |
+| `invert` | `invert` | `boolean` | A rise is bad news (churn, errors, cost): it shows in the warning colour instead |
+| `label` | `label` | `string` | What is measured |
+| `loading` | `loading` | `boolean` | Show a placeholder while the figure loads |
+| `trend` | `trend` |  | Recent values for a small trend line (decorative: the figures are in `value` and `delta`) |
+| `value` | `value` | `string \| number` | The figure, as you want it shown (`$48,200`, `1.2M`, `99.9%`) |
 
 ## nx-stepper
 
@@ -847,7 +913,7 @@ Progress through a sequence of steps. Steps are `<nx-step>` children; the curren
 | `clickable` | `clickable` | `boolean` | Let people go back to an earlier step by clicking it |
 | `current` | `current` | `number` | The current step, counting from 0 (steps before it are complete) |
 | `label` | `label` | `string` | Accessible name of the list (default "Progress") |
-| `orientation` | `orientation` | `horizontal` `vertical` | `horizontal` (default) or `vertical` |
+| `orientation` | `orientation` | `vertical` `horizontal` | `horizontal` (default) or `vertical` |
 
 **Events:** `step-change`
 
@@ -1070,4 +1136,4 @@ Full-page app shell. Children go into regions with `region="north|south|east|wes
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
 | `breakpoint` | `breakpoint` | `number` | Width in px below which side regions turn into drawers (default 768) |
-| `layout` | `layout` | `fit` `border` `viewport` `card` | `border` (default, also accepts `viewport`) \| `card` \| `fit` |
+| `layout` | `layout` | `fit` `card` `border` `viewport` | `border` (default, also accepts `viewport`) \| `card` \| `fit` |

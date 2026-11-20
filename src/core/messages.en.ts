@@ -63,6 +63,11 @@ export const en: Messages = {
   'pagination.range': '{from}–{to} of {total}',
   'pagination.perPage': 'Rows per page',
 
+  // Stat
+  'stat.up': 'up',
+  'stat.down': 'down',
+  'stat.flat': 'unchanged',
+
   // List
   'list.empty': 'Nothing to show',
   'list.moved': '{item} moved to position {to} of {total}',

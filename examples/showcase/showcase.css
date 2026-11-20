@@ -258,6 +258,7 @@ body {
   background: var(--color-surface);
 }
 
+.sc-resizable { resize: horizontal; overflow: auto; min-width: 14rem; max-width: 100%; }
 .sc-specimen-body {
   display: flex;
   flex-direction: column;

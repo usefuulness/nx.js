@@ -1389,3 +1389,39 @@ test.describe('dashboard insights', () => {
     await expect.poll(titles).toEqual(['Review the pricing proposal', 'Renew the Acme contract', 'Send the Q2 invoices', 'Fix the failing ledger webhook']);
   });
 });
+
+test('the orders page: figures, filters, bulk actions and a detail panel', async ({ page }) => {
+  await page.goto('/#/orders');
+  await expect(page.locator('h1, nx-page-header').first()).toBeVisible();
+  await expect(page.locator('#or-revenue .value')).not.toHaveText('');
+  await expect(page.locator('#or-empty .title')).toHaveText('No order selected');
+  const rows = page.locator('#or-grid tbody tr');
+  const before = await rows.count();
+  await page.locator('#or-status select').selectOption('pending');
+  await expect.poll(() => rows.count()).toBeLessThan(before);
+  await page.locator('#or-status select').selectOption('');
+  await page.locator('#or-search').locator('input').fill('globex');
+  await expect.poll(() => rows.count()).toBeLessThan(before);
+  await page.locator('#or-search').locator('input').fill('');
+  await expect.poll(() => rows.count()).toBe(before);
+  // Select two rows: the bulk bar appears, the detail panel says how many
+  await rows.nth(0).locator('input[type="checkbox"]').check();
+  await rows.nth(1).locator('input[type="checkbox"]').check();
+  await expect(page.locator('#or-bulk-count')).toHaveText('2 selected');
+  await expect(page.locator('#or-empty .title')).toHaveText('2 orders selected');
+  await page.getByRole('button', { name: 'Mark shipped' }).click();
+  await expect(page.locator('#or-bulk')).toBeHidden();
+  // One row: its details
+  await rows.nth(0).locator('input[type="checkbox"]').check();
+  await expect(page.locator('#or-detail-title')).toContainText('Order #');
+});
+
+test('the orders page: the detail panel drops under the table on a narrow screen', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 900 });
+  await page.goto('/#/orders');
+  const grid = await page.locator('#or-grid').boundingBox();
+  const detail = await page.locator('#or-detail').boundingBox();
+  expect(detail!.y).toBeGreaterThan(grid!.y + grid!.height - 1);
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await expect.poll(async () => (await page.locator('#or-detail').boundingBox())!.x).toBeGreaterThan((await page.locator('#or-grid').boundingBox())!.x + 300);
+});
