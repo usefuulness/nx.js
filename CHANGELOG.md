@@ -2,6 +2,14 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## 0.13.0 - 2026-11-20
+
+### Added
+- **Layouts:** `<nx-container>` gains `stack`, `cluster`, `sidebar` (a side next to content that drops underneath when narrow), `switcher` (a row that becomes a column below a width), `center`, `masonry`, `table` (children take `span="2"`, `span="full"`, `row-span`; `grid` takes them too) and `card` (one child at a time, with `active`, `next()`, `previous()`, `setActive()` and `activechange`; the right child is visible in server HTML). PascalCase wrappers: `Stack`, `Cluster`, `Sidebar`, `Switcher`, `Center`, `CardLayout`.
+- **Admin pieces:** `<nx-stat>` (key figure with the change written out, `invert`, trend line, loading), `<nx-page-header>` (title, description, slots for breadcrumb, badges, actions and tabs), `<nx-empty>` and `<nx-descriptions>`.
+- **Demo app:** an Orders page (figures, search and status filter, bulk actions, a detail panel that stacks under the table on a narrow screen); the dashboard and every page now use the page header and the stat component.
+- **Landing page:** a Layouts section with resizable live examples, and specimens of the new components.
+
 ## 0.12.0 - 2026-11-20
 
 ### Added

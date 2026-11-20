@@ -230,3 +230,21 @@ test.describe('the data section is accessible', () => {
     });
   }
 });
+
+test('the layouts section: the card layout steps through, and the sidebar stacks when narrow', async ({ page }) => {
+  await open(page);
+  await page.locator('#layouts').scrollIntoViewIfNeeded();
+  const card = page.locator('#lay-card');
+  await expect(card.locator('nx-card:visible')).toHaveCount(1);
+  await expect(card.locator('nx-card:visible')).toContainText('Step 1');
+  await page.locator('#lay-next').click();
+  await expect(card.locator('nx-card:visible')).toContainText('Step 2');
+  await page.locator('#lay-prev').click();
+  await expect(card.locator('nx-card:visible')).toContainText('Step 1');
+  const side = page.locator('#layouts nx-container[layout="sidebar"]');
+  const kids = side.locator(':scope > nx-card');
+  const [a, b] = [await kids.nth(0).boundingBox(), await kids.nth(1).boundingBox()];
+  expect(Math.abs(a!.y - b!.y)).toBeLessThan(4);
+  await side.locator('xpath=..').evaluate(el => { (el as HTMLElement).style.width = '16rem'; });
+  await expect.poll(async () => (await kids.nth(1).boundingBox())!.y).toBeGreaterThan((await kids.nth(0).boundingBox())!.y + 20);
+});

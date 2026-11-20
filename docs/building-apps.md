@@ -88,6 +88,39 @@ router: [{
 
 `align` (`start` `center` `end` `stretch` `baseline`) and `pack` (`start` `center` `end` `between` `around` `evenly`) map to flexbox alignment. The config equivalents are `{ xtype: 'hbox' | 'vbox' | 'container', layout: 'grid', … }`.
 
+### More layouts
+
+`<nx-container layout="…">` (or the wrappers) also has layouts that respond to the space they are given, not to the screen, so they work in a narrow column as well as on a wide page:
+
+| Layout | Wrapper | What it does |
+| --- | --- | --- |
+| `stack` | `<Stack gap={16}>` | A column with a gap |
+| `cluster` | `<Cluster gap={8}>` | A row that wraps, items centred: tags, buttons, filters |
+| `sidebar` | `<Sidebar sideWidth="16rem" contentMin="50%">` | The first child is a side of fixed width (`side="end"`: the last child); the content takes the rest and drops *under* the side when it would be narrower than `contentMin` |
+| `switcher` | `<Switcher threshold="30rem">` | A row while every child can be at least `threshold` wide, a column below that |
+| `center` | `<Center maxWidth="60rem">` | A centred column with a maximum width |
+| `masonry` | `<Box layout="masonry" minColumnWidth={240}>` | Columns of children with different heights |
+| `table` | `<Box layout="table" columns={4}>` | A grid whose children take columns or rows: `span="2"`, `span="full"`, `row-span="2"` (`grid` takes them too) |
+| `card` | `<CardLayout active={0}>` | One child at a time, like a wizard: `active` is a position (from 0) or a child's `id` / `name`; `next()`, `previous()` and `setActive()` move, and `activechange` tells you. The right child is already visible in server HTML |
+
+```tsx
+<Sidebar side="end" sideWidth="20rem" gap={16}>
+  <VStack>…the table…</VStack>
+  <Card title="Details">…</Card>
+</Sidebar>
+```
+
+## Admin screens
+
+Four small components for the screens an admin portal is mostly made of (see the Orders page in the demo, `src/demo/orders.tsx`):
+
+- **`<PageHeader title description>`**: the top of a page, with slots `breadcrumb`, `meta` (badges next to the title), `actions` and `footer`. The title is the page's heading (`level` changes it).
+- **`<Stat label value delta>`**: a key figure with the change against the last period. The change is written out for screen readers (up, down or unchanged), never only colour or an arrow; `invert` marks a rise as bad (churn, errors); `trend` draws a small decorative line; `loading` shows a placeholder.
+- **`<Empty icon title description>`**: an empty state, with actions in the default slot.
+- **`<Descriptions data columns layout>`**: label and value pairs for a record, as a real description list. Values are shown as text, never HTML.
+
+Together with `<DataGrid checkboxSelection>` (its `selection-change` event drives a bulk-action bar) and a `sidebar` layout for the detail panel, that is a full list-and-detail screen.
+
 ## Data grid
 
 ```ts

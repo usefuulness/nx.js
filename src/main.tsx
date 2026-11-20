@@ -6,11 +6,12 @@ import {
   NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, FileUpload, Form, Grid,
   HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Calendar, OtpInput, Rating, Slider, Spacer, Timeline, TimelineItem, Splitter, Switch, Tab, Tabs, TagInput, Chat, Chart, Stepper, Step, type NXChat,
   Textarea, Toolbar, Tooltip, Tree,
-  VStack, type Child, type GridColumn, type NXGrid, type NXForm, type Route
+  VStack, PageHeader, Stat, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
 
 import { RevenuePanel, ActivityPanels } from '@/demo/insights';
 import { PetsPage, loadPets } from '@/demo/pets';
+import { OrdersPage } from '@/demo/orders';
 
 // ────────── A view model: data, a formula, and markup that binds to it ──────────
 
@@ -108,30 +109,11 @@ Read the [chat guide](https://usefuulness.github.io/nx.js/docs/chat.html) for th
 
 const Page = ({ title, description, actions, children }: { title: string; description: string; actions?: Child; children?: Child }) => (
   <VStack gap={24} style="max-width: 1200px; margin: 0 auto; width: 100%; padding: clamp(1rem, 4vw, 2rem)">
-    <HStack align="end" gap={12} wrap>
-      <VStack flex="1 1 16rem" gap={4}>
-        <h1 class="page-title">{title}</h1>
-        <p class="muted">{description}</p>
-      </VStack>
-      {actions}
-    </HStack>
+    <PageHeader title={title} description={description}>
+      {actions ? <HStack slot="actions" gap={8}>{actions}</HStack> : null}
+    </PageHeader>
     {children}
   </VStack>
-);
-
-const Stat = ({ label, value, delta, icon }: { label: string; value: string; delta: number; icon: string }) => (
-  <Card>
-    <div class="stat">
-      <div class="stat-top">
-        <span>{label}</span>
-        <span html={NX.icons.get(icon)} />
-      </div>
-      <div class="stat-value">{value}</div>
-      <div class={['stat-delta', delta >= 0 ? 'up' : 'down']}>
-        {delta >= 0 ? '+' : ''}{delta}% <span>from last month</span>
-      </div>
-    </div>
-  </Card>
 );
 
 // ────────── Pages ──────────
@@ -147,10 +129,10 @@ const DashboardPage = () => (
     }
   >
     <Grid minColumnWidth={220} gap={16}>
-      <Stat label="Revenue" value="$45,231" delta={20.1} icon="dollar" />
-      <Stat label="Customers" value="2,350" delta={18.2} icon="users" />
-      <Stat label="Orders" value="12,234" delta={4.3} icon="cart" />
-      <Stat label="Error rate" value="0.12%" delta={-2.4} icon="activity" />
+      <Card><Stat label="Revenue" value="$45,231" delta={20.1} deltaLabel="from last month" icon="dollar" trend={[18, 22, 21, 27, 31, 36, 45]} /></Card>
+      <Card><Stat label="Customers" value="2,350" delta={18.2} deltaLabel="from last month" icon="users" trend={[1.6, 1.7, 1.9, 2, 2.1, 2.2, 2.35]} /></Card>
+      <Card><Stat label="Orders" value="12,234" delta={4.3} deltaLabel="from last month" icon="cart" trend={[10, 12, 11, 12, 13, 12, 12.2]} /></Card>
+      <Card><Stat label="Error rate" value="0.12%" delta={-2.4} invert deltaLabel="from last month" icon="activity" trend={[0.3, 0.25, 0.2, 0.18, 0.15, 0.13, 0.12]} /></Card>
     </Grid>
 
     <Grid columns={3} gap={16}>
@@ -582,6 +564,7 @@ const commands = () => [
   { text: 'Dashboard', icon: 'dashboard', group: 'Go to', handler: () => app.navigate('/') },
   { text: 'Users', icon: 'users', group: 'Go to', handler: () => app.navigate('/users') },
   { text: 'Settings', icon: 'settings', group: 'Go to', keywords: ['profile', 'preferences'], handler: () => app.navigate('/forms') },
+  { text: 'Orders', icon: 'cart', group: 'Go to', keywords: ['admin', 'table'], handler: () => app.navigate('/orders') },
   { text: 'Pets', icon: 'heart', group: 'Go to', keywords: ['server', 'openapi', 'api'], handler: () => app.navigate('/pets') },
   { text: 'Components', icon: 'components', group: 'Go to', handler: () => app.navigate('/components') },
   { text: 'Toggle theme', icon: 'theme', group: 'Actions', shortcut: '⇧D', keywords: ['dark', 'light'], handler: () => NX.theme.toggle() },
@@ -620,6 +603,7 @@ const app = NX.app({
       <Tree data={[
         { id: 'dashboard', text: 'Dashboard', icon: 'dashboard', route: '/' },
         { id: 'users', text: 'Users', icon: 'users', route: '/users' },
+        { id: 'orders', text: 'Orders', icon: 'cart', route: '/orders' },
         { id: 'pets', text: 'Pets', icon: 'heart', route: '/pets' },
         { id: 'forms', text: 'Settings', icon: 'settings', route: '/forms' },
         { id: 'components', text: 'Components', icon: 'components', route: '/components' }
@@ -632,6 +616,7 @@ const app = NX.app({
   router: [
     { path: '/', title: 'Dashboard', view: DashboardPage },
     { path: '/users', title: 'Users', view: UsersPage },
+    { path: '/orders', title: 'Orders', view: () => <OrdersPage Page={Page} /> },
     { path: '/pets', title: 'Pets', loader: loadPets, view: (route: Route) => <PetsPage api={route.data.api} store={route.data.store} Page={Page} /> },
     { path: '/forms', title: 'Settings', view: SettingsPage },
     { path: '/components', title: 'Components', view: ComponentsPage },
