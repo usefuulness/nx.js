@@ -6,7 +6,7 @@
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
   Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Chart, Calendar, OtpInput, Timeline, TimelineItem, Rating, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
-  Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
+  List, Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
 
 type Openable = HTMLElement & { open(): void; close(): void };
@@ -214,6 +214,11 @@ export const Components = () => (
     </Card>
 
     <Grid minColumnWidth="18rem" gap={16}>
+      <Panel title="List">
+        <List label="Tasks" reorderable field="title" descriptionField="due" data={[
+          { id: 1, title: 'Send invoices', due: 'Mon' }, { id: 2, title: 'Review pricing', due: 'Tue' }, { id: 3, title: 'Fix webhook', due: 'Wed' }
+        ]} />
+      </Panel>
       <Panel title="Tree">
         <Tree data={[
           { text: 'src', expanded: true, children: [{ text: 'index.ts' }, { text: 'ssr', children: [{ text: 'index.ts' }] }] },

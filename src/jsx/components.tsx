@@ -32,6 +32,7 @@ import type { PanelConfig } from '@/layout/panel';
 import type { ToolbarConfig } from '@/components/ui/toolbar';
 import type { TabPanelConfig } from '@/components/ui/tabpanel';
 import type { TreeConfig } from '@/components/ui/tree';
+import type { ListConfig } from '@/components/ui/list';
 import type { GridConfig } from '@/data/grid';
 import type { FormConfig } from '@/components/ui/form';
 import type { RadioGroupConfig } from '@/components/ui/form/radio';
@@ -139,6 +140,7 @@ declare module './jsx-runtime' {
     'nx-tabs': Props<TabPanelConfig>;
     'nx-tab': Props<TabProps>;
     'nx-tree': Props<TreeConfig>;
+    'nx-list': Props<ListConfig>;
     'nx-grid': Props<GridConfig>;
     'nx-form': Props<FormConfig>;
     'nx-textfield': Props<TextFieldConfig>;
@@ -231,6 +233,8 @@ export const CardActions = ({ children, ...rest }: Props<{}, HTMLDivElement>) =>
 export const Tabs = (props: Props<TabPanelConfig>) => <nx-tabs {...props} />;
 export const Tab = (props: Props<TabProps>) => <nx-tab {...props} />;
 export const Tree = (props: Props<TreeConfig>) => <nx-tree {...props} />;
+/** Store-bound listbox with templates, selection and reordering */
+export const List = (props: Props<ListConfig>) => <nx-list {...props} />;
 export const Menu = (props: Props<MenuConfig>) => <nx-menu {...props} />;
 export const MenuBar = (props: Props<{ items?: MenuItemLike[] }>) => <nx-menubar {...props} />;
 export const Breadcrumb = (props: Props<BreadcrumbConfig>) => <nx-breadcrumb {...props} />;

@@ -2,7 +2,7 @@
  * The dashboard's insight panels: revenue over a chosen range (one view model drives the figures and the
  * chart), where sales come from, what is coming up, and recent activity.
  */
-import { NX, Card, CardActions, Calendar, Chart, Grid, RadioGroup, Timeline, TimelineItem, VStack } from '@/index';
+import { NX, Card, CardActions, Calendar, Chart, Grid, List, RadioGroup, Timeline, TimelineItem, VStack } from '@/index';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const REVENUE = [31200, 28400, 35100, 33800, 39600, 42100, 40800, 44900, 47300, 45200, 49800, 53600];
@@ -68,6 +68,14 @@ export function ActivityPanels(): HTMLElement {
           { date: '2026-06-12', title: 'Invoice run', status: 'warning' },
           { date: '2026-06-17', title: 'Release 2.4', time: '16:00', status: 'success' },
           { date: '2026-06-24', title: 'Contract renewal: Acme', status: 'error' }
+        ]} />
+      </Card>
+      <Card title="This week" subtitle="Drag the grip, or use Alt+↑ and Alt+↓, to set the order">
+        <List id="dash-priorities" label="Priorities" reorderable multiSelect field="title" descriptionField="due" data={[
+          { id: 'a', title: 'Send the Q2 invoices', due: 'Mon' },
+          { id: 'b', title: 'Review the pricing proposal', due: 'Tue' },
+          { id: 'c', title: 'Fix the failing ledger webhook', due: 'Wed' },
+          { id: 'd', title: 'Renew the Acme contract', due: 'Fri' }
         ]} />
       </Card>
       <Card title="Recent activity" subtitle="Across the team">

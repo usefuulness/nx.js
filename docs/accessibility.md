@@ -38,6 +38,7 @@ Every component is built to work with a keyboard and a screen reader, in every t
 | MenuBar | **← →** move between menus · **↓ Enter Space** open |
 | Tabs | **← → ↑ ↓** select the previous/next tab · **Home End** first/last · **Delete** closes a closable tab |
 | Accordion | **Enter Space** toggle · **↑ ↓** previous/next header · **Home End** first/last |
+| List | a listbox, one tab stop · **↑ ↓** move (in a card layout also **← →**) · **Home End** first/last · **Enter Space** select · with `multi-select`: **Space** toggles, **Shift+↑ ↓** extends, **Ctrl/⌘+A** selects all · letters jump (type-ahead) · with `reorderable`: **Alt+↑ Alt+↓** move the item, and the new position is announced in a live region |
 | Tree | **↑ ↓** move · **→** expand · **←** collapse, or go to the parent · **Home End** first/last · **Enter Space** select · letters jump (type-ahead) |
 | Toolbar | **← →** move between items |
 | Combobox | type to filter · **↓ ↑** open and move · **Home End** first/last · **Enter** pick · **Escape** close the list (a second Escape reaches an enclosing dialog) · **Tab** keeps a matching entry |
