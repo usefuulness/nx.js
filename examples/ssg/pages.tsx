@@ -6,7 +6,7 @@
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
   Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Chart, Calendar, OtpInput, Timeline, TimelineItem, Rating, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
-  List, Stat, PageHeader, Empty, Descriptions, Sidebar, Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
+  List, Nav, Stat, PageHeader, Empty, Descriptions, Sidebar, Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
 
 type Openable = HTMLElement & { open(): void; close(): void };
@@ -214,6 +214,14 @@ export const Components = () => (
     </Card>
 
     <Grid minColumnWidth="18rem" gap={16}>
+      <Panel title="Navigation">
+        <Nav label="Sections" value="orders" data={[
+          { id: 'home', text: 'Dashboard', icon: 'dashboard', href: '#' },
+          { heading: true, text: 'Sales' },
+          { id: 'orders', text: 'Orders', icon: 'cart', href: '#', badge: 12 },
+          { id: 'reports', text: 'Reports', icon: 'chart', expanded: true, children: [{ id: 'monthly', text: 'Monthly', href: '#' }, { id: 'yearly', text: 'Yearly', href: '#' }] }
+        ]} />
+      </Panel>
       <Panel title="Admin pieces">
         <Stat label="Revenue" value="$48,200" delta={12.5} deltaLabel="vs last month" trend={[4, 6, 5, 8, 7, 9, 12]} />
         <Descriptions columns={2} data={[{ label: 'Customer', value: 'Acme Corp' }, { label: 'Total', value: '$2,400' }]} />

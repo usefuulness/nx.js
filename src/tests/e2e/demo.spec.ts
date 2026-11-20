@@ -14,7 +14,7 @@ test('renders the dashboard', async ({ page }) => {
 
 test('navigates with the sidebar tree', async ({ page }) => {
   await page.goto('/#/');
-  await page.locator('nx-tree .nx-tree-node-content', { hasText: 'Users' }).first().click();
+  await page.locator('#main-nav').getByRole('link', { name: 'Users' }).click();
   await expect(page).toHaveURL(/#\/users$/);
   await expect(page.locator('#users-grid tbody tr')).toHaveCount(10);
 });
@@ -346,7 +346,7 @@ test('a new page opens at the top; Back restores where the previous page was scr
   await outlet.evaluate(el => (el.scrollTop = 160));
   expect(await outlet.evaluate(el => el.scrollTop)).toBeGreaterThan(100);
 
-  await page.locator('nx-tree .nx-tree-node-content', { hasText: 'Users' }).first().click();
+  await page.locator('#main-nav').getByRole('link', { name: 'Users' }).click();
   await expect(page).toHaveURL(/#\/users$/);
   await expect(page.locator('#users-grid')).toBeVisible();
   expect(await outlet.evaluate(el => el.scrollTop)).toBe(0);
@@ -569,7 +569,7 @@ test.describe('right to left (Arabic)', () => {
 
   test('the layout mirrors: side nav on the right, columns and checkboxes reversed', async ({ page }) => {
     const view = page.viewportSize()!;
-    const nav = await page.locator('nx-tree').first().boundingBox();
+    const nav = await page.locator('#main-nav').boundingBox();
     expect(nav!.x).toBeGreaterThan(view.width / 2); // the west region sits at the start, which is the right
     const grid = page.locator('#users-grid');
     const x = async (selector: string) => (await grid.locator(selector).first().boundingBox())!.x;
@@ -1424,4 +1424,22 @@ test('the orders page: the detail panel drops under the table on a narrow screen
   expect(detail!.y).toBeGreaterThan(grid!.y + grid!.height - 1);
   await page.setViewportSize({ width: 1400, height: 900 });
   await expect.poll(async () => (await page.locator('#or-detail').boundingBox())!.x).toBeGreaterThan((await page.locator('#or-grid').boundingBox())!.x + 300);
+});
+
+test('the side navigation marks the current page, collapses to a rail and remembers it', async ({ page }) => {
+  await page.goto('/#/orders');
+  const nav = page.locator('#main-nav');
+  await expect(nav.locator('[aria-current="page"]')).toContainText('Orders');
+  await nav.getByRole('link', { name: /Pets/ }).click();
+  await expect(page).toHaveURL(/#\/pets$/);
+  await expect(nav.locator('[aria-current="page"]')).toContainText('Pets');
+  const wide = (await nav.boundingBox())!.width;
+  await nav.getByRole('button', { name: 'Collapse menu' }).click();
+  await expect.poll(async () => (await nav.boundingBox())!.width).toBeLessThan(wide / 2);
+  // Icons only, but each link keeps its name
+  await expect(nav.getByRole('link', { name: /Orders/ })).toBeVisible();
+  await page.reload();
+  await expect.poll(async () => (await nav.boundingBox())!.width).toBeLessThan(wide / 2);
+  await nav.getByRole('button', { name: 'Expand menu' }).click();
+  await expect.poll(async () => (await nav.boundingBox())!.width).toBeGreaterThan(wide - 4);
 });

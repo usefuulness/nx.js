@@ -114,6 +114,7 @@ router: [{
 
 Four small components for the screens an admin portal is mostly made of (see the Orders page in the demo, `src/demo/orders.tsx`):
 
+- **`<Nav data>`**: the side navigation: grouped links (`{ heading: true, text }`) with icons and badges, sub-items that open, the current page marked with `aria-current` (found from the address, or set with `value`), and `collapsible` for an icon-only rail (`collapsed`, event `collapse-change`; each link keeps its name and a tooltip). An item with a `route` makes an NX.app navigate when it is chosen; one with an `href` is a plain link that works without JavaScript. Use `base=""` with the history router.
 - **`<PageHeader title description>`**: the top of a page, with slots `breadcrumb`, `meta` (badges next to the title), `actions` and `footer`. The title is the page's heading (`level` changes it).
 - **`<Stat label value delta>`**: a key figure with the change against the last period. The change is written out for screen readers (up, down or unchanged), never only colour or an arrow; `invert` marks a rise as bad (churn, errors); `trend` draws a small decorative line; `loading` shows a placeholder.
 - **`<Empty icon title description>`**: an empty state, with actions in the default slot.

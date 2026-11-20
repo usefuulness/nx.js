@@ -38,6 +38,7 @@ Every component is built to work with a keyboard and a screen reader, in every t
 | MenuBar | **← →** move between menus · **↓ Enter Space** open |
 | Tabs | **← → ↑ ↓** select the previous/next tab · **Home End** first/last · **Delete** closes a closable tab |
 | Accordion | **Enter Space** toggle · **↑ ↓** previous/next header · **Home End** first/last |
+| Nav | a `<nav>` of real links, the current one has `aria-current="page"` · **↑ ↓ Home End** move between links (Tab leaves) · groups with sub-items are disclosure buttons with `aria-expanded` · collapsed to a rail, each link keeps its text as its name |
 | Stat | the change is text ("+12.5%" and "up" or "down" for screen readers), not just an arrow and a colour; the trend line is decorative |
 | Page header | the title is a real heading; breadcrumb, badges and actions are your own components in slots |
 | Container, `card` layout | the hidden children are `display: none`, so they are out of the tab order and the accessibility tree |

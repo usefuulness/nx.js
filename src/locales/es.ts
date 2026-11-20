@@ -14,6 +14,7 @@ i18n.extend('es', {
   'region.toggle': 'Alternar región', 'panel.expand': 'Expandir panel', 'panel.collapse': 'Contraer panel', 'panel.close': 'Cerrar panel',
   'pagination.label': 'Paginación', 'pagination.previous': 'Página anterior', 'pagination.next': 'Página siguiente', 'pagination.page': 'Página {page}',
   'pagination.status': 'Página {page} de {pages}', 'pagination.range': '{from}–{to} de {total}', 'pagination.perPage': 'Filas por página',
+  'nav.collapse': 'Contraer menú', 'nav.expand': 'Expandir menú',
   'stat.up': 'subió', 'stat.down': 'bajó', 'stat.flat': 'sin cambios',
   'list.empty': 'Nada que mostrar', 'list.moved': '{item} movido a la posición {to} de {total}', 'list.drag': 'Arrastrar para reordenar',
   'upload.drop': 'Suelte los archivos aquí o haga clic para elegir', 'upload.dropOne': 'Suelte un archivo aquí o haga clic para elegir', 'upload.release': 'Suelte para añadir', 'upload.remove': 'Quitar {name}',

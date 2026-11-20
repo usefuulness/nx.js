@@ -36,6 +36,7 @@ import '@/components/ui/toast';
 import '@/components/ui/toolbar';
 import '@/components/ui/tree';
 import '@/components/ui/list';
+import '@/components/ui/nav';
 import '@/components/ui/stat';
 import '@/components/ui/page-header';
 import '@/components/ui/empty';

@@ -6,7 +6,7 @@ import {
   NX, Alert, Avatar, Badge, Box, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, FileUpload, Form, Grid,
   HStack, Input, Menu, Outlet, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Calendar, OtpInput, Rating, Slider, Spacer, Timeline, TimelineItem, Splitter, Switch, Tab, Tabs, TagInput, Chat, Chart, Stepper, Step, type NXChat,
   Textarea, Toolbar, Tooltip, Tree,
-  VStack, PageHeader, Stat, type Child, type GridColumn, type NXGrid, type NXForm, type Route
+  VStack, PageHeader, Stat, Nav, type Child, type GridColumn, type NXGrid, type NXForm, type Route
 } from '@/index';
 
 import { RevenuePanel, ActivityPanels } from '@/demo/insights';
@@ -575,6 +575,8 @@ const commands = () => [
 
 const themeIcon = () => (NX.theme.get() === 'light' ? 'moon' : 'sun');
 const themeButton = { current: null as HTMLElement | null };
+const westPanel = { current: null as HTMLElement | null };
+const navCollapsed = NX.state.get<boolean>('nav-collapsed', false);
 
 NX.command.bind('mod+k', commands);
 
@@ -599,15 +601,22 @@ const app = NX.app({
       <Button icon="github" tooltip="Source" href="https://github.com/usefuulness/nx.js" />
     </Toolbar>,
 
-    <Panel region="west" width={240} bodyPadding={12}>
-      <Tree data={[
-        { id: 'dashboard', text: 'Dashboard', icon: 'dashboard', route: '/' },
-        { id: 'users', text: 'Users', icon: 'users', route: '/users' },
-        { id: 'orders', text: 'Orders', icon: 'cart', route: '/orders' },
-        { id: 'pets', text: 'Pets', icon: 'heart', route: '/pets' },
-        { id: 'forms', text: 'Settings', icon: 'settings', route: '/forms' },
-        { id: 'components', text: 'Components', icon: 'components', route: '/components' }
-      ]} />
+    <Panel ref={westPanel} region="west" width={navCollapsed ? 64 : 240} bodyPadding={8}>
+      <Nav id="main-nav" label="Main" collapsible collapsed={navCollapsed}
+           onCollapseChange={(e: CustomEvent) => {
+             NX.state.set('nav-collapsed', e.detail.collapsed);
+             westPanel.current?.setAttribute('width', e.detail.collapsed ? '64' : '240');
+           }}
+           data={[
+             { id: 'dashboard', text: 'Dashboard', icon: 'dashboard', route: '/' },
+             { heading: true, text: 'Manage' },
+             { id: 'users', text: 'Users', icon: 'users', route: '/users' },
+             { id: 'orders', text: 'Orders', icon: 'cart', route: '/orders', badge: 12 },
+             { id: 'pets', text: 'Pets', icon: 'heart', route: '/pets' },
+             { heading: true, text: 'App' },
+             { id: 'forms', text: 'Settings', icon: 'settings', route: '/forms' },
+             { id: 'components', text: 'Components', icon: 'components', route: '/components' }
+           ]} />
     </Panel>,
 
     <Outlet region="center" />
