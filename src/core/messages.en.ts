@@ -139,5 +139,11 @@ export const en: Messages = {
   'grid.edit': 'Edit {label}',
   'grid.enterNumber': 'Enter a number',
   'grid.expand': 'Expand {label}',
-  'grid.collapse': 'Collapse {label}'
+  'grid.collapse': 'Collapse {label}',
+  'grid.columns': 'Columns',
+  'grid.filter': 'Filter',
+  'grid.filterColumn': 'Filter {label}',
+  'grid.all': 'All',
+  'grid.bulkActions': 'Actions for the selected rows',
+  'grid.selectedCount': '{count} selected'
 };

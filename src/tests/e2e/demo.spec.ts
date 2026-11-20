@@ -1407,10 +1407,10 @@ test('the orders page: figures, filters, bulk actions and a detail panel', async
   // Select two rows: the bulk bar appears, the detail panel says how many
   await rows.nth(0).locator('input[type="checkbox"]').check();
   await rows.nth(1).locator('input[type="checkbox"]').check();
-  await expect(page.locator('#or-bulk-count')).toHaveText('2 selected');
+  await expect(page.locator('#or-grid .bulk-count')).toHaveText('2 selected');
   await expect(page.locator('#or-empty .title')).toHaveText('2 orders selected');
   await page.getByRole('button', { name: 'Mark shipped' }).click();
-  await expect(page.locator('#or-bulk')).toBeHidden();
+  await expect(page.locator('#or-grid .nx-grid-bulk')).toBeHidden();
   // One row: its details
   await rows.nth(0).locator('input[type="checkbox"]').check();
   await expect(page.locator('#or-detail-title')).toContainText('Order #');
@@ -1442,4 +1442,24 @@ test('the side navigation marks the current page, collapses to a rail and rememb
   await expect.poll(async () => (await nav.boundingBox())!.width).toBeLessThan(wide / 2);
   await nav.getByRole('button', { name: 'Expand menu' }).click();
   await expect.poll(async () => (await nav.boundingBox())!.width).toBeGreaterThan(wide - 4);
+});
+
+test('the orders grid: filter under a heading, hide a column from the Columns menu', async ({ page }) => {
+  await page.goto('/#/orders');
+  const grid = page.locator('#or-grid');
+  const rows = grid.locator('tbody tr');
+  const before = await rows.count();
+  await grid.locator('[data-filter="customer"]').fill('globex');
+  await expect.poll(() => rows.count()).toBeLessThan(before);
+  await expect(grid.locator('[data-filter="customer"]')).toBeFocused();
+  await grid.locator('[data-filter="customer"]').fill('');
+  await grid.locator('[data-filter="status"]').selectOption('pending');
+  await expect.poll(() => rows.count()).toBeLessThan(before);
+  await expect(grid.locator('tbody tr td:nth-child(5)').first()).toContainText('pending');
+  await grid.getByRole('button', { name: 'Columns' }).click();
+  await grid.getByRole('checkbox', { name: 'Placed' }).uncheck();
+  await expect(grid.locator('th[data-field="placed"]')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await expect(grid.locator('th[data-field="placed"]')).toHaveCount(0);
 });

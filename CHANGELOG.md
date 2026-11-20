@@ -2,6 +2,13 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## 0.15.0 - 2026-11-20
+
+### Added
+- **Grid for admin screens:** `filters` puts a filter under each heading (a text box, or a list for badge and yes/no columns; `filter: false` opts a column out; `setColumnFilter()`, `getColumnFilters()`, `clearFilters()`, event `filter-change`); `columnMenu` adds a "Columns" button that shows and hides columns (`setColumnVisible()`, `getColumnList()`; never the last column; remembered with `stateKey`); and a `bulk` slot holds actions that appear with "N selected" while rows are selected.
+- A store that filters on the server receives the search and every column filter together.
+- **Demo:** the Orders page uses all three.
+
 ## 0.14.0 - 2026-11-20
 
 ### Added

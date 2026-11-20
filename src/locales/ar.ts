@@ -15,6 +15,7 @@ i18n.extend('ar', {
   'pagination.label': 'ترقيم الصفحات', 'pagination.previous': 'الصفحة السابقة', 'pagination.next': 'الصفحة التالية', 'pagination.page': 'صفحة {page}',
   'pagination.status': 'صفحة {page} من {pages}', 'pagination.range': '{from}–{to} من {total}', 'pagination.perPage': 'عدد الصفوف في الصفحة',
   'nav.collapse': 'طي القائمة', 'nav.expand': 'توسيع القائمة',
+  'grid.columns': 'الأعمدة', 'grid.filter': 'تصفية', 'grid.filterColumn': 'تصفية {label}', 'grid.all': 'الكل', 'grid.bulkActions': 'إجراءات للصفوف المحددة', 'grid.selectedCount': '{count} محدد',
   'stat.up': 'ارتفاع', 'stat.down': 'انخفاض', 'stat.flat': 'دون تغيير',
   'list.empty': 'لا شيء للعرض', 'list.moved': 'تم نقل {item} إلى الموضع {to} من {total}', 'list.drag': 'اسحب لإعادة الترتيب',
   'upload.drop': 'أسقط الملفات هنا أو انقر للاختيار', 'upload.dropOne': 'أسقط ملفًا هنا أو انقر للاختيار', 'upload.release': 'حرّر للإضافة', 'upload.remove': 'إزالة {name}',

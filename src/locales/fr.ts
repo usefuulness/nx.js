@@ -15,6 +15,7 @@ i18n.extend('fr', {
   'pagination.label': 'Pagination', 'pagination.previous': 'Page précédente', 'pagination.next': 'Page suivante', 'pagination.page': 'Page {page}',
   'pagination.status': 'Page {page} sur {pages}', 'pagination.range': '{from}–{to} sur {total}', 'pagination.perPage': 'Lignes par page',
   'nav.collapse': 'Réduire le menu', 'nav.expand': 'Développer le menu',
+  'grid.columns': 'Colonnes', 'grid.filter': 'Filtrer', 'grid.filterColumn': 'Filtrer {label}', 'grid.all': 'Tous', 'grid.bulkActions': 'Actions sur les lignes sélectionnées', 'grid.selectedCount': '{count} sélectionnées',
   'stat.up': 'en hausse', 'stat.down': 'en baisse', 'stat.flat': 'inchangé',
   'list.empty': 'Rien à afficher', 'list.moved': '{item} déplacé à la position {to} sur {total}', 'list.drag': 'Glisser pour réorganiser',
   'upload.drop': 'Déposez des fichiers ici ou cliquez pour choisir', 'upload.dropOne': 'Déposez un fichier ici ou cliquez pour choisir', 'upload.release': 'Relâchez pour ajouter', 'upload.remove': 'Retirer {name}',
