@@ -464,7 +464,7 @@ test('Export Excel downloads a real .xlsx of the rows the grid shows', async ({ 
   await page.locator('#users-grid .nx-grid-search input').fill('ada');
   await expect(page.locator('#users-grid tbody tr')).toHaveCount(3);
 
-  await page.locator('nx-menu').first().click();
+  await page.locator('nx-menu:not(#user-menu)').first().click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('menuitem', { name: 'Export Excel' }).click()
