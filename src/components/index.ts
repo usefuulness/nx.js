@@ -35,6 +35,7 @@ import '@/components/ui/tabpanel';
 import '@/components/ui/toast';
 import '@/components/ui/toolbar';
 import '@/components/ui/tree';
+import '@/components/ui/list';
 
 // Forms
 import '@/components/ui/form';

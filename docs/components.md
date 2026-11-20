@@ -33,6 +33,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-form>`](#nx-form) | `Form` | Form container: collects values from named fields, validates, and fires `submit`. Works with nx fields and plain `<input>`/`<select>`/`<textarea>` elements. |
 | [`<nx-grid>`](#nx-grid) | `DataGrid` | Data grid: sorting, search, selection, paging, row virtualization, column resize/reorder/pinning, cell editing, grouping with summaries, tree rows, store binding. |
 | [`<nx-input>`](#nx-input) | `Input` | `<nx-input>`: the HTML name matching `<Input>` in JSX. |
+| [`<nx-list>`](#nx-list) | `List` | Listbox bound to an array or a store: your own item template, single or multiple selection, type-ahead, and items that can be reordered with the mouse or the keyboard (Alt+↑ / Alt+↓, announced as they move). A store with sorters or grouping has no order of its own, so its items stay put. |
 | [`<nx-loader>`](#nx-loader) | — | Loading indicator, optionally covering its container or the whole page. |
 | [`<nx-menu>`](#nx-menu) | `Menu` | A trigger button with a dropdown menu. |
 | [`<nx-menubar>`](#nx-menubar) | `MenuBar` | Application menu bar (File / Edit / View …). Once a menu is open, hovering or arrowing to a neighbour switches menus, like a desktop app. |
@@ -520,6 +521,28 @@ Data grid: sorting, search, selection, paging, row virtualization, column resize
 | `step` | `step` | `string \| number` | Increment between allowed values |
 | `type` | `type` | `number` `text` `email` `password` `tel` `url` `search` `date` `time` `datetime-local` | Input type: `text`, `email`, `password`, `number`, `date`, `search`… |
 | `value` | `value` | `string \| number` | Current value |
+
+## nx-list
+
+`<nx-list>` · JSX: `<List>` · [source](../src/components/ui/list.tsx)
+
+Listbox bound to an array or a store: your own item template, single or multiple selection, type-ahead, and items that can be reordered with the mouse or the keyboard (Alt+↑ / Alt+↓, announced as they move). A store with sorters or grouping has no order of its own, so its items stay put.
+
+| Attribute | JSX prop | Values | Description |
+| --- | --- | --- | --- |
+| `description-field` | `descriptionField` | `string` | Property shown under the text |
+| `empty-text` | `emptyText` | `string` | Shown when there are no items |
+| `field` | `field` | `string` | Property shown as the item's text (default `text`, then `name`, then `title`, then `label`) |
+| `icon-field` | `iconField` | `string` | Property naming an icon before the text |
+| `id-field` | `idField` | `string` | Property that identifies an item (default `id`; items without one are told apart by position) |
+| `label` | `label` | `string` | Accessible name |
+| `layout` | `layout` | `list` `cards` | Lay items out as a grid of cards |
+| `multi-select` | `multiSelect` | `boolean` | Select several items (Ctrl/⌘ and Shift, or Space to toggle) |
+| `reorderable` | `reorderable` | `boolean` | Items can be moved: drag the grip, or Alt+↑ / Alt+↓ |
+| `selectable` | `selectable` | `boolean` | Items can be selected (default) |
+| `store` | `store` |  | …or a Store instance / registered store name; the list follows it |
+
+**Events:** `select`, `reorder`
 
 ## nx-loader
 

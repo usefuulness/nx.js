@@ -1367,4 +1367,25 @@ test.describe('dashboard insights', () => {
     await page.locator('#dash-calendar').getByRole('button', { name: /June 17, 2026/ }).click();
     await expect(page.locator('#dash-calendar').locator('.ev-title')).toHaveText('Release 2.4');
   });
+
+  test('the weekly list reorders with the keyboard and with the mouse', async ({ page }) => {
+    await page.goto('/#/');
+    const list = page.locator('#dash-priorities');
+    const titles = () => list.locator('.item .text').allTextContents();
+    await expect.poll(titles).toEqual(['Send the Q2 invoices', 'Review the pricing proposal', 'Fix the failing ledger webhook', 'Renew the Acme contract']);
+    await list.locator('.item').first().focus();
+    await page.keyboard.press('Alt+ArrowDown');
+    await expect.poll(titles).toEqual(['Review the pricing proposal', 'Send the Q2 invoices', 'Fix the failing ledger webhook', 'Renew the Acme contract']);
+    await expect(list.locator('[role="status"]')).toHaveText('Send the Q2 invoices moved to position 2 of 4');
+    await expect(list.locator('.item:focus')).toContainText('Send the Q2 invoices');
+    // Drag the last item's grip up above the second one
+    const grip = await list.locator('.item .grip').nth(3).boundingBox();
+    const target = await list.locator('.item').nth(1).boundingBox();
+    await page.mouse.move(grip!.x + grip!.width / 2, grip!.y + grip!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(target!.x + 40, target!.y + 4, { steps: 8 });
+    await expect(list.locator('.drop-before')).toHaveCount(1);
+    await page.mouse.up();
+    await expect.poll(titles).toEqual(['Review the pricing proposal', 'Renew the Acme contract', 'Send the Q2 invoices', 'Fix the failing ledger webhook']);
+  });
 });

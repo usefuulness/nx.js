@@ -88,6 +88,8 @@ export class ComponentRegistry {
     this.alias('tabpanel', 'nx-tabpanel');
     this.alias('toolbar', 'nx-toolbar');
     this.alias('tree', 'nx-tree');
+    this.alias('list', 'nx-list');
+    this.alias('dataview', 'nx-list');
     this.alias('treepanel', 'nx-tree');
     this.alias('accordion', 'nx-accordion');
     this.alias('drawer', 'nx-drawer');

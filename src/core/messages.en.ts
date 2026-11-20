@@ -63,6 +63,11 @@ export const en: Messages = {
   'pagination.range': '{from}–{to} of {total}',
   'pagination.perPage': 'Rows per page',
 
+  // List
+  'list.empty': 'Nothing to show',
+  'list.moved': '{item} moved to position {to} of {total}',
+  'list.drag': 'Drag to reorder',
+
   // Chat
   'chat.label': 'Conversation',
   'chat.inputLabel': 'Write a message',

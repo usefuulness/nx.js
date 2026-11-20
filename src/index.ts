@@ -129,6 +129,8 @@ export type { TabConfig } from '@/components/ui/tabpanel';
 export { NXToast, toast } from '@/components/ui/toast';
 export type { ToastOptions, ToastType } from '@/components/ui/toast';
 export { NXToolbar } from '@/components/ui/toolbar';
+export { NXList } from '@/components/ui/list';
+export type { ListConfig } from '@/components/ui/list';
 export { NXTree } from '@/components/ui/tree';
 export type { TreeNode } from '@/components/ui/tree';
 

@@ -18,6 +18,7 @@ const paths: Record<string, string> = {
   'chevron-right': '<path d="m9 18 6-6-6-6"/>',
   'arrow-right': '<path d="M5 12h14M12 5l7 7-7 7"/>',
   'arrow-left': '<path d="M19 12H5M12 19l-7-7 7-7"/>',
+  'grip-vertical': '<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>',
   'more': '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
   'external': '<path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
 

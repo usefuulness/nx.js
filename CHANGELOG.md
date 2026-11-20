@@ -2,6 +2,13 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## 0.12.0 - 2026-11-20
+
+### Added
+- **`<nx-list>`** (`nx.js/components/list`): a listbox bound to an array or a store, with your own item template (or `field`, `descriptionField`, `iconField`), single or multiple selection (Ctrl/⌘, Shift, Ctrl+A), type-ahead, a card layout, and items that can be reordered by dragging the grip or with Alt+↑ / Alt+↓, with the new position announced. Events `select` and `reorder`. A store with sorters or grouping keeps its order and shows no grips.
+- `Store.move(from, to)` and a `move` event; a list bound to a store reorders the store itself.
+- The demo dashboard has a reorderable "This week" list; the landing page and the static example show the list too.
+
 ## 0.11.0 - 2026-11-19
 
 ### Added

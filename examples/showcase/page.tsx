@@ -8,7 +8,7 @@
 import {
   NX, Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardFooter, Checkbox, Combobox,
   Command, DataGrid, DatePicker, Dialog, DialogFooter, Drawer, DrawerFooter, Form, Input, Menu, MenuBar, Popover,
-  PopoverTrigger, Calendar, OtpInput, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
+  PopoverTrigger, Calendar, OtpInput, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, List, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
   type CommandItem, type Child, type NXChat
 } from 'nx.js';
 
@@ -388,6 +388,13 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
                 { field: 'status', header: 'Status', width: 110 },
                 { field: 'duration', header: 'Duration', width: 110, align: 'right' },
                 { field: 'commit', header: 'Commit', width: 110 }
+              ]} />
+            </Specimen>
+
+            <Specimen tag="nx-list">
+              <List label="Release checklist" reorderable multiSelect field="title" descriptionField="owner" data={[
+                { id: 1, title: 'Freeze the branch', owner: 'Ada' }, { id: 2, title: 'Run the end-to-end suite', owner: 'Grace' },
+                { id: 3, title: 'Write the changelog', owner: 'Linus' }, { id: 4, title: 'Tag and publish', owner: 'Margaret' }
               ]} />
             </Specimen>
 

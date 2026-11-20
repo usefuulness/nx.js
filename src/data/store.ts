@@ -553,6 +553,20 @@ export class Store<T extends Record<string, any> = any> extends EventEmitter {
     return added;
   }
 
+  /** Move a shown record to another position. Only a store with no sorters has an order of its own to change. */
+  move(from: number, to: number): boolean {
+    if (this.sorters.length > 0 || this.groupField) return false;
+    const record = this.records[from];
+    if (!record || to < 0 || to >= this.records.length || from === to) return false;
+    const target = this.records[to];
+    this.source.splice(this.source.indexOf(record), 1);
+    this.source.splice(this.source.indexOf(target) + (to > from ? 1 : 0), 0, record);
+    this.applyState();
+    this.emit('move', { record, from, to });
+    this.emit('datachanged', { records: this.records });
+    return true;
+  }
+
   /** Remove the record at a position among the shown ones */
   removeAt(index: number): void {
     const record = this.records[index];
