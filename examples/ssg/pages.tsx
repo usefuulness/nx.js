@@ -6,7 +6,7 @@
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
   Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Chart, Calendar, OtpInput, Timeline, TimelineItem, Rating, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
-  List, Nav, Stat, PageHeader, Empty, Descriptions, Sidebar, Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
+  List, Nav, Notifications, Stat, PageHeader, Empty, Descriptions, Sidebar, Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
 
 type Openable = HTMLElement & { open(): void; close(): void };
@@ -214,6 +214,13 @@ export const Components = () => (
     </Card>
 
     <Grid minColumnWidth="18rem" gap={16}>
+      <Panel title="Notifications">
+        <Notifications label="Notifications" data={[
+          { id: 1, title: 'Invoice #3052 paid', description: 'Acme Corp paid $2,400.', time: new Date(Date.now() - 6 * 60000), icon: 'success', tone: 'success' },
+          { id: 2, title: 'Webhook failing', time: new Date(Date.now() - 3 * 3600000), icon: 'error', tone: 'error' },
+          { id: 3, title: 'Workspace created', read: true }
+        ]} />
+      </Panel>
       <Panel title="Navigation">
         <Nav label="Sections" value="orders" data={[
           { id: 'home', text: 'Dashboard', icon: 'dashboard', href: '#' },

@@ -111,6 +111,7 @@ export const OrdersPage = ({ Page }: { Page: (props: any) => any }) => {
             filters
             columnMenu
             stateKey="demo-orders"
+            savedViews
             striped
             columns={[
               { field: 'id', header: 'Order', width: 90, sortable: true },

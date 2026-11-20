@@ -68,7 +68,7 @@ export { Format, debounce, throttle, startTask, stopAllTasks } from '@/core/util
 export type { Cancelable, Task, TaskConfig } from '@/core/util';
 export type { StoreConfig, StoreRecord, ProxyConfig, Sorter, Filter } from '@/data/store';
 export { NXGrid, NXDataTable } from '@/data/grid';
-export type { GridColumn, GridConfig, BadgeTone } from '@/data/grid';
+export type { GridColumn, GridConfig, GridView, BadgeTone } from '@/data/grid';
 
 // Layout
 export { NXContainer, NXSpacer, NXSeparator, NXDivider } from '@/layout/container';
@@ -137,6 +137,8 @@ export { NXEmpty } from '@/components/ui/empty';
 export type { EmptyConfig } from '@/components/ui/empty';
 export { NXDescriptions } from '@/components/ui/descriptions';
 export type { DescriptionsConfig, DescriptionItem } from '@/components/ui/descriptions';
+export { NXNotifications } from '@/components/ui/notifications';
+export type { NotificationsConfig, NotificationItem } from '@/components/ui/notifications';
 export { NXNav } from '@/components/ui/nav';
 export type { NavConfig, NavItem } from '@/components/ui/nav';
 export { NXList } from '@/components/ui/list';

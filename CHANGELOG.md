@@ -2,6 +2,13 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## 0.16.0 - 2026-11-20
+
+### Added
+- **`<nx-notifications>`** (`nx.js/components/notifications`): a bell whose name includes the unread count, and a panel of notifications (unread said in text, relative times, links, "Mark all as read"); `add()` announces a new one; `markRead()`, `markAllRead()`, `clear()`; events `select`, `read`, `clear`.
+- **Saved grid views:** `savedViews` adds a Views button to save the search, filters, sort and columns under a name and return to them (kept under `stateKey`); `getView()` / `setView()` / `getSavedViews()` / `saveView()` / `deleteView()`; events `view-change`, `views-change`.
+- **Demo:** a notifications bell and an account menu in the header; saved views on the Orders grid.
+
 ## 0.15.0 - 2026-11-20
 
 ### Added
