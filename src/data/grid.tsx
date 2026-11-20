@@ -7,10 +7,10 @@ import { BaseComponent } from '@/components/abstracts/base';
 import type { Child } from '@/jsx/jsx-runtime';
 import { define } from '@/core/registry';
 import { Icons } from '@/core/icons';
-import { keepInView } from '@/core/position';
+import { keepInView, place, showTopLayer } from '@/core/position';
 import { escapeHTML, MIRROR_CSS } from '@/core/dom-utils';
 import type { XlsxCell } from '@/core/xlsx';
-import { Store } from '@/data/store';
+import { Store, type Filter } from '@/data/store';
 import { StateProvider } from '@/core/state';
 
 /** Where column widths and order are remembered: under the key the app gave, with nothing added to it */
@@ -30,6 +30,8 @@ export interface GridColumn<T = any> {
   /** Defaults to true */
   sortable?: boolean;
   hidden?: boolean;
+  /** Set `false` to leave this column out of the filter row */
+  filter?: boolean;
   /**
    * Let users edit this column's cells: focus a cell, then press Enter, F2 or double-click.
    * Enter saves, Escape cancels, Tab saves and moves on. A function decides per row.
@@ -78,6 +80,10 @@ export interface GridConfig<T extends Record<string, any> = any> {
   title?: string;
   /** Show a search box that filters across all visible columns */
   search?: boolean;
+  /** A filter under each column heading: a text box, or a list for badge and yes/no columns (a column opts out with `filter: false`) */
+  filters?: boolean;
+  /** A "Columns" button that shows and hides columns (remembered with `stateKey`) */
+  columnMenu?: boolean;
   /** Alternate row shading */
   striped?: boolean;
   /** Highlight the row under the pointer */
@@ -200,7 +206,7 @@ const isNumeric = (col: GridColumn): boolean =>
 export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   static get observedAttributes(): string[] {
     return [
-      'title', 'search', 'striped', 'hoverable', 'dense', 'bordered',
+      'title', 'search', 'filters', 'column-menu', 'striped', 'hoverable', 'dense', 'bordered',
       'selectable', 'checkbox-selection', 'page-size', 'empty-text', 'store', 'virtual', 'row-height', 'height', 'resizable', 'reorderable', 'state-key', 'group-by', 'group-collapsed', 'tree', 'children-field', 'tree-column', 'tree-expanded'
     ];
   }
@@ -213,6 +219,9 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   private sortField: string | null = null;
   private sortDirection: 'asc' | 'desc' = 'asc';
   private query = '';
+  private hiddenFields = new Set<string>();
+  private colFilters = new Map<string, string>();
+  private menuClosedAt = 0;
   private page = 1;
   private scrollFrame = 0;
   private searchTimer = 0;
@@ -290,6 +299,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
 
   protected afterRender(): void {
     this.syncHandleValues();
+    this.syncBulk();
   }
 
   protected cleanup(): void {
@@ -309,8 +319,39 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     // A tree: every node that matches, parents first, whether or not its parent is expanded
     if (this.isTree()) return this.flattenTree(this.buildTree(this.rows, 0, null), true).map(node => node.row);
     // A store whose server filters or sorts has done that already: its rows are the ones to show, in its order
-    const matched = this.query && !this.store?.isRemoteFilter() ? this.rows.filter(row => this.matchesQuery(row)) : this.rows;
+    const local = !this.store?.isRemoteFilter();
+    let matched = this.query && local ? this.rows.filter(row => this.matchesQuery(row)) : this.rows;
+    if (this.colFilters.size && local) matched = matched.filter(row => this.matchesColumnFilters(row));
     return this.store?.isRemoteSort() ? matched : this.sortRows(matched);
+  }
+
+  private matchesColumnFilters(row: T): boolean {
+    for (const [field, wanted] of this.colFilters) {
+      const col = this.columns.find(c => String(c.field) === field);
+      const value = this.value(row, field);
+      if (col?.type === 'boolean') { if (String(!!value) !== wanted) return false; }
+      else if (col?.type === 'badge') { if (String(value ?? '') !== wanted) return false; }
+      else if (!String(value ?? '').toLowerCase().includes(wanted.toLowerCase())) return false;
+    }
+    return true;
+  }
+
+  /** Give the store the search and the column filters (the search alone goes as the one filter it always was). */
+  private sendFilters(): void {
+    const filters = this.remoteFilters();
+    this.store?.filter(filters.length === 1 && filters[0].property === '*' ? filters[0] : filters);
+  }
+
+  /** What a server should filter by: the search box, and each column filter. */
+  private remoteFilters(): Filter[] {
+    const filters: Filter[] = [];
+    if (this.query) filters.push({ property: '*', value: this.query, operator: 'like' });
+    for (const [field, value] of this.colFilters) {
+      const col = this.columns.find(c => String(c.field) === field);
+      const exact = col?.type === 'boolean' || col?.type === 'badge';
+      filters.push({ property: field, value: col?.type === 'boolean' ? value === 'true' : value, operator: exact ? 'eq' : 'like' });
+    }
+    return filters;
   }
 
   private matchesQuery(row: T): boolean {
@@ -379,14 +420,36 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       clearTimeout(this.searchTimer);
       this.searchTimer = setTimeout(() => {
         (this.$('.nx-grid-body') as HTMLElement | null)?.scrollTo?.(0, 0);
-        this.store?.filter(query ? { property: '*', value: query, operator: 'like' } : []);
+        this.sendFilters();
       }, 250) as unknown as number;
       return;
     }
     this.refresh();
   }
 
+  /** Filter one column (the same as typing in its filter box). An empty value removes the filter. */
+  setColumnFilter(field: string, value: string): void {
+    if (value === '' || value == null) this.colFilters.delete(field); else this.colFilters.set(field, String(value));
+    this.page = 1;
+    if (this.isBuffered() || this.store?.isRemoteFilter()) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => {
+        (this.$('.nx-grid-body') as HTMLElement | null)?.scrollTo?.(0, 0);
+        this.sendFilters();
+      }, 250) as unknown as number;
+      return;
+    }
+    this.refresh();
+    this.emit('filter-change', { filters: Object.fromEntries(this.colFilters) });
+  }
+
+  getColumnFilters(): Record<string, string> {
+    return Object.fromEntries(this.colFilters);
+  }
+
+  /** Remove the search and every column filter. */
   clearFilters(): void {
+    this.colFilters.clear();
     this.setFilter('');
   }
 
@@ -404,12 +467,44 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     }
     const scrollTop = body.scrollTop;
     const scrollLeft = body.scrollLeft;
+    // A filter box being typed in keeps focus and caret across the redraw
+    const typing = this.shadowRoot?.activeElement as HTMLInputElement | null;
+    const typingField = typing?.dataset?.filter;
+    const caret = typing?.selectionStart ?? null;
     body.replaceChildren(this.renderTable());
+    if (typingField) {
+      const again = Array.from(this.$$('[data-filter]')).find(el => (el as HTMLElement).dataset.filter === typingField) as HTMLInputElement | undefined;
+      again?.focus();
+      if (caret !== null && again?.setSelectionRange) try { again.setSelectionRange(caret, caret); } catch { /* not a text box */ }
+    }
     // Replacing the table collapses the scroller for a moment, which resets it
     if (scrollTop) body.scrollTop = scrollTop;
     if (scrollLeft) body.scrollLeft = scrollLeft;
     this.$('.nx-grid-footer')?.replaceWith(this.renderFooter());
     this.syncHandleValues();
+    this.syncBulk();
+  }
+
+  /** The bar of bulk actions (slot `bulk`) shows while rows are selected, with how many. */
+  private syncBulk(): void {
+    const bar = this.$('.nx-grid-bulk') as HTMLElement | null;
+    if (!bar) return;
+    const count = this.selected.size;
+    bar.hidden = count === 0;
+    const label = bar.querySelector('.bulk-count');
+    if (label) label.textContent = count ? this.t('grid.selectedCount', { count }) : '';
+  }
+
+  private syncColumnMenu(): void {
+    const panel = this.$('.col-menu');
+    if (!panel) return;
+    const visible = this.visibleColumns().length;
+    panel.querySelectorAll('input[type=checkbox]').forEach(el => {
+      const input = el as HTMLInputElement;
+      const showing = !this.hiddenFields.has(input.dataset.field!);
+      input.checked = showing;
+      input.disabled = showing && visible <= 1;
+    });
   }
 
   /**
@@ -523,7 +618,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     this.loadState();
     const rank = (c: GridColumn<T>) => this.order.indexOf(String(c.field));
     const cols = this.columns
-      .filter(col => !col.hidden)
+      .filter(col => !col.hidden && !this.hiddenFields.has(String(col.field)))
       .map((col, i) => ({ col, i }))
       .sort((a, b) => {
         // Pinned first, then the user's order (unknown fields keep their place), then config order
@@ -552,24 +647,45 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
     const key = this.storageKey();
     if (!key) return;
     try {
-      const saved = layoutState.get<{ widths?: Record<string, number>; order?: unknown[] } | null>(key, null);
+      const saved = layoutState.get<{ widths?: Record<string, number>; order?: unknown[]; hidden?: unknown[] } | null>(key, null);
       if (saved?.widths) this.widths = new Map(Object.entries(saved.widths).map(([k, v]) => [k, Number(v)]));
       if (Array.isArray(saved?.order)) this.order = saved.order.map(String);
+      if (Array.isArray(saved?.hidden)) this.hiddenFields = new Set(saved.hidden.map(String));
     } catch {
       // Storage blocked or corrupt: fall back to the configured columns
     }
   }
 
   /** Current widths (px) and order of the columns, as saved under `state-key`. */
-  getColumnState(): { widths: Record<string, number>; order: string[] } {
-    return { widths: Object.fromEntries(this.widths), order: this.visibleColumns().map(c => String(c.field)) };
+  getColumnState(): { widths: Record<string, number>; order: string[]; hidden: string[] } {
+    return { widths: Object.fromEntries(this.widths), order: this.visibleColumns().map(c => String(c.field)), hidden: [...this.hiddenFields] };
   }
 
-  setColumnState(state: { widths?: Record<string, number>; order?: string[] }): void {
+  setColumnState(state: { widths?: Record<string, number>; order?: string[]; hidden?: string[] }): void {
     this.stateLoaded = true;
+    this.hiddenFields = new Set((state.hidden ?? []).map(String));
     this.widths = new Map(Object.entries(state.widths ?? {}).map(([k, v]) => [k, Number(v)]));
     this.order = (state.order ?? []).map(String);
     this.columnsChanged(false);
+  }
+
+  /** Show or hide a column (the last one showing cannot be hidden). Remembered with `state-key`. */
+  setColumnVisible(field: string, visible: boolean): void {
+    this.loadState();
+    if (!visible) {
+      if (this.visibleColumns().length <= 1) return;
+      this.hiddenFields.add(field);
+    } else {
+      this.hiddenFields.delete(field);
+    }
+    this.columnsChanged();
+    this.syncColumnMenu();
+  }
+
+  /** The columns a user can show and hide, and whether each is showing. */
+  getColumnList(): Array<{ field: string; text: string; visible: boolean }> {
+    this.loadState();
+    return this.columns.filter(c => !c.hidden).map(c => ({ field: String(c.field), text: this.headerText(c), visible: !this.hiddenFields.has(String(c.field)) }));
   }
 
   /** Back to the configured widths and order. */
@@ -1240,7 +1356,9 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
   protected render(): Node {
     const title = this.getProp<string>('title');
     const search = this.getProp('search', false);
-    const hasToolbar = title || search || this.querySelector(':scope > [slot="toolbar"]');
+    const columnMenu = this.getProp('column-menu', false);
+    const hasBulk = !!this.querySelector(':scope > [slot="bulk"]');
+    const hasToolbar = title || search || columnMenu || hasBulk || this.querySelector(':scope > [slot="toolbar"]');
 
     return (
       <div part="grid" class={['nx-grid', { bordered: this.getProp('bordered', true), dense: this.getProp('dense', false), virtual: this.isVirtual() }]}
@@ -1260,6 +1378,11 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
           <div class="nx-grid-toolbar" part="toolbar">
             {title && <div class="nx-grid-title" part="title">{title}</div>}
             <slot name="toolbar" />
+            <div class="nx-grid-bulk" part="bulk" hidden role="group" aria-label={this.t('grid.bulkActions')}>
+              <span class="bulk-count" role="status" />
+              <slot name="bulk" />
+            </div>
+            {columnMenu && this.renderColumnMenu()}
             {search && (
               <label class="nx-grid-search">
                 <span html={Icons.get('search')} />
@@ -1272,6 +1395,76 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
         <div class="nx-grid-body" part="body" style={this.bodyStyle()} onScroll={() => this.onBodyScroll()}>{this.renderTable()}</div>
         {this.renderFooter()}
       </div>
+    );
+  }
+
+  private renderColumnMenu(): Node {
+    const visible = this.visibleColumns().length;
+    return (
+      <div class="nx-grid-colmenu">
+        <button type="button" class="col-button" part="column-button" aria-haspopup="true" aria-expanded="false"
+                onClick={(e: MouseEvent) => {
+                  const button = e.currentTarget as HTMLElement;
+                  const panel = this.$('.col-menu') as HTMLElement;
+                  if (Date.now() - this.menuClosedAt < 200) return; // the same click that light-dismissed it
+                  showTopLayer(panel, 'auto');
+                  place(panel, button, 'bottom-end');
+                }}>
+          <span html={Icons.get('columns') || Icons.get('menu')} aria-hidden="true" />
+          {this.t('grid.columns')}
+        </button>
+        <div class="col-menu" part="column-menu" popover="auto" role="group" aria-label={this.t('grid.columns')}
+             onToggle={(e: Event) => {
+               const open = (e as ToggleEvent).newState === 'open';
+               this.$('.col-button')?.setAttribute('aria-expanded', String(open));
+               if (!open) this.menuClosedAt = Date.now();
+             }}>
+          {this.columns.filter(c => !c.hidden).map(col => {
+            const field = String(col.field);
+            const showing = !this.hiddenFields.has(field);
+            return (
+              <label class="col-item">
+                <input type="checkbox" data-field={field} checked={showing} disabled={showing && visible <= 1}
+                       onChange={(e: Event) => this.setColumnVisible(field, (e.target as HTMLInputElement).checked)} />
+                <span>{this.headerText(col)}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  /** The row of filter boxes under the headings. */
+  private renderFilterRow(cols: GridColumn<T>[], checkbox: boolean, anyPinned: boolean, offsets: Map<string, number>): Node {
+    return (
+      <tr class="filters" part="filters">
+        {checkbox && <th class={['check', { pinned: anyPinned }]} style={anyPinned ? { '--nx-pin': '0px' } : undefined} />}
+        {cols.map(col => {
+          const field = String(col.field);
+          const left = offsets.get(field);
+          const label = this.t('grid.filterColumn', { label: this.headerText(col) });
+          const current = this.colFilters.get(field) ?? '';
+          let control: Node | null = null;
+          if (col.filter !== false) {
+            if (col.type === 'boolean' || col.type === 'badge') {
+              const options = col.type === 'boolean'
+                ? [['true', this.t('grid.yes')], ['false', this.t('grid.no')]]
+                : Object.keys(col.badges ?? {}).map(k => [k, k]);
+              control = (
+                <select class="filter" data-filter={field} aria-label={label} onChange={(e: Event) => this.setColumnFilter(field, (e.target as HTMLSelectElement).value)}>
+                  <option value="">{this.t('grid.all')}</option>
+                  {options.map(([value, text]) => <option value={value} selected={value === current}>{text}</option>)}
+                </select>
+              );
+            } else {
+              control = <input class="filter" data-filter={field} type="search" value={current} aria-label={label} placeholder={this.t('grid.filter')}
+                               onInput={(e: Event) => this.setColumnFilter(field, (e.target as HTMLInputElement).value)} />;
+            }
+          }
+          return <th class={[this.align(col), { pinned: left !== undefined }]} style={left !== undefined ? { '--nx-pin': `${left}px` } : undefined}>{control}</th>;
+        })}
+      </tr>
     );
   }
 
@@ -1377,6 +1570,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
               );
             })}
           </tr>
+          {this.getProp('filters', false) && this.renderFilterRow(cols, checkbox, anyPinned, offsets)}
         </thead>
         {this.renderBodyFor(source, cols, virtual)}
         {cols.some(c => c.summary) && this.getVisibleRows().length > 0 && (
@@ -1667,6 +1861,21 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
         letter-spacing: -0.01em;
       }
 
+      .nx-grid-bulk { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.25rem 0.5rem; border-radius: var(--radius-md); background: var(--color-accent); font-size: 0.8125rem; }
+      .nx-grid-bulk[hidden] { display: none; }
+      .bulk-count { font-weight: 600; }
+      .nx-grid-colmenu { position: relative; }
+      .col-button { display: inline-flex; align-items: center; gap: 0.375rem; height: 2.25rem; padding: 0 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-card); color: var(--color-text); font: inherit; font-size: 0.875rem; cursor: pointer; }
+      .col-button:hover { background: var(--color-accent); }
+      .col-button:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+      .col-menu { margin: 0; padding: 0.375rem; min-width: 11rem; max-height: 20rem; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-popover, var(--color-card)); color: var(--color-text); box-shadow: var(--shadow-lg); }
+      .col-menu:popover-open { display: flex; flex-direction: column; }
+      .col-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.875rem; cursor: pointer; }
+      .col-item:hover { background: var(--color-accent); }
+      .col-item input { accent-color: var(--color-primary); }
+      tr.filters th { padding: 0.25rem 0.5rem; font-weight: 400; background: var(--color-card); }
+      .filter { width: 100%; box-sizing: border-box; height: 1.875rem; padding: 0 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-background, var(--color-card)); color: var(--color-text); font: inherit; font-size: 0.8125rem; }
+      .filter:focus-visible { outline: 2px solid var(--color-ring); outline-offset: -1px; }
       .nx-grid-search {
         display: flex;
         align-items: center;

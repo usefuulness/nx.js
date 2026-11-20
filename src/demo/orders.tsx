@@ -28,8 +28,6 @@ export const OrdersPage = ({ Page }: { Page: (props: any) => any }) => {
   let query = '';
   let status = '';
   const grid = { current: null as NXGrid<Order> | null };
-  const bulk = { current: null as HTMLDivElement | null };
-  const bulkCount = { current: null as HTMLSpanElement | null };
   const detail = { current: null as HTMLDivElement | null };
   const figures = { current: null as HTMLDivElement | null };
   let selected: Order[] = [];
@@ -73,7 +71,6 @@ export const OrdersPage = ({ Page }: { Page: (props: any) => any }) => {
     grid.current?.setData(shown());
     paintFigures();
     selected = [];
-    bulk.current?.toggleAttribute('hidden', true);
     paintDetail();
   };
 
@@ -106,16 +103,14 @@ export const OrdersPage = ({ Page }: { Page: (props: any) => any }) => {
             <Select id="or-status" label="Status" options={[{ value: '', text: 'All statuses' }, ...statuses.map(s => ({ value: s, text: s }))]}
                     onChange={(e: CustomEvent) => { status = e.detail?.value ?? (e.target as any).value ?? ''; refresh(); }} />
           </Cluster>
-          <div ref={bulk} id="or-bulk" hidden style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem">
-            <span ref={bulkCount} id="or-bulk-count" role="status" />
-            <Button size="sm" variant="outline" onClick={() => change('shipped')}>Mark shipped</Button>
-            <Button size="sm" variant="outline" onClick={() => change('refunded')}>Refund</Button>
-          </div>
           <DataGrid
             ref={grid}
             id="or-grid"
             data={shown()}
             checkboxSelection
+            filters
+            columnMenu
+            stateKey="demo-orders"
             striped
             columns={[
               { field: 'id', header: 'Order', width: 90, sortable: true },
@@ -125,13 +120,11 @@ export const OrdersPage = ({ Page }: { Page: (props: any) => any }) => {
               { field: 'placed', header: 'Placed', type: 'date', width: 120, sortable: true }
             ]}
             emptyText="No orders match"
-            onSelectionChange={(e: CustomEvent) => {
-              selected = e.detail.selected;
-              bulk.current!.toggleAttribute('hidden', selected.length === 0);
-              bulkCount.current!.textContent = `${selected.length} selected`;
-              paintDetail();
-            }}
-          />
+            onSelectionChange={(e: CustomEvent) => { selected = e.detail.selected; paintDetail(); }}
+          >
+            <Button slot="bulk" size="sm" variant="outline" onClick={() => change('shipped')}>Mark shipped</Button>
+            <Button slot="bulk" size="sm" variant="outline" onClick={() => change('refunded')}>Refund</Button>
+          </DataGrid>
         </VStack>
         <Card title="Details"><div ref={detail} id="or-detail" /></Card>
       </Sidebar>

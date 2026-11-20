@@ -335,8 +335,10 @@ Flex/grid layout box. Children are regular light-DOM elements.
 | `bordered` | `bordered` | `boolean` | Borders between cells |
 | `checkbox-selection` | `checkboxSelection` | `boolean` | A checkbox column for selecting rows |
 | `children-field` | `childrenField` | `string` | The row field holding child rows (default `children`) |
+| `column-menu` | `columnMenu` | `boolean` | A "Columns" button that shows and hides columns (remembered with `stateKey`) |
 | `dense` | `dense` | `boolean` | Compact rows |
 | `empty-text` | `emptyText` | `string` | Shown when there are no rows |
+| `filters` | `filters` | `boolean` | A filter under each column heading: a text box, or a list for badge and yes/no columns (a column opts out with `filter: false`) |
 | `group-by` | `groupBy` | `string` | Group rows by this field: a header per group that collapses (Enter or Space on its button), with the column `summary` totals after each group. With `pageSize`, groups are made per page. Not available with a `buffered` store. |
 | `group-collapsed` | `groupCollapsed` | `boolean` | Start with every group collapsed |
 | `height` | `height` | `string \| number` | Height of the scrolling body, as a CSS size or px number (a `virtual` grid defaults to 24rem) |
@@ -504,8 +506,10 @@ Data grid: sorting, search, selection, paging, row virtualization, column resize
 | `bordered` | `bordered` | `boolean` | Borders between cells |
 | `checkbox-selection` | `checkboxSelection` | `boolean` | A checkbox column for selecting rows |
 | `children-field` | `childrenField` | `string` | The row field holding child rows (default `children`) |
+| `column-menu` | `columnMenu` | `boolean` | A "Columns" button that shows and hides columns (remembered with `stateKey`) |
 | `dense` | `dense` | `boolean` | Compact rows |
 | `empty-text` | `emptyText` | `string` | Shown when there are no rows |
+| `filters` | `filters` | `boolean` | A filter under each column heading: a text box, or a list for badge and yes/no columns (a column opts out with `filter: false`) |
 | `group-by` | `groupBy` | `string` | Group rows by this field: a header per group that collapses (Enter or Space on its button), with the column `summary` totals after each group. With `pageSize`, groups are made per page. Not available with a `buffered` store. |
 | `group-collapsed` | `groupCollapsed` | `boolean` | Start with every group collapsed |
 | `height` | `height` | `string \| number` | Height of the scrolling body, as a CSS size or px number (a `virtual` grid defaults to 24rem) |

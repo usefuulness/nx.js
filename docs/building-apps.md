@@ -120,7 +120,15 @@ Four small components for the screens an admin portal is mostly made of (see the
 - **`<Empty icon title description>`**: an empty state, with actions in the default slot.
 - **`<Descriptions data columns layout>`**: label and value pairs for a record, as a real description list. Values are shown as text, never HTML.
 
-Together with `<DataGrid checkboxSelection>` (its `selection-change` event drives a bulk-action bar) and a `sidebar` layout for the detail panel, that is a full list-and-detail screen.
+Together with a grid and a `sidebar` layout for the detail panel, that is a full list-and-detail screen. The grid has what such a screen needs built in:
+
+```tsx
+<DataGrid columns={…} data={orders} checkboxSelection filters columnMenu stateKey="orders">
+  <Button slot="bulk" size="sm" onClick={archive}>Archive</Button>   {/* shown with "N selected" while rows are selected */}
+</DataGrid>
+```
+
+`filters` adds a filter under each heading (a list for badge and yes/no columns; a column opts out with `filter: false`), `columnMenu` adds a Columns button that shows and hides columns and remembers the choice with `stateKey`, and the `bulk` slot holds actions for the selected rows. With a store that filters on the server, the search and the column filters are sent together.
 
 ## Data grid
 
