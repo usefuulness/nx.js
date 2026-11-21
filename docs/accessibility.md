@@ -39,6 +39,8 @@ Every component is built to work with a keyboard and a screen reader, in every t
 | Tabs | **← → ↑ ↓** select the previous/next tab · **Home End** first/last · **Delete** closes a closable tab |
 | Accordion | **Enter Space** toggle · **↑ ↓** previous/next header · **Home End** first/last |
 | Nav | a `<nav>` of real links, the current one has `aria-current="page"` · **↑ ↓ Home End** move between links (Tab leaves) · groups with sub-items are disclosure buttons with `aria-expanded` · collapsed to a rail, each link keeps its text as its name |
+| Code editor | a labelled text area with its line numbers, position and unsaved mark in a status bar · **Tab** indents, **Shift+Tab** outdents · **Escape**, then **Tab**, leaves the editor (the hint is announced and shown while it has focus) · JSON problems are said with their line and column and block form submission |
+| Property grid | built from the library's own labelled fields in a labelled group · each error is text beside its field · a reference field has a labelled **Choose…** button and a **Clear** button, its problem is announced · locked fields are read-only or disabled, and hidden ones are out of the page |
 | Notifications | the bell's name includes the unread count · the panel is a labelled group (**Escape** closes it, focus returns to the bell) · unread items are marked in text, not only by a dot · a new notification is announced in a live region |
 | Stat | the change is text ("+12.5%" and "up" or "down" for screen readers), not just an arrow and a colour; the trend line is decorative |
 | Page header | the title is a real heading; breadcrumb, badges and actions are your own components in slots |

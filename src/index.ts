@@ -145,6 +145,8 @@ export { NXCodeEditor } from '@/components/ui/form/code-editor';
 export type { CodeEditorConfig } from '@/components/ui/form/code-editor';
 export { registerCodeEngine, registerCodeEngineLoader } from '@/core/code-engine';
 export type { CodeEngine, CodeEngineOptions, CodeEngineFactory, CodeEngineLoader } from '@/core/code-engine';
+export { NXPropertyGrid } from '@/components/ui/property-grid';
+export type { PropertyGridConfig, PropertyField, PropertyType } from '@/components/ui/property-grid';
 export { NXNav } from '@/components/ui/nav';
 export type { NavConfig, NavItem } from '@/components/ui/nav';
 export { NXList } from '@/components/ui/list';

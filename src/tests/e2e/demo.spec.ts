@@ -1522,3 +1522,62 @@ test('the Columns and Views panels and the bell open under their buttons, with a
   await page.goto('/#/');
   await check(page.locator('#bell').getByRole('button', { name: /Notifications/ }), page.locator('#bell .panel'), 'end');
 });
+
+test('the Developer page: the code editor keeps keyboard focus rules and shows unsaved changes', async ({ page }) => {
+  await page.goto('/#/developer');
+  const editor = page.locator('#script-editor');
+  const area = editor.locator('textarea.code');
+  await expect(editor.locator('.gutter')).toContainText('1');
+  await expect(page.locator('#script-status')).toHaveText('Saved');
+  await area.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('x');
+  await expect(page.locator('#script-status')).toHaveText('Not saved');
+  await expect(editor.locator('.dirty')).toHaveText('Unsaved changes');
+  // Tab indents (real undo stack), and the cursor position is shown
+  await page.keyboard.press('Tab');
+  await expect(area).toHaveValue(/x {2}$/);
+  await expect(editor.locator('.pos')).toContainText('Line');
+  // Escape, then Tab, leaves the editor
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Tab');
+  await expect(area).not.toBeFocused();
+  await page.locator('#script-save').click();
+  await expect(page.locator('#script-status')).toHaveText('Saved');
+  await expect(editor.locator('.dirty')).toHaveText('');
+  // Undo works as in any text area
+  await area.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('abc');
+  await page.keyboard.press('Control+z');
+  await expect(area).not.toHaveValue(/abc$/);
+});
+
+test('the Developer page: the property grid checks fields, hides and locks with the others, and shows the server\'s complaint', async ({ page }) => {
+  await page.goto('/#/developer');
+  const grid = page.locator('#job-grid');
+  const name = grid.locator('[data-name="name"] input');
+  await name.fill('');
+  await page.locator('#job-save').click();
+  await expect(grid.locator('[data-name="name"] nx-input')).toHaveAttribute('error-text', 'This field is required');
+  await name.fill('taken');
+  await page.locator('#job-save').click();
+  await expect(grid.locator('[data-name="name"] nx-input')).toHaveAttribute('error-text', 'A job with this name already exists');
+  await name.fill('Other name');
+  await expect(grid.locator('[data-name="name"] nx-input')).not.toHaveAttribute('error-text', /.+/);
+  // Kind "on demand" hides the schedule
+  await expect(grid.locator('[data-name="schedule"]')).toBeVisible();
+  await grid.locator('[data-name="kind"] select').selectOption('on demand');
+  await expect(grid.locator('[data-name="schedule"]')).toBeHidden();
+  // A reference is chosen with your own picker
+  await grid.getByRole('button', { name: 'Choose…' }).click();
+  // The prompt's field is slotted into the dialog, so it is found from the page, not from the dialog role
+  await page.locator('nx-modal input').fill('scripts/other.groovy');
+  await page.keyboard.press('Enter');
+  await expect(grid.locator('.ref-text')).toHaveText('scripts/other.groovy');
+  // Invalid JSON in a settings field says where
+  const json = grid.locator('[data-name="settings"] textarea.code');
+  await json.fill('{"a": }');
+  await page.locator('#job-save').click();
+  await expect(grid.locator('[data-name="settings"] nx-code-editor')).toHaveAttribute('error-text', /Not valid JSON/);
+});

@@ -2,6 +2,18 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## 0.17.0 - 2026-11-21
+
+### Added
+- **`<nx-code-editor>`** (`nx.js/components/code-editor`): a code editor that is a form field. The built-in editor has line numbers, Tab and Shift+Tab indentation, auto-indent, the cursor position, JSON checking with line and column, `format()`, and an "Unsaved changes" mark (`isDirty()`, `markClean()`, `revert()`, `dirty-change`); Escape then Tab leaves it, so a keyboard user is never trapped. **Engines:** `registerCodeEngine()` and `registerCodeEngineLoader()` put a richer editor (Ace, CodeMirror, Monaco) behind a small contract, loaded only when an editor asks for it, with an explicit mount, resize, focus and dispose lifecycle; a failed engine leaves the built-in editor in place. No adapter is shipped.
+- **`<nx-property-grid>`** (`nx.js/components/property-grid`): a typed editor for an object, built from a schema: text, password, number, boolean, select, date, textarea, JSON, code and `reference` (a value chosen with your own picker) fields; `required`, `min`, `max`, `pattern` and `validate(value, values)`; `readonly` and `hidden` as functions of the other values; groups; `validate()`, `setErrors()` for a server's complaints, dirty tracking.
+- **Server errors:** `parseApiError()` reads Spring Boot, Spring Data REST, RFC 7807 and plain error answers into a message and field complaints; `AjaxError` carries `fields` and `info`; a refused `Model.save()` or `erase()` keeps `serverErrors`, which editing a field clears. The error message is what the server said, not only `message`.
+- **HAL for Spring-style servers:** several sorters are sent as repeated `sort`; `filterMap` and `filterVariables` map store filters to template variables, and the store asks the server to filter when they apply.
+- **Demo:** a Developer page with both editors; the guide `docs/editors.md`.
+
+### Fixed
+- A switch with only a label was 1 px taller after the browser upgraded it than in server HTML.
+
 ## 0.16.2 - 2026-11-21
 
 ### Fixed

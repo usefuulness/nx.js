@@ -6,7 +6,7 @@
 import {
   Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardActions, CardFooter, Checkbox, Combobox, Command, DataGrid, DatePicker, Dialog, DialogFooter,
   Divider, Drawer, FileUpload, Form, Grid, HStack, Input, Chat, Chart, Calendar, OtpInput, Timeline, TimelineItem, Rating, Stepper, Step, Menu, MenuBar, Pagination, Panel, Popover, PopoverTrigger, Progress, RadioGroup, Select, Separator, Slider, Skeleton, Spinner, Splitter, Switch,
-  List, Nav, Notifications, Stat, PageHeader, Empty, Descriptions, Sidebar, Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
+  CodeEditor, List, Nav, Notifications, PropertyGrid, Stat, PageHeader, Empty, Descriptions, Sidebar, Tab, Tabs, TagInput, Textarea, Toolbar, Tooltip, Tree, VStack, NX
 } from 'nx.js';
 
 type Openable = HTMLElement & { open(): void; close(): void };
@@ -214,6 +214,17 @@ export const Components = () => (
     </Card>
 
     <Grid minColumnWidth="18rem" gap={16}>
+      <Panel title="Code editor">
+        <CodeEditor label="Settings (JSON)" name="settings" language="json" height="9rem" value={'{\n  "retries": 2,\n  "notify": ["ops@example.com"]\n}'} />
+      </Panel>
+      <Panel title="Property grid">
+        <PropertyGrid label="Job" schema={[
+          { name: 'name', label: 'Name', required: true },
+          { name: 'kind', label: 'Kind', type: 'select', options: ['scheduled', 'on demand'] },
+          { name: 'retries', label: 'Retries', type: 'number', min: 0, max: 5 },
+          { name: 'enabled', label: 'Enabled', type: 'boolean' }
+        ]} value={{ name: 'Nightly export', kind: 'scheduled', retries: 2, enabled: true }} />
+      </Panel>
       <Panel title="Notifications">
         <Notifications label="Notifications" data={[
           { id: 1, title: 'Invoice #3052 paid', description: 'Acme Corp paid $2,400.', time: new Date(Date.now() - 6 * 60000), icon: 'success', tone: 'success' },

@@ -12,6 +12,7 @@ import {
 import { RevenuePanel, ActivityPanels } from '@/demo/insights';
 import { PetsPage, loadPets } from '@/demo/pets';
 import { OrdersPage } from '@/demo/orders';
+import { DeveloperPage } from '@/demo/developer';
 
 // ────────── A view model: data, a formula, and markup that binds to it ──────────
 
@@ -564,6 +565,7 @@ const commands = () => [
   { text: 'Dashboard', icon: 'dashboard', group: 'Go to', handler: () => app.navigate('/') },
   { text: 'Users', icon: 'users', group: 'Go to', handler: () => app.navigate('/users') },
   { text: 'Settings', icon: 'settings', group: 'Go to', keywords: ['profile', 'preferences'], handler: () => app.navigate('/forms') },
+  { text: 'Developer', icon: 'code', group: 'Go to', keywords: ['editor', 'script', 'code'], handler: () => app.navigate('/developer') },
   { text: 'Orders', icon: 'cart', group: 'Go to', keywords: ['admin', 'table'], handler: () => app.navigate('/orders') },
   { text: 'Pets', icon: 'heart', group: 'Go to', keywords: ['server', 'openapi', 'api'], handler: () => app.navigate('/pets') },
   { text: 'Components', icon: 'components', group: 'Go to', handler: () => app.navigate('/components') },
@@ -625,6 +627,7 @@ const app = NX.app({
              { id: 'orders', text: 'Orders', icon: 'cart', route: '/orders', badge: 12 },
              { id: 'pets', text: 'Pets', icon: 'heart', route: '/pets' },
              { heading: true, text: 'App' },
+             { id: 'developer', text: 'Developer', icon: 'code', route: '/developer' },
              { id: 'forms', text: 'Settings', icon: 'settings', route: '/forms' },
              { id: 'components', text: 'Components', icon: 'components', route: '/components' }
            ]} />
@@ -636,6 +639,7 @@ const app = NX.app({
   router: [
     { path: '/', title: 'Dashboard', view: DashboardPage },
     { path: '/users', title: 'Users', view: UsersPage },
+    { path: '/developer', title: 'Developer', view: () => <DeveloperPage Page={Page} /> },
     { path: '/orders', title: 'Orders', view: () => <OrdersPage Page={Page} /> },
     { path: '/pets', title: 'Pets', loader: loadPets, view: (route: Route) => <PetsPage api={route.data.api} store={route.data.store} Page={Page} /> },
     { path: '/forms', title: 'Settings', view: SettingsPage },

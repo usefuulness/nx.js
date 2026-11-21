@@ -68,6 +68,7 @@ No CSS import is needed. Without a build step, load `dist/nx.umd.js` and write t
 | [Getting started](docs/getting-started.md) | setup with a bundler, a `<script>` tag, or a server template |
 | [JSX, configs and HTML](docs/jsx-and-html.md) | the three ways to write UI, and how props map to attributes |
 | [Building apps](docs/building-apps.md) | app shell, routing, data grid, stores, dialogs, toasts, menus, ⌘K |
+| [Editors](docs/editors.md) | the code editor (engines, unsaved changes, JSON checks) and the schema-driven property grid |
 | [Data and logic](docs/data.md) | stores, models and validators, proxies, view models and bindings, controllers, state, formatting |
 | [Chat](docs/chat.md) | a chat window for AI: streaming replies, safe Markdown, connecting a model |
 | [Forms](docs/forms.md) | fields, validation, posting to a server, forms before JavaScript |

@@ -101,6 +101,20 @@ await api.get('/me');  await api.post('/login', { email, password });   // any o
 
 You do not have to write the resources out. If the server describes itself, let the client read it.
 
+### Server errors
+
+A refused request is an `AjaxError` with the status, a message a person can read, and the server's complaints by field. `parseApiError()` reads the common shapes: Spring Boot (`errors: [{ field, defaultMessage }]`), Spring Data REST (`errors: [{ property, message }]`), RFC 7807 problem details (`detail`, `errors`, `invalid-params`) and plain `{ message, errors: { field: … } }`.
+
+```ts
+try { await user.save(); } catch (e) {
+  const { message, fields, details } = parseApiError(e);   // 'email: must be a well-formed email address', { email: [...] }, []
+  e.fields;                                                // the same, on the error itself
+}
+user.serverErrors;                                         // after a refused save or delete: { email: ['already taken'] }; editing a field clears its entry
+```
+
+"Validation failed for object…" is not shown as the message when the server also said which field is wrong: the first complaint is. A body that is not JSON (a proxy's error page) gives the status line.
+
 **OpenAPI** (3.x or Swagger 2, as JSON: an object, a JSON string, or the URL of a document):
 
 ```ts
@@ -138,6 +152,7 @@ order.href('payment', { method: 'card' });               // a templated link, fi
 ```
 
 - **Stores** read the embedded records (`_embedded.orders`), take each record's id from its `id` field or its `self` link, and read the total from `page.totalElements` (or `total`, `count`). `page`, `size` and `sort` are filled in only where the link's template has them: a template with `sort` makes the server sort, one without keeps sorting in the browser. Page numbers start at zero, like Spring; pass `zeroBasedPages: false` for servers that start at one.
+- **Spring-style filters and sorting:** several sorters are sent as repeated `sort=name,asc&sort=age,desc` (give the template `{?sort*}`). A filter is sent under its property's name when the template has a variable of that name; `filterMap: { name: 'nameContains' }` renames it for servers that call it something else, and `filterVariables(filter)` returns the variables for anything a name cannot say (a range). The store asks the server to filter when the template has a search variable, a mapped variable, or you give `filterVariables`. A refused save has its field complaints in `AjaxError.fields` (see [Server errors](#server-errors)).
 - **Saving** uses each record's own links: `PUT` and `DELETE` go to its `self`, new records are `POST`ed to the collection, and what the server sends back is read as HAL.
 - **URI templates** (`{id}`, `{+path}`, `{/a,b}`, `{.ext}`, `{?a,b}`, `{&a}`, and `*` for lists) are filled in by `expandTemplate(template, vars)`. A variable you leave out is left out.
 

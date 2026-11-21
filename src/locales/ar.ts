@@ -14,6 +14,7 @@ i18n.extend('ar', {
   'region.toggle': 'تبديل المنطقة', 'panel.expand': 'توسيع اللوحة', 'panel.collapse': 'طي اللوحة', 'panel.close': 'إغلاق اللوحة',
   'pagination.label': 'ترقيم الصفحات', 'pagination.previous': 'الصفحة السابقة', 'pagination.next': 'الصفحة التالية', 'pagination.page': 'صفحة {page}',
   'pagination.status': 'صفحة {page} من {pages}', 'pagination.range': '{from}–{to} من {total}', 'pagination.perPage': 'عدد الصفوف في الصفحة',
+  'property.required': 'هذا الحقل مطلوب', 'property.number': 'أدخل رقمًا', 'property.min': 'يجب ألا يقل عن {min}', 'property.max': 'يجب ألا يزيد عن {max}', 'property.pattern': 'لا يطابق التنسيق المتوقع', 'property.choose': 'اختيار…', 'property.clear': 'مسح',
   'code.position': 'السطر {line}، العمود {column}', 'code.unsaved': 'تغييرات غير محفوظة', 'code.leaveHint': 'اضغط Escape ثم Tab للخروج من المحرر', 'code.invalidJson': 'JSON غير صالح: {message} (السطر {line}، العمود {column})',
   'notifications.label': 'الإشعارات', 'notifications.unread': '{label}، {count} غير مقروء', 'notifications.unreadItem': 'غير مقروء:', 'notifications.markAll': 'تحديد الكل كمقروء', 'notifications.empty': 'لا جديد', 'notifications.new': 'إشعار جديد: {title}',
   'nav.collapse': 'طي القائمة', 'nav.expand': 'توسيع القائمة',

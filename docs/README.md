@@ -8,6 +8,7 @@ Start with **Getting started**, then read the guide for what you are building. T
 | [JSX, configs and HTML](jsx-and-html.md) | understand the three ways to write the same UI, and how props map to attributes |
 | [Building apps](building-apps.md) | build an app shell with routing, data grids, stores, dialogs, toasts and menus |
 | [Data and logic](data.md) | use stores, models and validators, proxies, view models with bindings, controllers, remembered state and formatting |
+| [Editors](editors.md) | edit code and typed objects: the code editor with pluggable engines, and a schema-driven property grid |
 | [Chat](chat.md) | add a chat window for an AI: streaming replies, safe Markdown, and how to connect a model |
 | [Forms](forms.md) | collect and validate input, post to a server, or build forms that work before JavaScript |
 | [Server rendering](server-rendering.md) | render pages on the server (SSR, SSG) or use nx.js from Twig, Blade, Jinja, ERB… |

@@ -168,6 +168,9 @@ export class NXCheckbox extends NXField {
 
       .disabled .nx-check { cursor: not-allowed; }
 
+      /* Server HTML shows a native stand-in instead of the track: keep the row as tall as the track plus its margin, so upgrading moves nothing */
+      .nx-check.switch { min-height: calc(1.25rem + 0.0625rem); }
+
       input {
         position: absolute;
         opacity: 0;
