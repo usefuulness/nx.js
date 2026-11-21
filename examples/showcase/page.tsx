@@ -20,6 +20,20 @@ const drawer = { current: null as Openable | null };
 const progress = { current: null as HTMLElement | null };
 const payload = { current: null as HTMLElement | null };
 const themeCode = { current: null as HTMLElement | null };
+const scriptEditor = { current: null as (HTMLElement & { isDirty(): boolean; markClean(): void; revert(): void }) | null };
+const scriptStatus = { current: null as HTMLElement | null };
+
+const nightlyScript = `// A script, edited in the code editor.
+// Tab indents; press Escape, then Tab, to leave the editor.
+def run(ctx) {
+  ctx.log.info("hello from \${ctx.job.name}")
+  return [ok: true]
+}
+`;
+
+const paintScriptStatus = () => {
+  if (scriptStatus.current) scriptStatus.current.textContent = scriptEditor.current?.isDirty() ? 'Not saved' : 'Saved';
+};
 
 /** A stand-in for a model: streams a Markdown reply word by word, and stops when the signal aborts. */
 async function* fakeReply(prompt: string, signal: AbortSignal): AsyncGenerator<string> {
@@ -206,6 +220,7 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
           <a href="#theming">Theming</a>
           <a href="#forms">Forms</a>
           <a href="#data">Data</a>
+          <a href="#editors">Editors</a>
           <a href="#stack">Any stack</a>
           <a href="#quality">Quality</a>
         </nav>
@@ -964,6 +979,35 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
                   { field: 'plan', header: 'Plan', width: 120, type: 'badge', badges: { Free: 'neutral', Pro: 'info', Team: 'success' }, editable: true, editor: 'select', options: ['Free', 'Pro', 'Team'] },
                   { field: 'mrr', header: 'MRR', width: 160, type: 'currency', sortable: true, summary: 'sum' }
                 ]} />
+              </div>
+            </figure>
+          </div>
+        </section>
+
+        {/* ────────── Editors ────────── */}
+        <section class="sc-section" id="editors" aria-labelledby="editors-title">
+          <div class="sc-section-head">
+            <h2 id="editors-title">A code editor for admin tools</h2>
+            <p>
+              Scripts and definitions are edited in a form field, not a separate app. Line numbers, indentation, colours for 38 languages,
+              checks for JSON, XML and properties as you type, the cursor position and an unsaved-changes mark. Type in it, then save or revert.
+            </p>
+          </div>
+          <div class="sc-grid sc-wide">
+            <figure class="sc-specimen sc-span-2" style="margin: 0">
+              <figcaption class="sc-specimen-label">{'<nx-code-editor>'}</figcaption>
+              <div class="sc-specimen-body">
+                <CodeEditor ref={scriptEditor} id="script-editor" label="nightly.groovy" filename="nightly.groovy" languageSelect value={nightlyScript}
+                            height="14rem" onDirtyChange={paintScriptStatus} />
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center">
+                  <Button id="script-save" onClick={() => { scriptEditor.current?.markClean(); paintScriptStatus(); NX.toast.success('Script saved'); }}>Save</Button>
+                  <Button variant="outline" onClick={() => { scriptEditor.current?.revert(); paintScriptStatus(); }}>Revert</Button>
+                  <span ref={scriptStatus} id="script-status" class="sc-note" role="status">Saved</span>
+                </div>
+                <p class="sc-note">
+                  Light by design: it colours and checks, and stays a normal form field (<span class="sc-inline-code">name</span>, <span class="sc-inline-code">required</span>, validation).
+                  For completion or find and replace, plug in Ace, CodeMirror or Monaco with <span class="sc-inline-code">engine</span>.
+                </p>
               </div>
             </figure>
           </div>
