@@ -34,6 +34,7 @@ import type { TabPanelConfig } from '@/components/ui/tabpanel';
 import type { TreeConfig } from '@/components/ui/tree';
 import type { ListConfig } from '@/components/ui/list';
 import type { NavConfig } from '@/components/ui/nav';
+import type { CodeEditorConfig } from '@/components/ui/form/code-editor';
 import type { NotificationsConfig } from '@/components/ui/notifications';
 import type { StatConfig } from '@/components/ui/stat';
 import type { PageHeaderConfig } from '@/components/ui/page-header';
@@ -164,6 +165,7 @@ declare module './jsx-runtime' {
     'nx-tree': Props<TreeConfig>;
     'nx-list': Props<ListConfig>;
     'nx-nav': Props<NavConfig>;
+    'nx-code-editor': Props<CodeEditorConfig>;
     'nx-notifications': Props<NotificationsConfig>;
     'nx-stat': Props<StatConfig>;
     'nx-page-header': Props<PageHeaderConfig>;
@@ -283,6 +285,8 @@ export const Empty = (props: Props<EmptyConfig>) => <nx-empty {...props} />;
 export const Descriptions = (props: Props<DescriptionsConfig>) => <nx-descriptions {...props} />;
 /** A bell with an unread count and a panel of notifications */
 export const Notifications = (props: Props<NotificationsConfig>) => <nx-notifications {...props} />;
+/** A code editor that is a form field (line numbers, indentation, JSON checking, unsaved mark; pluggable engines) */
+export const CodeEditor = (props: Props<CodeEditorConfig>) => <nx-code-editor {...props} />;
 /** Side navigation: grouped links, badges, sub-items, an icon-only rail */
 export const Nav = (props: Props<NavConfig>) => <nx-nav {...props} />;
 /** Store-bound listbox with templates, selection and reordering */

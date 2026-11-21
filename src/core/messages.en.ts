@@ -63,6 +63,12 @@ export const en: Messages = {
   'pagination.range': '{from}–{to} of {total}',
   'pagination.perPage': 'Rows per page',
 
+  // Code editor
+  'code.position': 'Line {line}, column {column}',
+  'code.unsaved': 'Unsaved changes',
+  'code.leaveHint': 'Press Escape, then Tab, to leave the editor',
+  'code.invalidJson': 'Not valid JSON: {message} (line {line}, column {column})',
+
   // Notifications
   'notifications.label': 'Notifications',
   'notifications.unread': '{label}, {count} unread',
