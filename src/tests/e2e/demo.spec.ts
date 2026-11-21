@@ -1498,3 +1498,27 @@ test('the orders grid: save a view, change the filters, come back to the view', 
   await grid.getByRole('button', { name: 'Pending', exact: true }).click();
   await expect.poll(() => rows.count()).toBe(pending);
 });
+
+test('the Columns and Views panels and the bell open under their buttons, with a solid background', async ({ page }) => {
+  await page.goto('/#/orders');
+  const grid = page.locator('#or-grid');
+  const check = async (button: import('@playwright/test').Locator, panel: import('@playwright/test').Locator, edge: 'start' | 'end') => {
+    await button.click();
+    await expect(panel).toBeVisible();
+    const b = (await button.boundingBox())!;
+    const p = (await panel.boundingBox())!;
+    expect(p.y).toBeGreaterThanOrEqual(b.y + b.height - 1);
+    expect(p.y).toBeLessThan(b.y + b.height + 24);
+    // The panel lines up with the button on the side it was asked for
+    expect(Math.abs(edge === 'start' ? p.x - b.x : p.x + p.width - (b.x + b.width))).toBeLessThan(2);
+    const bg = await panel.evaluate(el => getComputedStyle(el).backgroundColor);
+    expect(bg).not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+  };
+  await check(grid.getByRole('button', { name: 'Columns' }), grid.locator('.col-menu:not(.view-panel)'), 'start');
+  await check(grid.getByRole('button', { name: 'Views' }), grid.locator('.view-panel'), 'start');
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/#/');
+  await check(page.locator('#bell').getByRole('button', { name: /Notifications/ }), page.locator('#bell .panel'), 'end');
+});

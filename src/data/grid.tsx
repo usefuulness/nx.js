@@ -555,7 +555,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
                   if (Date.now() - this.viewsClosedAt < 200) return;
                   const panel = this.$('.view-panel') as HTMLElement;
                   showTopLayer(panel, 'auto');
-                  place(panel, e.currentTarget as HTMLElement, 'bottom-end');
+                  place(panel, e.currentTarget as HTMLElement, 'bottom-start');
                 }}>
           <span html={Icons.get('bookmark')} aria-hidden="true" />
           {this.t('grid.views')}
@@ -1544,7 +1544,7 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
                   const panel = this.$('.col-menu') as HTMLElement;
                   if (Date.now() - this.menuClosedAt < 200) return; // the same click that light-dismissed it
                   showTopLayer(panel, 'auto');
-                  place(panel, button, 'bottom-end');
+                  place(panel, button, 'bottom-start');
                 }}>
           <span html={Icons.get('columns') || Icons.get('menu')} aria-hidden="true" />
           {this.t('grid.columns')}
@@ -2001,10 +2001,10 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       .nx-grid-bulk[hidden] { display: none; }
       .bulk-count { font-weight: 600; }
       .nx-grid-colmenu { position: relative; }
-      .col-button { display: inline-flex; align-items: center; gap: 0.375rem; height: 2.25rem; padding: 0 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-card); color: var(--color-text); font: inherit; font-size: 0.875rem; cursor: pointer; }
+      .col-button { display: inline-flex; align-items: center; gap: 0.375rem; height: 2.25rem; padding: 0 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 0.875rem; cursor: pointer; }
       .col-button:hover { background: var(--color-accent); }
       .col-button:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
-      .col-menu { margin: 0; padding: 0.375rem; min-width: 11rem; max-height: 20rem; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-popover, var(--color-card)); color: var(--color-text); box-shadow: var(--shadow-lg); }
+      .col-menu { position: fixed; inset: auto; margin: 0; padding: 0.375rem; min-width: 11rem; max-height: 20rem; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-lg); }
       .col-menu:popover-open { display: flex; flex-direction: column; }
       .nx-grid-views { position: relative; }
       .view-list { list-style: none; margin: 0 0 0.25rem; padding: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -2019,8 +2019,8 @@ export class NXGrid<T extends Record<string, any> = any> extends BaseComponent {
       .col-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.875rem; cursor: pointer; }
       .col-item:hover { background: var(--color-accent); }
       .col-item input { accent-color: var(--color-primary); }
-      tr.filters th { padding: 0.25rem 0.5rem; font-weight: 400; background: var(--color-card); }
-      .filter { width: 100%; box-sizing: border-box; height: 1.875rem; padding: 0 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-background, var(--color-card)); color: var(--color-text); font: inherit; font-size: 0.8125rem; }
+      tr.filters th { padding: 0.25rem 0.5rem; font-weight: 400; background: var(--color-surface); }
+      .filter { width: 100%; box-sizing: border-box; height: 1.875rem; padding: 0 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-background); color: var(--color-text); font: inherit; font-size: 0.8125rem; }
       .filter:focus-visible { outline: 2px solid var(--color-ring); outline-offset: -1px; }
       .nx-grid-search {
         display: flex;
