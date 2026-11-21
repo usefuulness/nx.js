@@ -8,7 +8,7 @@
 import {
   NX, Accordion, AccordionItem, Alert, Avatar, Badge, Breadcrumb, Button, Card, CardFooter, Checkbox, Combobox,
   Command, DataGrid, DatePicker, Dialog, DialogFooter, Drawer, DrawerFooter, Form, Input, Menu, MenuBar, Popover,
-  PopoverTrigger, Calendar, OtpInput, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, List, Nav, Notifications, Stat, PageHeader, Empty, Descriptions, Sidebar, Switcher, Cluster, Box, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
+  PopoverTrigger, Calendar, OtpInput, Chat, Chart, Divider, Panel, Rating, Stepper, Step, Timeline, TimelineItem, Toolbar, Pagination, FileUpload, Progress, RadioGroup, Select, Skeleton, Slider, CodeEditor, List, Nav, Notifications, PropertyGrid, Stat, PageHeader, Empty, Descriptions, Sidebar, Switcher, Cluster, Box, Spinner, Splitter, Switch, Tab, Tabs, TagInput, Textarea, Tooltip, Tree,
   type CommandItem, type Child, type NXChat
 } from 'nx.js';
 
@@ -390,6 +390,19 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
                 { field: 'duration', header: 'Duration', width: 110, align: 'right' },
                 { field: 'commit', header: 'Commit', width: 110 }
               ]} />
+            </Specimen>
+
+            <Specimen tag="nx-code-editor" span>
+              <CodeEditor label="Settings (JSON)" name="settings" language="json" languageSelect languages="json,yaml,xml,properties" height="9rem" value={'{\n  "retries": 2,\n  "notify": ["ops@example.com"]\n}'} />
+            </Specimen>
+
+            <Specimen tag="nx-property-grid" span>
+              <PropertyGrid label="Job" schema={[
+                { name: 'name', label: 'Name', required: true },
+                { name: 'kind', label: 'Kind', type: 'select', options: ['scheduled', 'on demand'] },
+                { name: 'retries', label: 'Retries', type: 'number', min: 0, max: 5 },
+                { name: 'enabled', label: 'Enabled', type: 'boolean' }
+              ]} value={{ name: 'Nightly export', kind: 'scheduled', retries: 2, enabled: true }} />
             </Specimen>
 
             <Specimen tag="nx-notifications">

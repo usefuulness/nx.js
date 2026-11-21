@@ -63,6 +63,22 @@ export const en: Messages = {
   'pagination.range': '{from}–{to} of {total}',
   'pagination.perPage': 'Rows per page',
 
+  // Property grid
+  'property.required': 'This field is required',
+  'property.number': 'Enter a number',
+  'property.min': 'Must be at least {min}',
+  'property.max': 'Must be at most {max}',
+  'property.pattern': 'Does not match the expected format',
+  'property.choose': 'Choose…',
+  'property.clear': 'Clear',
+
+  // Code editor
+  'code.position': 'Line {line}, column {column}',
+  'code.unsaved': 'Unsaved changes',
+  'code.leaveHint': 'Press Escape, then Tab, to leave the editor',
+  'code.invalid': 'Not valid {language}: {message} (line {line}, column {column})',
+  'code.language': 'Language',
+
   // Notifications
   'notifications.label': 'Notifications',
   'notifications.unread': '{label}, {count} unread',

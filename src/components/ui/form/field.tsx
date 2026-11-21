@@ -34,7 +34,7 @@ type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 let fieldSeq = 0;
 
 /** Every nx.js form field tag, HTML aliases included (for `matches()`/`querySelector()`). */
-export const FIELD_TAGS = 'nx-textfield, nx-input, nx-textarea, nx-select, nx-checkbox, nx-switch, nx-radio-group, nx-combobox, nx-slider, nx-datepicker, nx-file-upload, nx-tag-input';
+export const FIELD_TAGS = 'nx-textfield, nx-input, nx-textarea, nx-select, nx-checkbox, nx-switch, nx-radio-group, nx-combobox, nx-slider, nx-datepicker, nx-file-upload, nx-tag-input, nx-code-editor';
 
 export abstract class NXField extends BaseComponent {
   static formAssociated = true;

@@ -1,6 +1,6 @@
 {
   "name": "nx.js",
-  "version": "0.16.2",
+  "version": "0.17.0",
   "type": "module",
   "description": "Declarative, zero-dependency web components with an ExtJS-style config API and a shadcn-style look.",
   "keywords": [
@@ -98,6 +98,7 @@
     "example:server": "tsx examples/server/app.ts",
     "example:showcase": "tsx examples/showcase/build.tsx",
     "docs:reference": "tsx scripts/custom-elements.ts dist --reference docs/components.md",
+    "docs:languages": "tsx scripts/code-languages-doc.ts",
     "site": "tsx scripts/site.tsx",
     "size": "tsx scripts/size.ts",
     "bench": "tsx scripts/bench.ts",

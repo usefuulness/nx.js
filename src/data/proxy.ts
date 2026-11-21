@@ -2,6 +2,7 @@
  * @file @/data/proxy.ts
  * How a store talks to a server (or to the browser's own storage): requests, readers and writers.
  */
+import { parseApiError, type ApiErrorInfo } from '@/data/errors';
 
 export interface ProxyConfig {
   /** `rest` (one request per record, ids in the URL), `ajax` (records sent together), `memory` or `localstorage` */
@@ -62,6 +63,10 @@ export class AjaxError extends Error {
   status: number;
   response?: unknown;
 
+  /** What the server's answer says is wrong, field by field (see `parseApiError`) */
+  get info(): ApiErrorInfo { return parseApiError(this); }
+  get fields(): Record<string, string[]> { return this.info.fields; }
+
   constructor(message: string, status = 0, response?: unknown) {
     super(message);
     this.name = 'AjaxError';
@@ -116,8 +121,10 @@ export async function ajax<T = any>(url: string, options: AjaxOptions = {}): Pro
       }
     }
     if (!response.ok) {
-      const message = payload && typeof payload === 'object' && typeof (payload as any).message === 'string' ? (payload as any).message : `${response.status} ${response.statusText}`.trim();
-      throw new AjaxError(message, response.status, payload);
+      // What the server said (detail, message, title, or the first field complaint), else the status line
+      const statusLine = `${response.status} ${response.statusText}`.trim();
+      const said = payload !== undefined && payload !== null && payload !== '' && typeof payload === 'object' ? parseApiError({ status: response.status, response: payload }) : null;
+      throw new AjaxError(said && said.message !== 'The request failed' ? said.message : statusLine, response.status, payload);
     }
     return payload as T;
   } finally {

@@ -14,6 +14,8 @@ i18n.extend('es', {
   'region.toggle': 'Alternar región', 'panel.expand': 'Expandir panel', 'panel.collapse': 'Contraer panel', 'panel.close': 'Cerrar panel',
   'pagination.label': 'Paginación', 'pagination.previous': 'Página anterior', 'pagination.next': 'Página siguiente', 'pagination.page': 'Página {page}',
   'pagination.status': 'Página {page} de {pages}', 'pagination.range': '{from}–{to} de {total}', 'pagination.perPage': 'Filas por página',
+  'property.required': 'Este campo es obligatorio', 'property.number': 'Introduce un número', 'property.min': 'Debe ser al menos {min}', 'property.max': 'Debe ser como máximo {max}', 'property.pattern': 'No coincide con el formato esperado', 'property.choose': 'Elegir…', 'property.clear': 'Borrar',
+  'code.position': 'Línea {line}, columna {column}', 'code.unsaved': 'Cambios sin guardar', 'code.leaveHint': 'Pulsa Escape y luego Tab para salir del editor', 'code.invalid': '{language} no válido: {message} (línea {line}, columna {column})', 'code.language': 'Lenguaje',
   'notifications.label': 'Notificaciones', 'notifications.unread': '{label}, {count} sin leer', 'notifications.unreadItem': 'Sin leer:', 'notifications.markAll': 'Marcar todo como leído', 'notifications.empty': 'Estás al día', 'notifications.new': 'Nueva notificación: {title}',
   'nav.collapse': 'Contraer menú', 'nav.expand': 'Expandir menú',
   'grid.views': 'Vistas', 'grid.noViews': 'Aún no hay vistas guardadas', 'grid.viewName': 'Nombre de la vista', 'grid.saveView': 'Guardar', 'grid.deleteView': 'Eliminar la vista {name}',

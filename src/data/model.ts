@@ -5,6 +5,7 @@
  */
 import { EventEmitter } from '@/core/events/event-emitter';
 import { i18n } from '@/core/i18n';
+import { parseApiError } from '@/data/errors';
 import { createProxy, type Proxy, type ProxyConfig } from '@/data/proxy';
 import { Store } from '@/data/store';
 
@@ -211,6 +212,8 @@ export class Model<T extends Record<string, any> = Record<string, any>> extends 
     const patch: Record<string, any> = typeof name === 'string' ? { [name]: value } : { ...(name as Record<string, any>) };
     const changed: string[] = [];
     for (const [key, raw] of Object.entries(patch)) {
+      // Editing a field answers what the server said about it
+      if (this.serverErrors[key]) { const { [key]: _gone, ...rest } = this.serverErrors; this.serverErrors = rest; }
       const next = cls.convertField(key, raw, this.data);
       const old = (this.data as any)[key];
       if (sameValue(old, next)) continue;
@@ -328,11 +331,26 @@ export class Model<T extends Record<string, any> = Record<string, any>> extends 
   }
 
   /** Save through the model's proxy: creates when new, updates otherwise, then takes what the server sent back */
+  /** What the server said is wrong with each field after the last save or delete it refused (cleared by the next success, or by editing that field) */
+  serverErrors: Record<string, string[]> = {};
+
+  /** Take a refused request's field complaints, so a form can show them next to the fields. */
+  private refused(error: unknown): never {
+    if (error && typeof error === 'object' && 'status' in error) this.serverErrors = { ...parseApiError(error).fields };
+    throw error;
+  }
+
   async save(): Promise<this> {
     const proxy = this.proxy();
     const sent = this.toJSON();
     // An update needs the id to find the record, even when the id is a field that is never sent as data (read-only)
-    const [answer] = this.phantom ? await proxy.create([sent]) : await proxy.update([{ ...sent, [this.constructor.idProperty]: this.id }]);
+    let answer: unknown;
+    try {
+      [answer] = this.phantom ? await proxy.create([sent]) : await proxy.update([{ ...sent, [this.constructor.idProperty]: this.id }]);
+    } catch (e) {
+      this.refused(e);
+    }
+    this.serverErrors = {};
     if (answer && typeof answer === 'object') {
       const fresh = this.constructor.convert({ ...this.data, ...(answer as Record<string, any>) });
       this.data = fresh as T;
@@ -349,7 +367,7 @@ export class Model<T extends Record<string, any> = Record<string, any>> extends 
   /** Delete through the model's proxy */
   async erase(): Promise<void> {
     if (this.phantom) return;
-    await this.proxy().destroy([this.id]);
+    try { await this.proxy().destroy([this.id]); } catch (e) { this.refused(e); }
     this.emit('erase', { model: this });
   }
 }
