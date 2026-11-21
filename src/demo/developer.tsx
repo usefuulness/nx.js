@@ -63,7 +63,7 @@ export const DeveloperPage = ({ Page }: { Page: (props: any) => any }) => {
 
       <Card title="Script" subtitle="The code editor: line numbers, indentation, the cursor position and an unsaved-changes mark.">
         <VStack gap={12}>
-          <CodeEditor ref={editor} id="script-editor" label="nightly.groovy" language="groovy" value={script} height="14rem"
+          <CodeEditor ref={editor} id="script-editor" label="nightly.groovy" filename="nightly.groovy" languageSelect value={script} height="14rem"
                       onDirtyChange={paint} />
           <HStack gap={8} align="center">
             <Button id="script-save" onClick={() => { editor.current!.markClean(); paint(); NX.toast.success('Script saved'); }}>Save</Button>

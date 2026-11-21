@@ -144,6 +144,8 @@ export type { NotificationsConfig, NotificationItem } from '@/components/ui/noti
 export { NXCodeEditor } from '@/components/ui/form/code-editor';
 export type { CodeEditorConfig } from '@/components/ui/form/code-editor';
 export { registerCodeEngine, registerCodeEngineLoader } from '@/core/code-engine';
+export { listCodeLanguages, findCodeLanguage, codeLanguageForFile, resolveCodeLanguage, registerCodeLanguage, tokenizeCode } from '@/core/code-languages';
+export type { CodeLanguage, Token as CodeToken, TokenType as CodeTokenType, CodeProblem } from '@/core/code-languages';
 export type { CodeEngine, CodeEngineOptions, CodeEngineFactory, CodeEngineLoader } from '@/core/code-engine';
 export { NXPropertyGrid } from '@/components/ui/property-grid';
 export type { PropertyGridConfig, PropertyField, PropertyType } from '@/components/ui/property-grid';

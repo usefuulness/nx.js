@@ -15,7 +15,7 @@ i18n.extend('ar', {
   'pagination.label': 'ترقيم الصفحات', 'pagination.previous': 'الصفحة السابقة', 'pagination.next': 'الصفحة التالية', 'pagination.page': 'صفحة {page}',
   'pagination.status': 'صفحة {page} من {pages}', 'pagination.range': '{from}–{to} من {total}', 'pagination.perPage': 'عدد الصفوف في الصفحة',
   'property.required': 'هذا الحقل مطلوب', 'property.number': 'أدخل رقمًا', 'property.min': 'يجب ألا يقل عن {min}', 'property.max': 'يجب ألا يزيد عن {max}', 'property.pattern': 'لا يطابق التنسيق المتوقع', 'property.choose': 'اختيار…', 'property.clear': 'مسح',
-  'code.position': 'السطر {line}، العمود {column}', 'code.unsaved': 'تغييرات غير محفوظة', 'code.leaveHint': 'اضغط Escape ثم Tab للخروج من المحرر', 'code.invalidJson': 'JSON غير صالح: {message} (السطر {line}، العمود {column})',
+  'code.position': 'السطر {line}، العمود {column}', 'code.unsaved': 'تغييرات غير محفوظة', 'code.leaveHint': 'اضغط Escape ثم Tab للخروج من المحرر', 'code.invalid': '{language} غير صالح: {message} (السطر {line}، العمود {column})', 'code.language': 'اللغة',
   'notifications.label': 'الإشعارات', 'notifications.unread': '{label}، {count} غير مقروء', 'notifications.unreadItem': 'غير مقروء:', 'notifications.markAll': 'تحديد الكل كمقروء', 'notifications.empty': 'لا جديد', 'notifications.new': 'إشعار جديد: {title}',
   'nav.collapse': 'طي القائمة', 'nav.expand': 'توسيع القائمة',
   'grid.views': 'العروض', 'grid.noViews': 'لا توجد عروض محفوظة بعد', 'grid.viewName': 'اسم العرض', 'grid.saveView': 'حفظ', 'grid.deleteView': 'حذف العرض {name}',

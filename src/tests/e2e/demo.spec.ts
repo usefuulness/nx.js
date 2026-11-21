@@ -1581,3 +1581,47 @@ test('the Developer page: the property grid checks fields, hides and locks with 
   await page.locator('#job-save').click();
   await expect(grid.locator('[data-name="settings"] nx-code-editor')).toHaveAttribute('error-text', /Not valid JSON/);
 });
+
+test('the code editor: the colour layer lines up with the text, scrolls with it, and the language can change', async ({ page }) => {
+  await page.goto('/#/developer');
+  const editor = page.locator('#script-editor');
+  const area = editor.locator('textarea.code');
+  // The language came from the file name, and the text is coloured
+  await expect(editor.locator('.lang-select')).toHaveValue('groovy');
+  await expect(editor.locator('.hl .t-keyword').first()).toHaveText('def');
+  await expect(editor.locator('.hl .t-comment').first()).toContainText('// A script');
+  // Long, many-line text: both layers are exactly as big, so every glyph is under its colour
+  await area.fill(Array.from({ length: 60 }, (_, i) => `def line${i} = "value ${i}" // ${'x'.repeat(i * 3)}`).join('\n'));
+  const sizes = await editor.evaluate(el => {
+    const root = el.shadowRoot!;
+    const a = root.querySelector('textarea.code') as HTMLTextAreaElement;
+    const h = root.querySelector('.hl') as HTMLElement;
+    return { aw: a.scrollWidth, ah: a.scrollHeight, hw: h.scrollWidth, hh: h.scrollHeight };
+  });
+  expect(Math.abs(sizes.ah - sizes.hh), JSON.stringify(sizes)).toBeLessThanOrEqual(2);
+  // The layer is never narrower than the text (it may count the right padding that a text area leaves out), so it can always follow a scroll
+  expect(sizes.hw - sizes.aw, JSON.stringify(sizes)).toBeGreaterThanOrEqual(-2);
+  expect(sizes.hw - sizes.aw, JSON.stringify(sizes)).toBeLessThanOrEqual(14);
+  // Scrolling the text area scrolls the colours with it
+  await area.evaluate(el => { (el as HTMLTextAreaElement).scrollTop = 300; (el as HTMLTextAreaElement).scrollLeft = 120; (el as HTMLTextAreaElement).dispatchEvent(new Event('scroll')); });
+  await expect.poll(() => editor.evaluate(el => (el.shadowRoot!.querySelector('.hl') as HTMLElement).scrollTop)).toBeGreaterThan(250);
+  await expect.poll(() => editor.evaluate(el => (el.shadowRoot!.querySelector('.hl') as HTMLElement).scrollLeft)).toBeGreaterThan(100);
+  // Change the language from the list: the same text, other colours; JSON is checked
+  await editor.locator('.lang-select').selectOption('json');
+  await expect(editor.locator('.lang')).toHaveCount(0);
+  await area.fill('{"a": [1, true, null], "b": "x"}');
+  await expect(editor.locator('.hl .t-literal').first()).toHaveText('true');
+  await area.fill('{"a": }');
+  await page.locator('#script-save').click();
+  await area.blur();
+  await expect(editor.locator('.nx-field-helper')).toContainText('Not valid JSON');
+  // Comment toggle in a real browser, with the real undo stack
+  await editor.locator('.lang-select').selectOption('python');
+  await area.fill('x = 1\ny = 2');
+  await area.click();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Control+/');
+  await expect(area).toHaveValue('# x = 1\n# y = 2');
+  await page.keyboard.press('Control+/');
+  await expect(area).toHaveValue('x = 1\ny = 2');
+});

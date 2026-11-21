@@ -393,7 +393,7 @@ export const Showcase = ({ site = false }: { site?: boolean } = {}) => (
             </Specimen>
 
             <Specimen tag="nx-code-editor" span>
-              <CodeEditor label="Settings (JSON)" name="settings" language="json" height="9rem" value={'{\n  "retries": 2,\n  "notify": ["ops@example.com"]\n}'} />
+              <CodeEditor label="Settings (JSON)" name="settings" language="json" languageSelect languages="json,yaml,xml,properties" height="9rem" value={'{\n  "retries": 2,\n  "notify": ["ops@example.com"]\n}'} />
             </Specimen>
 
             <Specimen tag="nx-property-grid" span>

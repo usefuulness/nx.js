@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { NX, registerCodeEngine, registerCodeEngineLoader, type NXCodeEditor, type CodeEngine } from '@/index';
+import { NX, registerCodeLanguage, registerCodeEngine, registerCodeEngineLoader, type NXCodeEditor, type CodeEngine } from '@/index';
 import { nextFrame } from '../utils';
 
 const frames = async (n = 3) => { for (let i = 0; i < n; i++) await nextFrame(); };
@@ -25,7 +25,7 @@ describe('<nx-code-editor>', () => {
     expect(el.shadowRoot!.querySelector('label')!.textContent).toContain('Script');
     expect(area(el).value).toBe('a\nb\nc');
     expect(el.shadowRoot!.querySelector('.gutter')!.textContent).toBe('1\n2\n3');
-    expect(el.shadowRoot!.querySelector('.lang')!.textContent).toBe('groovy');
+    expect(el.shadowRoot!.querySelector('.lang')!.textContent).toBe('Groovy');
     expect(el.shadowRoot!.querySelector('.pos')!.textContent).toBe('Line 1, column 1');
     expect(area(el).getAttribute('aria-describedby')).toContain('-hint');
     expect(el.shadowRoot!.querySelector('.hint')!.textContent).toBe('Press Escape, then Tab, to leave the editor');
@@ -165,9 +165,172 @@ describe('<nx-code-editor>', () => {
     el.setAttribute('height', '20rem');
     await frames();
     expect(area(el)).toBe(before);
-    expect(el.shadowRoot!.querySelector('.lang')!.textContent).toBe('groovy');
+    expect(el.shadowRoot!.querySelector('.lang')!.textContent).toBe('Groovy');
     expect(el.shadowRoot!.querySelector('label')!.textContent).toContain('Renamed');
     expect((el.shadowRoot!.querySelector('.editor') as HTMLElement).style.height).toBe('20rem');
+  });
+});
+
+describe('<nx-code-editor> languages', () => {
+  beforeEach(() => { document.body.innerHTML = ''; });
+  const mount = async (config: Record<string, any> = {}) => {
+    const el = NX.create<NXCodeEditor>({ xtype: 'code-editor', label: 'Code', ...config });
+    document.body.append(el);
+    await frames();
+    return el;
+  };
+  const area = (el: NXCodeEditor) => el.shadowRoot!.querySelector('textarea.code') as HTMLTextAreaElement;
+  const key = (el: NXCodeEditor, k: string, init: KeyboardEventInit = {}) => { const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init }); area(el).dispatchEvent(e); return e; };
+  const spans = (el: NXCodeEditor) => Array.from(el.shadowRoot!.querySelectorAll('.hl span')).map(s => [s.className.replace('t-', ''), s.textContent]);
+
+  it('colours the text for the language, with text and never markup, and keeps the colour layer in step with typing', async () => {
+    const el = await mount({ language: 'javascript', value: 'const a = "<img src=x onerror=alert(1)>"; // hi' });
+    expect(spans(el)).toEqual(expect.arrayContaining([['keyword', 'const'], ['string', '"<img src=x onerror=alert(1)>"'], ['comment', '// hi']]));
+    expect(el.shadowRoot!.querySelector('.hl img')).toBeNull();
+    expect(el.shadowRoot!.querySelector('.hl')!.getAttribute('aria-hidden')).toBe('true');
+    expect(el.shadowRoot!.querySelector('.edit')!.classList.contains('coloured')).toBe(true);
+    area(el).value = 'let x = 1';
+    area(el).dispatchEvent(new Event('input', { bubbles: true }));
+    expect(spans(el)).toEqual([['keyword', 'let'], ['number', '1']]);
+    // The layer shows the same text, plus the final newline that keeps the last line's height
+    expect(el.shadowRoot!.querySelector('.hl code')!.textContent).toBe('let x = 1\n');
+  });
+
+  it('an alias or a file name picks the language; the status bar says its name; engines get the canonical id', async () => {
+    expect((await mount({ language: 'js', value: 'if (x) {}' })).shadowRoot!.querySelector('.lang')!.textContent).toBe('JavaScript');
+    const named = await mount({ filename: 'deploy/Dockerfile', value: 'FROM node' });
+    expect(named.shadowRoot!.querySelector('.lang')!.textContent).toBe('Dockerfile');
+    expect(spans(named)[0]).toEqual(['keyword', 'FROM']);
+    // `language` wins over `filename`
+    expect((await mount({ language: 'sql', filename: 'a.py' })).shadowRoot!.querySelector('.lang')!.textContent).toBe('SQL');
+    expect((await mount({ language: 'nonsense' })).shadowRoot!.querySelector('.lang')!.textContent).toBe('Plain text');
+  });
+
+  it('colours can be turned off, and are off while wrapping and for plain text', async () => {
+    expect((await mount({ language: 'sql', value: 'select 1', highlight: false })).shadowRoot!.querySelector('.edit')!.classList.contains('coloured')).toBe(false);
+    expect((await mount({ language: 'sql', value: 'select 1', wrap: true })).shadowRoot!.querySelector('.edit')!.classList.contains('coloured')).toBe(false);
+    expect((await mount({ value: 'select 1' })).shadowRoot!.querySelector('.edit')!.classList.contains('coloured')).toBe(false);
+    const el = await mount({ language: 'sql', value: 'select 1' });
+    expect(el.shadowRoot!.querySelector('.edit')!.classList.contains('coloured')).toBe(true);
+    el.setAttribute('wrap', '');
+    await frames();
+    expect(el.shadowRoot!.querySelector('.edit')!.classList.contains('coloured')).toBe(false);
+    expect(el.shadowRoot!.querySelector('.hl code')!.childNodes.length).toBe(0);
+  });
+
+  it('changing the language re-colours the same text without replacing the text area', async () => {
+    const el = await mount({ language: 'sql', value: 'select 1 -- c' });
+    const before = area(el);
+    expect(spans(el)[0]).toEqual(['keyword', 'select']);
+    el.setAttribute('language', 'python');
+    await frames();
+    expect(area(el)).toBe(before);
+    expect(spans(el).some(s => s[0] === 'keyword')).toBe(false);
+    expect(el.shadowRoot!.querySelector('.lang')!.textContent).toBe('Python');
+  });
+
+  it('a language list in the status bar changes the language and says so; `languages` limits the choices', async () => {
+    const el = await mount({ languageSelect: true, languages: 'json, yaml, xml', language: 'yaml', value: 'a: 1' });
+    const pick = el.shadowRoot!.querySelector('select.lang-select') as HTMLSelectElement;
+    expect(pick.getAttribute('aria-label')).toBe('Language');
+    expect(Array.from(pick.options).map(o => o.textContent)).toEqual(['JSON', 'YAML', 'XML']); // in the order given
+    expect(pick.value).toBe('yaml');
+    const seen: any[] = [];
+    el.addEventListener('language-change', e => seen.push((e as CustomEvent).detail));
+    pick.value = 'json';
+    pick.dispatchEvent(new Event('change', { bubbles: true }));
+    await frames();
+    expect(el.getAttribute('language')).toBe('json');
+    expect(seen).toEqual([{ language: 'json', label: 'JSON' }]);
+    const all = await mount({ languageSelect: true });
+    expect((all.shadowRoot!.querySelector('select.lang-select') as HTMLSelectElement).options.length).toBeGreaterThan(30);
+  });
+
+  it('Ctrl+/ comments and uncomments the selected lines with the language\'s own marker, keeping indentation', async () => {
+    const el = await mount({ language: 'groovy', value: 'def a = 1\n  def b = 2\n\ndef c = 3' });
+    const t = area(el);
+    t.setSelectionRange(0, t.value.length);
+    key(el, '/', { ctrlKey: true });
+    // The marker goes at the block's smallest indent, so the lines stay aligned
+    expect(el.value).toBe('// def a = 1\n//   def b = 2\n\n// def c = 3');
+    t.setSelectionRange(0, t.value.length);
+    key(el, '/', { ctrlKey: true });
+    expect(el.value).toBe('def a = 1\n  def b = 2\n\ndef c = 3');
+    // One line, with the cursor in it; a mixed selection comments everything first
+    t.setSelectionRange(2, 2);
+    key(el, '/', { metaKey: true });
+    expect(el.value.split('\n')[0]).toBe('// def a = 1');
+    t.setSelectionRange(0, t.value.length);
+    key(el, '/', { ctrlKey: true });
+    expect(el.value.split('\n')[0]).toBe('// // def a = 1');
+    // Colours follow
+    expect(spans(el).some(s => s[0] === 'comment')).toBe(true);
+  });
+
+  it('comments with # or -- where the language does, and with block markers where it has no line comment', async () => {
+    const py = await mount({ language: 'python', value: 'x = 1' });
+    area(py).setSelectionRange(0, 0);
+    key(py, '/', { ctrlKey: true });
+    expect(py.value).toBe('# x = 1');
+    const sql = await mount({ language: 'sql', value: 'select 1' });
+    key(sql, '/', { ctrlKey: true });
+    expect(sql.value).toBe('-- select 1');
+    const html = await mount({ language: 'html', value: '<p>hi</p>\n<p>there</p>' });
+    area(html).setSelectionRange(0, area(html).value.length);
+    key(html, '/', { ctrlKey: true });
+    expect(html.value).toBe('<!-- <p>hi</p>\n<p>there</p> -->');
+    area(html).setSelectionRange(0, area(html).value.length);
+    key(html, '/', { ctrlKey: true });
+    expect(html.value).toBe('<p>hi</p>\n<p>there</p>');
+    // No way to comment: the key does nothing
+    const text = await mount({ value: 'plain' });
+    expect(key(text, '/', { ctrlKey: true }).defaultPrevented).toBe(false);
+  });
+
+  it('Enter adds an indent after what opens a block in that language', async () => {
+    const py = await mount({ language: 'python', value: 'if x:' });
+    area(py).setSelectionRange(5, 5);
+    key(py, 'Enter');
+    expect(py.value).toBe('if x:\n  ');
+    const yaml = await mount({ language: 'yaml', value: 'server:' });
+    area(yaml).setSelectionRange(7, 7);
+    key(yaml, 'Enter');
+    expect(yaml.value).toBe('server:\n  ');
+    const rb = await mount({ language: 'ruby', value: 'def f' });
+    area(rb).setSelectionRange(5, 5);
+    key(rb, 'Enter');
+    expect(rb.value).toBe('def f\n  ');
+    const js = await mount({ language: 'javascript', value: 'if (x) {' });
+    area(js).setSelectionRange(8, 8);
+    key(js, 'Enter');
+    expect(js.value).toBe('if (x) {\n  ');
+  });
+
+  it('checks JSON with comments, XML and properties as they are typed, naming the language', async () => {
+    const type = (el: NXCodeEditor, text: string) => { area(el).value = text; area(el).dispatchEvent(new Event('input', { bubbles: true })); };
+    const jsonc = await mount({ language: 'jsonc', value: '{ // fine\n "a": 1, }' });
+    expect(jsonc.validationMessage()).toBe('');
+    type(jsonc, '{ "a": }');
+    expect(jsonc.validationMessage()).toMatch(/^Not valid JSON with comments: .*\(line 1, column 8\)$/);
+    const xml = await mount({ language: 'xml', value: '<a><b/></a>' });
+    expect(xml.validationMessage()).toBe('');
+    type(xml, '<a><b></a>');
+    expect(xml.validationMessage()).toMatch(/^Not valid XML: /);
+    const props = await mount({ language: 'properties', value: 'a=\\u00e9' });
+    expect(props.validationMessage()).toBe('');
+    type(props, 'a=\\u12');
+    expect(props.validationMessage()).toMatch(/^Not valid Properties: a \\u escape needs four hex digits \(line 1, column 3\)$/);
+    // Languages that cannot be checked are never blocked, and `no-check` turns it off
+    expect((await mount({ language: 'python', value: 'def (' })).validationMessage()).toBe('');
+    expect((await mount({ language: 'json', value: '{bad', noCheck: true })).validationMessage()).toBe('');
+    expect((await mount({ language: 'json', value: '{bad', noJsonCheck: true })).validationMessage()).toBe('');
+  });
+
+  it('a language registered by the app is offered like any other', async () => {
+    registerCodeLanguage({ id: 'app-script', label: 'App script', aliases: ['ascr'], extensions: ['ascr'], comment: { line: '%%' }, rules: [{ re: /\bgo\b/y, type: 'keyword' } as any] });
+    const el = await mount({ filename: 'x.ascr', value: 'go now' });
+    expect(el.shadowRoot!.querySelector('.lang')!.textContent).toBe('App script');
+    expect(spans(el)).toEqual([['keyword', 'go']]);
   });
 });
 

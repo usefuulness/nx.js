@@ -76,7 +76,8 @@ export const en: Messages = {
   'code.position': 'Line {line}, column {column}',
   'code.unsaved': 'Unsaved changes',
   'code.leaveHint': 'Press Escape, then Tab, to leave the editor',
-  'code.invalidJson': 'Not valid JSON: {message} (line {line}, column {column})',
+  'code.invalid': 'Not valid {language}: {message} (line {line}, column {column})',
+  'code.language': 'Language',
 
   // Notifications
   'notifications.label': 'Notifications',

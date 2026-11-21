@@ -21,7 +21,7 @@ attributes are on when present (`<nx-button loading>`). Rich values (arrays, obj
 | [`<nx-chart>`](#nx-chart) | `Chart` | A chart drawn as SVG: bars, lines, areas or a donut. Colours come from the theme, so it follows light and dark mode, and every chart also carries its data as a real (visually hidden) table for screen readers. Hovering or focusing a mark shows its value. |
 | [`<nx-chat>`](#nx-chat) | `Chat` | A chat window for talking to an AI (or a person): a conversation, streaming replies, and a message box. You decide where replies come from; the component handles the interface. |
 | [`<nx-checkbox>`](#nx-checkbox) | `Checkbox` | Checkbox or toggle switch. |
-| [`<nx-code-editor>`](#nx-code-editor) | `CodeEditor` | A code editor that is a form field: `value`, `required`, validation, `name` and native form posting work as in any other field. The built-in editor is a text area with line numbers, Tab and Shift+Tab indentation, auto-indent, the cursor position, JSON checking, and an "Unsaved changes" mark; it works before any script runs. For highlighting, completion or find and replace, register an engine behind the contract in `nx.js` (`registerCodeEngineLoader`) and name it with `engine`: it is loaded only when an editor asks for it, and disposed when the editor goes away. |
+| [`<nx-code-editor>`](#nx-code-editor) | `CodeEditor` | A code editor that is a form field: `value`, `required`, validation, `name` and native form posting work as in any other field. The built-in editor is a text area with line numbers, Tab and Shift+Tab indentation, auto-indent, the cursor position, colours for dozens of languages, comment toggling (Ctrl/⌘+/), checks for JSON, XML and properties as you type, and an "Unsaved changes" mark; it works before any script runs. For highlighting, completion or find and replace, register an engine behind the contract in `nx.js` (`registerCodeEngineLoader`) and name it with `engine`: it is loaded only when an editor asks for it, and disposed when the editor goes away. |
 | [`<nx-combobox>`](#nx-combobox) | `Combobox` | Combobox: a text input that filters a list of options — a searchable select. |
 | [`<nx-command>`](#nx-command) | `Command` | Command menu: a search box over a list of actions (shadcn's Command / ⌘K). Type to filter, arrow keys to move, Enter to run. |
 | [`<nx-container>`](#nx-container) | `Box`, `HStack`, `VStack`, `Grid`, `Stack`, `Cluster`, `Sidebar`, `Switcher`, `Center`, `CardLayout` | Flex/grid layout box. Children are regular light-DOM elements. |
@@ -269,20 +269,25 @@ Checkbox or toggle switch.
 
 `<nx-code-editor>` · JSX: `<CodeEditor>` · [source](../src/components/ui/form/code-editor.tsx)
 
-A code editor that is a form field: `value`, `required`, validation, `name` and native form posting work as in any other field. The built-in editor is a text area with line numbers, Tab and Shift+Tab indentation, auto-indent, the cursor position, JSON checking, and an "Unsaved changes" mark; it works before any script runs. For highlighting, completion or find and replace, register an engine behind the contract in `nx.js` (`registerCodeEngineLoader`) and name it with `engine`: it is loaded only when an editor asks for it, and disposed when the editor goes away.
+A code editor that is a form field: `value`, `required`, validation, `name` and native form posting work as in any other field. The built-in editor is a text area with line numbers, Tab and Shift+Tab indentation, auto-indent, the cursor position, colours for dozens of languages, comment toggling (Ctrl/⌘+/), checks for JSON, XML and properties as you type, and an "Unsaved changes" mark; it works before any script runs. For highlighting, completion or find and replace, register an engine behind the contract in `nx.js` (`registerCodeEngineLoader`) and name it with `engine`: it is loaded only when an editor asks for it, and disposed when the editor goes away.
 
 | Attribute | JSX prop | Values | Description |
 | --- | --- | --- | --- |
 | `disabled` | `disabled` | `boolean` | Not interactive (fields are also left out when a form posts) |
 | `engine` | `engine` | `string` | Which registered engine edits the text (default: the built-in plain one). Loaded when first needed. |
 | `error-text` | `errorText` | `string` | Error shown under the field (for example from the server); marks it invalid |
+| `filename` | `filename` | `string` | A file name or path (`nightly.groovy`, `Dockerfile`): the language is taken from it when `language` is not set |
 | `height` | `height` | `string \| number` | Height of the editor (CSS size or px number; default 16rem) |
 | `helper-text` | `helperText` | `string` | Hint shown under the field |
+| `highlight` | `highlight` | `boolean` | Colour the text (default on; off with wrap, and for very long text) |
 | `label` | `label` | `string` | Label shown with the field |
-| `language` | `language` | `string` | `json` (checked as you type), `javascript`, `groovy`, `java`, `properties`, `text`, or any language the engine knows |
+| `language` | `language` | `string` | A language id or alias (`groovy`, `js`, `yml`…): see `listCodeLanguages()`. Colours the text, sets the comment and indent rules, and checks JSON, JSON with comments, XML and properties as you type. Default `text` |
+| `language-select` | `languageSelect` | `boolean` | Show a list in the status bar to change the language (`languages="json,yaml,xml"` limits the choices) |
+| `languages` | `languages` |  |  |
 | `line-numbers` | `lineNumbers` | `boolean` | Numbers in the margin (default on; off when `wrap` is on) |
 | `name` | `name` | `string` | Field name: the key in form values, and the name it posts under |
-| `no-json-check` | `noJsonCheck` | `boolean` | Do not check JSON as it is typed |
+| `no-check` | `noCheck` | `boolean` | Do not check the text as it is typed (JSON, JSON with comments, XML, properties) |
+| `no-json-check` | `noJsonCheck` |  |  |
 | `placeholder` | `placeholder` | `string` |  |
 | `readonly` | `readonly` | `boolean` | Show the text but do not allow edits |
 | `required` | `required` | `boolean` | A value is required before the form can submit |

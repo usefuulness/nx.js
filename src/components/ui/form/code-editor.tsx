@@ -1,12 +1,19 @@
 import { define } from '@/core/registry';
 import { NXField, type FieldConfig } from '@/components/ui/form/field';
 import { resolveCodeEngine, type CodeEngine, type CodeEngineOptions } from '@/core/code-engine';
+import { codeLanguageForFile, findCodeLanguage, listCodeLanguages, resolveCodeLanguage, tokenizeCode, type CodeLanguage, type Token } from '@/core/code-languages';
 
 export interface CodeEditorConfig extends FieldConfig {
   /** The text */
   value?: string;
-  /** `json` (checked as you type), `javascript`, `groovy`, `java`, `properties`, `text`, or any language the engine knows */
+  /** A language id or alias (`groovy`, `js`, `yml`…): see `listCodeLanguages()`. Colours the text, sets the comment and indent rules, and checks JSON, JSON with comments, XML and properties as you type. Default `text` */
   language?: string;
+  /** A file name or path (`nightly.groovy`, `Dockerfile`): the language is taken from it when `language` is not set */
+  filename?: string;
+  /** Show a list in the status bar to change the language (`languages="json,yaml,xml"` limits the choices) */
+  languageSelect?: boolean;
+  /** Colour the text (default on; off with wrap, and for very long text) */
+  highlight?: boolean;
   /** Show the text but do not allow edits */
   readonly?: boolean;
   /** Numbers in the margin (default on; off when `wrap` is on) */
@@ -20,84 +27,16 @@ export interface CodeEditorConfig extends FieldConfig {
   placeholder?: string;
   /** Which registered engine edits the text (default: the built-in plain one). Loaded when first needed. */
   engine?: string;
-  /** Do not check JSON as it is typed */
-  noJsonCheck?: boolean;
+  /** Do not check the text as it is typed (JSON, JSON with comments, XML, properties) */
+  noCheck?: boolean;
 }
 
 const px = (v: unknown) => (typeof v === 'number' || /^\d+(\.\d+)?$/.test(String(v)) ? `${v}px` : String(v));
 
 /**
- * Check JSON and say where it goes wrong. Browsers word (and place) JSON.parse errors differently, so the position
- * comes from a small scanner of our own: the same answer everywhere.
- */
-function jsonProblem(text: string): { message: string; line: number; column: number } | null {
-  if (!text.trim()) return null;
-  let i = 0;
-  const fail = (message: string, at = i): never => { throw { message, at }; };
-  const ws = () => { while (i < text.length && /[ \t\r\n]/.test(text[i])) i++; };
-  const describe = () => (i >= text.length ? 'the text ends too soon' : `unexpected "${text[i]}"`);
-  const value = (): void => {
-    ws();
-    const c = text[i];
-    if (c === '{') {
-      i++; ws();
-      if (text[i] === '}') { i++; return; }
-      for (;;) {
-        ws();
-        if (text[i] !== '"') fail(`${describe()}, a name in quotes was expected`);
-        string(); ws();
-        if (text[i] !== ':') fail(`${describe()}, ":" was expected`);
-        i++; value(); ws();
-        if (text[i] === ',') { i++; continue; }
-        if (text[i] === '}') { i++; return; }
-        fail(`${describe()}, "," or "}" was expected`);
-      }
-    } else if (c === '[') {
-      i++; ws();
-      if (text[i] === ']') { i++; return; }
-      for (;;) {
-        value(); ws();
-        if (text[i] === ',') { i++; continue; }
-        if (text[i] === ']') { i++; return; }
-        fail(`${describe()}, "," or "]" was expected`);
-      }
-    } else if (c === '"') string();
-    else if (/-|\d/.test(c ?? '')) {
-      const m = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?/.exec(text.slice(i));
-      if (!m) fail('not a valid number');
-      i += m![0].length;
-    } else {
-      const word = /^(true|false|null)/.exec(text.slice(i));
-      if (!word) fail(`${describe()}, a value was expected`);
-      i += word![0].length;
-    }
-  };
-  const string = (): void => {
-    i++;
-    while (i < text.length && text[i] !== '"') {
-      if (text[i] === '\n') fail('a string cannot continue onto a new line');
-      if (text[i] === '\\') { i++; if (!/["\\/bfnrtu]/.test(text[i] ?? '')) fail('unknown escape'); }
-      i++;
-    }
-    if (text[i] !== '"') fail('a string is not closed');
-    i++;
-  };
-  try {
-    value(); ws();
-    if (i < text.length) fail(`${describe()}, nothing should follow the value`);
-    return null;
-  } catch (e) {
-    const err = e as { message: string; at: number };
-    if (typeof err?.at !== 'number') throw e;
-    const before = text.slice(0, Math.min(err.at, text.length));
-    return { message: err.message, line: before.split('\n').length, column: before.length - before.lastIndexOf('\n') };
-  }
-}
-
-/**
  * A code editor that is a form field: `value`, `required`, validation, `name` and native form posting work as in
  * any other field. The built-in editor is a text area with line numbers, Tab and Shift+Tab indentation, auto-indent,
- * the cursor position, JSON checking, and an "Unsaved changes" mark; it works before any script runs. For highlighting,
+ * the cursor position, colours for dozens of languages, comment toggling (Ctrl/⌘+/), checks for JSON, XML and properties as you type, and an "Unsaved changes" mark; it works before any script runs. For highlighting,
  * completion or find and replace, register an engine behind the contract in `nx.js` (`registerCodeEngineLoader`) and
  * name it with `engine`: it is loaded only when an editor asks for it, and disposed when the editor goes away.
  *
@@ -112,7 +51,7 @@ function jsonProblem(text: string): { message: string; line: number; column: num
  */
 export class NXCodeEditor extends NXField {
   static get observedAttributes(): string[] {
-    return ['name', 'label', 'helper-text', 'error-text', 'required', 'disabled', 'readonly', 'value', 'language', 'line-numbers', 'tab-size', 'wrap', 'height', 'placeholder', 'engine', 'no-json-check'];
+    return ['name', 'label', 'helper-text', 'error-text', 'required', 'disabled', 'readonly', 'value', 'language', 'filename', 'language-select', 'languages', 'highlight', 'line-numbers', 'tab-size', 'wrap', 'height', 'placeholder', 'engine', 'no-check', 'no-json-check'];
   }
 
   private currentValue = '';
@@ -124,6 +63,19 @@ export class NXCodeEditor extends NXField {
   private escaped = false;
   private mountToken = 0;
   private cursor = { line: 1, column: 1 };
+
+  /** The language in force: `language`, else the one the `filename` says, else plain text. */
+  private codeLanguage(): CodeLanguage {
+    const named = this.getProp<string>('language');
+    if (named) return resolveCodeLanguage(named);
+    return codeLanguageForFile(this.getProp<string>('filename')) ?? resolveCodeLanguage('text');
+  }
+
+  /** The language ids this editor offers in its list. */
+  private choices(): CodeLanguage[] {
+    const wanted = String(this.getProp('languages', '') || '').split(/[\s,]+/).filter(Boolean).map(w => findCodeLanguage(w)).filter((l): l is CodeLanguage => !!l);
+    return wanted.length ? wanted : listCodeLanguages();
+  }
 
   // ────────── Value and unsaved changes ──────────
 
@@ -180,7 +132,7 @@ export class NXCodeEditor extends NXField {
   private options(): CodeEngineOptions {
     const wrap = !!this.getProp('wrap', false);
     return {
-      language: this.getProp<string>('language', 'text'),
+      language: this.codeLanguage().id,
       value: this.currentValue,
       readOnly: !!this.getProp('readonly', false) || !!this.getProp('disabled', false),
       lineNumbers: this.getProp<boolean>('line-numbers', true) && !wrap,
@@ -196,26 +148,69 @@ export class NXCodeEditor extends NXField {
     };
   }
 
-  protected render(): Node {
-    const o = this.options();
-    const height = px(this.getProp('height', '16rem'));
-    return this.renderField(
-      <div part="editor" class="editor" style={{ height }}>
-        <div class="host">
-          {o.lineNumbers && <div class="gutter" aria-hidden="true" />}
+  /** Whether the colours are drawn: on by default, off when wrapping (the layers would not line up) or for very long text. */
+  private colours(text = this.currentValue): boolean {
+    return !!this.getProp('highlight', true) && !this.getProp('wrap', false) && !!this.codeLanguage().rules?.length && text.length <= 200_000;
+  }
+
+  private highlightNodes(text: string): Node[] {
+    const nodes: Node[] = tokenizeCode(text, this.codeLanguage()).map((t: Token) => {
+      if (!t.type) return document.createTextNode(t.text);
+      const span = document.createElement('span');
+      span.className = `t-${t.type}`;
+      span.textContent = t.text; // text, never markup: the content is user data
+      return span;
+    });
+    // A text area shows an empty last line after a final newline: the layer needs the same height
+    nodes.push(document.createTextNode('\n'));
+    return nodes;
+  }
+
+  /** The editing surface: line numbers, the colour layer and the text area. */
+  private surface(o: CodeEngineOptions): Node[] {
+    const colours = this.colours();
+    return [
+      o.lineNumbers ? <div class="gutter" aria-hidden="true" /> as Node : null,
+      (
+        <div class={['edit', { coloured: colours }]} style={{ '--nx-tab': String(o.tabSize) }}>
+          <pre class="hl" aria-hidden="true"><code>{colours ? this.highlightNodes(this.currentValue) : null}</code></pre>
           <textarea id={this.fieldId} part="input" class="code" spellcheck={false} autocapitalize="off" autocomplete="off" wrap={o.wrap ? 'soft' : 'off'}
                     name={this.getProp<string>('name')} placeholder={o.placeholder} required={!!this.getProp('required', false)}
                     disabled={!!this.getProp('disabled', false)} readonly={o.readOnly} aria-describedby={o.describedBy}
                     value={this.currentValue} />
         </div>
+      ) as Node
+    ].filter((n): n is Node => !!n);
+  }
+
+  protected render(): Node {
+    const o = this.options();
+    const height = px(this.getProp('height', '16rem'));
+    const lang = this.codeLanguage();
+    const select = !!this.getProp('language-select', false);
+    return this.renderField(
+      <div part="editor" class="editor" style={{ height }}>
+        <div class="host">{this.surface(o)}</div>
         <div class="status" part="status">
           <span class="pos" />
-          <span class="lang">{o.language}</span>
+          {select
+            ? (
+              <select class="lang-select" part="language" aria-label={this.t('code.language')} onChange={(e: Event) => this.chooseLanguage((e.target as HTMLSelectElement).value)}>
+                {this.choices().map(l => <option value={l.id} selected={l.id === lang.id}>{l.label}</option>)}
+              </select>
+            )
+            : <span class="lang">{lang.label}</span>}
           <span class="dirty" role="status" />
           <span class="hint" id={`${this.fieldId}-hint`}>{this.t('code.leaveHint')}</span>
         </div>
       </div>
     );
+  }
+
+  /** Change the language from the list in the status bar. */
+  private chooseLanguage(id: string): void {
+    this.setAttribute('language', id);
+    this.emit('language-change', { language: id, label: resolveCodeLanguage(id).label });
   }
 
   protected update(): void {
@@ -265,8 +260,13 @@ export class NXCodeEditor extends NXField {
     const label = this.$('.nx-field-label');
     if (label) label.firstChild && (label.firstChild.textContent = this.getProp<string>('label', ''));
     (this.$('.editor') as HTMLElement | null)?.style.setProperty('height', px(this.getProp('height', '16rem')));
-    (this.$('.lang') as HTMLElement | null)?.replaceChildren(o.language);
+    const lang = this.codeLanguage();
+    const langEl = this.$('.lang') as HTMLElement | null;
+    if (langEl) langEl.textContent = lang.label;
+    const pick = this.$('.lang-select') as HTMLSelectElement | null;
+    if (pick && pick.value !== lang.id) pick.value = lang.id;
     this.engine?.setLanguage?.(o.language);
+    this.paintColours();
     this.engine?.setReadOnly(o.readOnly);
     this.engine?.setDisabled?.(!!this.getProp('disabled', false));
     this.engine?.setOptions?.({ lineNumbers: o.lineNumbers, tabSize: o.tabSize, wrap: o.wrap, placeholder: o.placeholder });
@@ -339,7 +339,8 @@ export class NXCodeEditor extends NXField {
   /** Pretty-print the text (JSON with the built-in editor; any language the engine can). */
   format(): boolean {
     if (this.engine?.format && this.custom) { this.engine.format(); this.afterEdit(true); return true; }
-    if (this.getProp<string>('language', 'text') !== 'json' || jsonProblem(this.value) || !this.value.trim()) return false;
+    const json = this.codeLanguage().id === 'json';
+    if (!json || !this.value.trim() || this.codeLanguage().validate?.(this.value)) return false;
     const next = JSON.stringify(JSON.parse(this.value), null, this.options().tabSize);
     this.engine?.setValue(next);
     this.currentValue = next;
@@ -354,27 +355,44 @@ export class NXCodeEditor extends NXField {
   // ────────── The built-in editor: a text area ──────────
 
   private showBuiltin(host: HTMLElement): void {
-    const o = this.options();
-    const gutter = o.lineNumbers ? <div class="gutter" aria-hidden="true" /> : null;
-    const area = (
-      <textarea id={this.fieldId} part="input" class="code" spellcheck={false} autocapitalize="off" autocomplete="off" wrap={o.wrap ? 'soft' : 'off'}
-                name={this.getProp<string>('name')} placeholder={o.placeholder} required={!!this.getProp('required', false)}
-                disabled={!!this.getProp('disabled', false)} readonly={o.readOnly} aria-describedby={o.describedBy} value={this.currentValue} />
-    ) as HTMLTextAreaElement;
-    host.replaceChildren(...(gutter ? [gutter as Node] : []), area);
+    host.replaceChildren(...this.surface(this.options()));
     this.engine = this.builtin(host);
+  }
+
+  /** Redraw the colour layer for the text as it is (and switch it off or on when the options say so). */
+  private paintColours(): void {
+    const edit = this.$('.edit') as HTMLElement | null;
+    const code = this.$('.hl code') as HTMLElement | null;
+    if (!edit || !code || this.custom) return;
+    const text = this.value;
+    const on = this.colours(text);
+    edit.classList.toggle('coloured', on);
+    edit.style.setProperty('--nx-tab', String(this.options().tabSize));
+    code.replaceChildren(...(on ? this.highlightNodes(text) : []));
+    const area = this.$('textarea.code') as HTMLTextAreaElement | null;
+    const hl = this.$('.hl') as HTMLElement | null;
+    if (area && hl) { hl.scrollTop = area.scrollTop; hl.scrollLeft = area.scrollLeft; }
   }
 
   private builtin(host: HTMLElement): CodeEngine {
     const area = host.querySelector('textarea.code') as HTMLTextAreaElement;
     const gutter = () => host.querySelector('.gutter') as HTMLElement | null;
     let tab = this.options().tabSize;
+    let pending = 0;
     const paint = () => {
       const g = gutter();
-      if (!g) return;
-      const lines = area.value.split('\n').length;
-      if (g.childElementCount !== lines) g.textContent = Array.from({ length: lines }, (_, i) => i + 1).join('\n');
-      g.scrollTop = area.scrollTop;
+      if (g) {
+        const lines = area.value.split('\n').length;
+        if (g.childElementCount !== lines) g.textContent = Array.from({ length: lines }, (_, i) => i + 1).join('\n');
+        g.scrollTop = area.scrollTop;
+      }
+      const hl = host.querySelector('.hl') as HTMLElement | null;
+      if (hl) { hl.scrollTop = area.scrollTop; hl.scrollLeft = area.scrollLeft; }
+    };
+    /** Redraw the colours: at once for ordinary text, once a frame for long text */
+    const colour = () => {
+      if (area.value.length < 20_000) { this.paintColours(); return; }
+      if (!pending) pending = requestAnimationFrame(() => { pending = 0; this.paintColours(); });
     };
     const cursor = () => {
       const upto = area.value.slice(0, area.selectionStart);
@@ -391,8 +409,47 @@ export class NXCodeEditor extends NXField {
     };
     const lineStart = (i: number) => area.value.lastIndexOf('\n', i - 1) + 1;
     const unit = () => ' '.repeat(tab);
+    /** Comment or uncomment the lines the selection touches: with `//` or `#` where the language has it, with a block marker otherwise */
+    const toggleComment = (comment: NonNullable<CodeLanguage['comment']>) => {
+      const { selectionStart: s, selectionEnd: en, value } = area;
+      const from = lineStart(s);
+      // A selection that ends at the very start of a line does not include that line
+      const last = en > s && value[en - 1] === '\n' ? en - 1 : en;
+      let to = value.indexOf('\n', last);
+      if (to < 0) to = value.length;
+      const block = value.slice(from, to);
+      if (comment.line) {
+        const marker = comment.line;
+        const lines = block.split('\n');
+        const live = lines.filter(l => l.trim());
+        const commented = live.length > 0 && live.every(l => l.trimStart().startsWith(marker));
+        const margin = Math.min(...live.map(l => /^[ \t]*/.exec(l)![0].length));
+        const next = lines.map(l => {
+          if (!l.trim()) return l;
+          if (commented) return l.replace(new RegExp(`^([ \\t]*)${marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} ?`), '$1');
+          return `${l.slice(0, margin)}${marker} ${l.slice(margin)}`;
+        }).join('\n');
+        insert(next, from, to, 'all');
+      } else if (comment.block) {
+        const [open, close] = comment.block;
+        const wrapped = block.trim().startsWith(open) && block.trim().endsWith(close);
+        const indent = /^[ \t]*/.exec(block)![0];
+        let next: string;
+        if (wrapped) {
+          // Take the markers off, and the one space beside each
+          const i = block.indexOf(open);
+          let t = block.slice(0, i) + block.slice(i + open.length).replace(/^ /, '');
+          const j = t.lastIndexOf(close);
+          t = t.slice(0, j).replace(/ $/, '') + t.slice(j + close.length);
+          next = t;
+        } else {
+          next = `${indent}${open} ${block.slice(indent.length)} ${close}`;
+        }
+        insert(next, from, to, 'all');
+      }
+    };
 
-    area.addEventListener('input', () => { paint(); this.onEngineChange(area.value); });
+    area.addEventListener('input', () => { paint(); colour(); this.onEngineChange(area.value); });
     area.addEventListener('scroll', paint);
     area.addEventListener('keyup', cursor);
     area.addEventListener('click', cursor);
@@ -402,6 +459,13 @@ export class NXCodeEditor extends NXField {
     area.addEventListener('keydown', (e: KeyboardEvent) => {
       if (area.readOnly) return;
       if (e.key === 'Escape') { this.escaped = true; return; }
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === '/' || e.code === 'Slash')) {
+        const comment = this.codeLanguage().comment;
+        if (!comment?.line && !comment?.block) return;
+        e.preventDefault();
+        toggleComment(comment);
+        return;
+      }
       if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // Escape, then Tab, leaves the editor (otherwise a keyboard user would be trapped in it)
         if (this.escaped) { this.escaped = false; return; }
@@ -421,7 +485,7 @@ export class NXCodeEditor extends NXField {
         const at = area.selectionStart;
         const line = area.value.slice(lineStart(at), at);
         const indent = /^[ \t]*/.exec(line)![0];
-        const open = /[{[(]\s*$/.test(line);
+        const open = (this.codeLanguage().indentAfter ?? /[{[(]\s*$/).test(line);
         const close = /^\s*[}\])]/.test(area.value.slice(at));
         e.preventDefault();
         if (open && close) { insert(`\n${indent}${unit()}\n${indent}`); const p = at + 1 + indent.length + tab; area.setSelectionRange(p, p); }
@@ -431,7 +495,7 @@ export class NXCodeEditor extends NXField {
     paint();
     return {
       getValue: () => area.value,
-      setValue: v => { area.value = v; paint(); },
+      setValue: v => { area.value = v; paint(); this.currentValue = v; this.paintColours(); },
       setReadOnly: r => { area.readOnly = r; },
       setDisabled: d => { area.disabled = d; },
       setOptions: o => {
@@ -461,12 +525,13 @@ export class NXCodeEditor extends NXField {
     }
   }
 
-  /** JSON is checked as it is typed (turn it off with `no-json-check`). */
+  /** The text is checked as it is typed, for the languages that can be (JSON, JSON with comments, XML, properties); `no-check` turns it off. */
   validationMessage(): string {
-    if (this.getProp<string>('language', 'text') === 'json' && !this.getProp('no-json-check', false)) {
-      const problem = jsonProblem(this.value);
+    const lang = this.codeLanguage();
+    if (lang.validate && !this.getProp('no-check', false) && !this.getProp('no-json-check', false)) {
+      const problem = lang.validate(this.value);
       if (problem) {
-        const message = this.t('code.invalidJson', { message: problem.message, line: problem.line, column: problem.column });
+        const message = this.t('code.invalid', { language: lang.label, message: problem.message, line: problem.line, column: problem.column });
         const control = this.control();
         control?.setCustomValidity(message);
         this.internals?.setValidity({ customError: true }, message, control ?? undefined);
@@ -489,11 +554,44 @@ export class NXCodeEditor extends NXField {
       :host(.disabled) .editor { opacity: 0.6; }
       .host { flex: 1; min-height: 0; display: flex; }
       .gutter { flex: none; padding: 0.5rem 0.5rem 0.5rem 0.75rem; text-align: end; white-space: pre; overflow: hidden; user-select: none; color: var(--color-text-secondary); background: var(--color-muted); border-inline-end: 1px solid var(--color-border); font: 0.8125rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
-      textarea.code { flex: 1; min-width: 0; margin: 0; padding: 0.5rem 0.75rem; border: 0; outline: 0; resize: none; background: transparent; color: var(--color-text); font: 0.8125rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 2; white-space: pre; overflow: auto; }
+      .edit { position: relative; flex: 1; min-width: 0; display: flex; }
+      /* The colour layer sits under the text area, which keeps the caret, the selection and the typing. Same font, padding and tab size, so they line up */
+      .hl { position: absolute; inset: 0; margin: 0; padding: 0.5rem 0.75rem; overflow: hidden; pointer-events: none; color: var(--color-text); white-space: pre; tab-size: var(--nx-tab, 2); font: 0.8125rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .hl code { font: inherit; }
+      .hl:empty, .edit:not(.coloured) .hl { display: none; }
+      textarea.code { position: relative; flex: 1; min-width: 0; margin: 0; padding: 0.5rem 0.75rem; border: 0; outline: 0; resize: none; background: transparent; color: var(--color-text); caret-color: var(--color-text); font: 0.8125rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: var(--nx-tab, 2); white-space: pre; overflow: auto; }
+      /* With colours on, the text area's own glyphs are not painted (its colour stays, so contrast checks and assistive technology see real text) */
+      .edit.coloured textarea.code { -webkit-text-fill-color: transparent; }
+      .edit.coloured textarea.code::placeholder { -webkit-text-fill-color: var(--color-text-secondary); }
+      textarea.code::selection { background: color-mix(in srgb, var(--color-primary) 32%, transparent); }
       textarea.code[wrap="soft"] { white-space: pre-wrap; overflow-wrap: anywhere; }
       textarea.code::placeholder { color: var(--color-text-secondary); }
-      .status { flex: none; display: flex; align-items: center; gap: 0.75rem; padding: 0.25rem 0.75rem; border-top: 1px solid var(--color-border); background: var(--color-muted); color: var(--color-text-secondary); font-size: 0.75rem; }
-      .lang { text-transform: uppercase; letter-spacing: 0.04em; }
+      @media (forced-colors: active) { .hl { display: none; } .edit.coloured textarea.code { -webkit-text-fill-color: currentcolor; } }
+      /* Colours for light and dark (each at least 5.6:1 on the theme backgrounds). Override any of them from outside: nx-code-editor { --nx-code-keyword: #c0392b; } */
+      :host {
+        --nx-code-keyword: light-dark(#0550ae, #79c0ff);
+        --nx-code-type: light-dark(#6639ba, #d2a8ff);
+        --nx-code-literal: light-dark(#953800, #ffa657);
+        --nx-code-string: light-dark(#116329, #7ee787);
+        --nx-code-comment: light-dark(#59636e, #9198a1);
+        --nx-code-removed: light-dark(#a40e26, #ff7b72);
+      }
+      .t-keyword { color: var(--nx-code-keyword); font-weight: 600; }
+      .t-type { color: var(--nx-code-type); }
+      .t-literal, .t-number, .t-variable { color: var(--nx-code-literal); }
+      .t-string, .t-added { color: var(--nx-code-string); }
+      .t-comment, .t-meta, .t-operator { color: var(--nx-code-comment); }
+      .t-comment { font-style: italic; }
+      .t-tag, .t-key, .t-attr { color: var(--nx-code-keyword); }
+      .t-attr { font-style: italic; }
+      .t-heading { font-weight: 700; }
+      .t-emphasis { font-style: italic; }
+      .t-removed { color: var(--nx-code-removed); }
+      .lang-select { height: 1.375rem; max-width: 12rem; padding: 0 0.25rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 0.75rem; }
+      .lang-select:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 1px; }
+      .status { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0.125rem 0.75rem; padding: 0.25rem 0.75rem; border-top: 1px solid var(--color-border); background: var(--color-muted); color: var(--color-text-secondary); font-size: 0.75rem; }
+      .pos, .dirty, .lang { white-space: nowrap; }
+      .lang { letter-spacing: 0.02em; }
       .dirty { color: var(--color-warning-text); font-weight: 600; }
       .dirty:empty { display: none; }
       .hint { margin-inline-start: auto; position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

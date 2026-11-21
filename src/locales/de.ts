@@ -15,7 +15,7 @@ i18n.extend('de', {
   'pagination.label': 'Seitennavigation', 'pagination.previous': 'Vorherige Seite', 'pagination.next': 'Nächste Seite', 'pagination.page': 'Seite {page}',
   'pagination.status': 'Seite {page} von {pages}', 'pagination.range': '{from}–{to} von {total}', 'pagination.perPage': 'Zeilen pro Seite',
   'property.required': 'Dieses Feld ist erforderlich', 'property.number': 'Geben Sie eine Zahl ein', 'property.min': 'Muss mindestens {min} sein', 'property.max': 'Darf höchstens {max} sein', 'property.pattern': 'Entspricht nicht dem erwarteten Format', 'property.choose': 'Auswählen…', 'property.clear': 'Leeren',
-  'code.position': 'Zeile {line}, Spalte {column}', 'code.unsaved': 'Nicht gespeicherte Änderungen', 'code.leaveHint': 'Zum Verlassen des Editors Escape, dann Tab drücken', 'code.invalidJson': 'Kein gültiges JSON: {message} (Zeile {line}, Spalte {column})',
+  'code.position': 'Zeile {line}, Spalte {column}', 'code.unsaved': 'Nicht gespeicherte Änderungen', 'code.leaveHint': 'Zum Verlassen des Editors Escape, dann Tab drücken', 'code.invalid': 'Kein gültiges {language}: {message} (Zeile {line}, Spalte {column})', 'code.language': 'Sprache',
   'notifications.label': 'Benachrichtigungen', 'notifications.unread': '{label}, {count} ungelesen', 'notifications.unreadItem': 'Ungelesen:', 'notifications.markAll': 'Alle als gelesen markieren', 'notifications.empty': 'Alles gelesen', 'notifications.new': 'Neue Benachrichtigung: {title}',
   'nav.collapse': 'Menü einklappen', 'nav.expand': 'Menü ausklappen',
   'grid.views': 'Ansichten', 'grid.noViews': 'Noch keine gespeicherten Ansichten', 'grid.viewName': 'Ansicht benennen', 'grid.saveView': 'Speichern', 'grid.deleteView': 'Ansicht {name} löschen',

@@ -215,7 +215,7 @@ export const Components = () => (
 
     <Grid minColumnWidth="18rem" gap={16}>
       <Panel title="Code editor">
-        <CodeEditor label="Settings (JSON)" name="settings" language="json" height="9rem" value={'{\n  "retries": 2,\n  "notify": ["ops@example.com"]\n}'} />
+        <CodeEditor label="Settings (JSON)" name="settings" language="json" languageSelect languages="json,yaml,xml,properties" height="9rem" value={'{\n  "retries": 2,\n  "notify": ["ops@example.com"]\n}'} />
       </Panel>
       <Panel title="Property grid">
         <PropertyGrid label="Job" schema={[
