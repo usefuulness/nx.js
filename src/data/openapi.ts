@@ -20,6 +20,8 @@ export interface OperationInfo {
   tags: string[];
   parameters: Array<{ name: string; in: 'path' | 'query' | 'header' | 'cookie'; required: boolean }>;
   hasBody: boolean;
+  /** The success answer is plain text (a string schema, or no JSON form), so it is read as text, not parsed as JSON */
+  textResponse?: boolean;
 }
 
 export interface OpenApiResult {
@@ -94,6 +96,21 @@ function responseSchema(op: Json, spec: Json): Json | undefined {
   const ok = responses['200'] ?? responses['201'] ?? responses.default ?? Object.entries(responses).find(([k]) => /^2/.test(k))?.[1];
   const r = resolve(ok, spec);
   return jsonSchemaOf(r.content, spec) ?? (r.schema ? resolve(r.schema, spec) : undefined); // Swagger 2 has `schema` right there
+}
+
+/** Whether the success answer is text: a string schema, or content with no JSON form at all (`text/plain`, XML). */
+function isTextResponse(op: Json, spec: Json): boolean {
+  const responses = op.responses ?? {};
+  const ok = responses['200'] ?? responses['201'] ?? Object.entries(responses).find(([k]) => /^2/.test(k))?.[1];
+  if (!ok) return false;
+  const r = resolve(ok, spec);
+  const content: Json | undefined = r.content;
+  if (content && Object.keys(content).length) {
+    const json = jsonSchemaOf(content, spec);
+    if (json) return json.type === 'string' && !json.enum;
+    return Object.keys(content).every(k => /^text\//.test(k) || /xml/.test(k));
+  }
+  return r.schema ? resolve(r.schema, spec).type === 'string' : false;
 }
 
 function bodySchema(op: Json, spec: Json): Json | undefined {
@@ -195,7 +212,8 @@ export function readOpenApi(specification: unknown): OpenApiResult {
       operations.push({
         name, method: m.toUpperCase() as OperationInfo['method'], path, summary: op.summary, tags: op.tags ?? [],
         parameters: [...unique.values()].map(p => ({ name: p.name, in: p.in, required: p.in === 'path' || p.required === true })),
-        hasBody: !!(op.requestBody || (op.parameters ?? []).some((p: any) => resolve(p, spec).in === 'body'))
+        hasBody: !!(op.requestBody || (op.parameters ?? []).some((p: any) => resolve(p, spec).in === 'body')),
+        ...(isTextResponse(op, spec) ? { textResponse: true } : {})
       });
       raw[`${m} ${path}`] = { ...op, parameters: [...unique.values()] };
     }
@@ -281,6 +299,12 @@ export class OpenApiClient extends Api {
     const known = new Set(op.parameters.map(p => p.name));
     // `{ body }` among the parameters works too, unless the API has a parameter of that name
     const payload = body !== undefined ? body : op.hasBody && !known.has('body') ? params.body : undefined;
+    if (op.textResponse && op.method !== 'DELETE') {
+      // A string answer: some servers send it bare, some as a JSON string, and some label it JSON either way
+      const text = await this.request<string>(path, { method: op.method, params: query, body: payload, headers, as: 'text' });
+      if (typeof text === 'string' && /^".*"$/s.test(text.trim())) { try { return JSON.parse(text) as T; } catch { /* a bare string that happens to start with a quote */ } }
+      return text as T;
+    }
     return this.request<T>(path, { method: op.method, params: query, body: payload, headers, as: op.method === 'DELETE' ? 'none' : 'json' });
   }
 }
@@ -301,11 +325,12 @@ export async function openApiClient(source: string | object, config: ApiConfig =
       } catch (e) {
         throw new Error(`Could not read the OpenAPI document at ${text}: ${(e as AjaxError).message}`);
       }
-      // A `servers` address without a scheme or a leading slash is relative to where the document was served
+      // A relative `servers` address (`v1/`, `/api/v3`) is relative to where the document was served, so a document read
+      // from another site (the Petstore's own) reaches that site's API, not one on this page's origin
       const declared = readOpenApi(document).baseUrl;
-      if (!config.baseUrl && declared && !/^([a-z][a-z0-9+.-]*:)?\/|^$/i.test(declared)) {
+      if (!config.baseUrl && declared && declared !== '/' && !/^([a-z][a-z0-9+.-]*:|\/\/)/i.test(declared)) {
         const from = new URL(text, typeof location !== 'undefined' ? location.href : 'http://localhost/');
-        config = { ...config, baseUrl: new URL(declared.replace(/\/*$/, '/'), from).href.replace(/\/$/, '') };
+        config = { ...config, baseUrl: (declared.startsWith('/') ? new URL(declared, from) : new URL(declared.replace(/\/*$/, '/'), from)).href.replace(/\/$/, '') };
       }
     } else {
       throw new Error('YAML is not read here: pass the document as JSON (an object, a JSON string, or a URL that serves JSON)');
