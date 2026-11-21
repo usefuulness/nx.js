@@ -164,7 +164,7 @@ export class NXNotifications extends BaseComponent {
       .bell:hover { background: var(--color-accent); }
       .bell:focus-visible, .row:focus-visible, .link:focus-visible { outline: 2px solid var(--color-ring); outline-offset: -2px; }
       .count { position: absolute; top: 0.125rem; inset-inline-end: 0.0625rem; min-width: 1.0625rem; height: 1.0625rem; padding: 0 0.25rem; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border-radius: 9999px; background: var(--color-error-text); color: var(--color-background, #fff); font-size: 0.6875rem; font-weight: 700; line-height: 1; }
-      .panel { margin: 0; padding: 0; width: min(24rem, calc(100vw - 1.5rem)); border: 1px solid var(--color-border); border-radius: var(--radius-lg, var(--radius-md)); background: var(--color-popover, var(--color-card)); color: var(--color-text); box-shadow: var(--shadow-lg); overflow: hidden; }
+      .panel { position: fixed; inset: auto; margin: 0; padding: 0; width: min(24rem, calc(100vw - 1.5rem)); border: 1px solid var(--color-border); border-radius: var(--radius-lg, var(--radius-md)); background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-lg); overflow: hidden; }
       .panel:popover-open { display: flex; flex-direction: column; max-height: min(28rem, 80vh); }
       .head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--color-border); font-size: 0.9375rem; }
       .link { border: 0; background: transparent; color: var(--color-primary); font: inherit; font-size: 0.8125rem; cursor: pointer; padding: 0.25rem 0.375rem; border-radius: var(--radius-sm); }

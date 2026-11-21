@@ -398,7 +398,7 @@ export class NXList<T = any> extends BaseComponent {
         color: var(--color-text); cursor: pointer; border-radius: var(--radius-md); user-select: none;
         transition: background-color var(--transition-duration), box-shadow var(--transition-duration);
       }
-      .cards .item { flex-direction: column; align-items: flex-start; padding: 1rem; border: 1px solid var(--color-border); background: var(--color-card); box-shadow: var(--shadow-sm); }
+      .cards .item { flex-direction: column; align-items: flex-start; padding: 1rem; border: 1px solid var(--color-border); background: var(--color-surface); box-shadow: var(--shadow-sm); }
       .item:hover { background: var(--color-accent); }
       .item.selected { background: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-primary); }
       .item:focus-visible { outline: 2px solid var(--color-ring); outline-offset: -2px; }

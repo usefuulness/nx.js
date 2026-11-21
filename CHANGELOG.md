@@ -2,6 +2,12 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## 0.16.2 - 2026-11-21
+
+### Fixed
+- The Columns and Views panels of the grid, the notifications panel and the list's card layout had no background (they used colour names the theme does not have), so the page showed through them. They use the theme's surface colour. The panels also set `position: fixed; inset: auto` like every other floating element, and the grid's two open under the start edge of their buttons.
+- A browser test opens each panel and checks it sits under its button, lines up on the right edge, and is not transparent.
+
 ## 0.16.1 - 2026-11-21
 
 ### Fixed
