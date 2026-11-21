@@ -154,6 +154,13 @@ export interface HalProxyConfig extends ProxyConfig {
   href: string;
   /** Are page numbers zero-based on this server (default true, like Spring)? */
   zeroBasedPages?: boolean;
+  /**
+   * Which template variable carries each filtered property, for servers that name them differently
+   * (`{ name: 'nameContains', active: 'enabled' }`). A property not listed here is sent under its own name.
+   */
+  filterMap?: Record<string, string>;
+  /** Turn a filter into the variables to send, for anything the rest cannot say (a range, an operator). Return nothing to use the default. */
+  filterVariables?: (filter: { property: string; value: any; operator?: string }) => Record<string, unknown> | void;
 }
 
 const SIZE_NAMES = ['size', 'limit', 'per_page', 'perPage', 'pageSize', 'page_size'];
@@ -182,11 +189,18 @@ export class HalProxy<T = any> extends Proxy<T> {
     if (page && params.page !== undefined) vars[page] = Number(params.page) - (this.cfg.zeroBasedPages === false ? 0 : 1);
     if (size && params.limit !== undefined) vars[size] = params.limit;
     const parse = (v: unknown) => { try { return typeof v === 'string' ? JSON.parse(v) : v ?? []; } catch { return []; } };
-    const sort = parse(params.sort)[0];
-    if (names.has('sort') && sort) vars.sort = `${sort.property},${sort.direction === 'DESC' ? 'desc' : 'asc'}`;
+    // Spring reads `sort=name,asc&sort=age,desc`: one entry per sorter, so a template with `{?sort*}` repeats the name
+    const sorters = parse(params.sort) as Array<{ property: string; direction?: string }>;
+    if (names.has('sort') && sorters.length) {
+      const texts = sorters.map(s => `${s.property},${s.direction === 'DESC' ? 'desc' : 'asc'}`);
+      vars.sort = texts.length === 1 ? texts[0] : texts;
+    }
     for (const f of parse(params.filter)) {
-      if (f.property === '*') { const q = SEARCH_NAMES.find(n => names.has(n)); if (q) vars[q] = f.value; }
-      else if (names.has(f.property)) vars[f.property] = f.value;
+      const custom = this.cfg.filterVariables?.(f);
+      if (custom) { Object.assign(vars, custom); continue; }
+      if (f.property === '*') { const q = SEARCH_NAMES.find(n => names.has(n)); if (q) vars[q] = f.value; continue; }
+      const name = this.cfg.filterMap?.[f.property] ?? f.property;
+      if (names.has(name)) vars[name] = f.value;
     }
     return vars;
   }
@@ -284,19 +298,20 @@ export class HalClient {
    * and `sort` are filled in), reads the embedded records, and saves with each record's own `self` link.
    * The same store each time; `options` give a separate one.
    */
-  async store<T extends Record<string, any> = any>(rel: string, options: Partial<StoreConfig<T>> & { zeroBasedPages?: boolean; idProperty?: string } = {}): Promise<Store<T>> {
+  async store<T extends Record<string, any> = any>(rel: string, options: Partial<StoreConfig<T>> & { zeroBasedPages?: boolean; idProperty?: string; filterMap?: HalProxyConfig['filterMap']; filterVariables?: HalProxyConfig['filterVariables'] } = {}): Promise<Store<T>> {
     const shared = Object.keys(options).length === 0;
     if (shared && this.stores.has(rel)) return this.stores.get(rel) as Store<T>;
     const root = await this.root();
     const link = root.link(rel);
     if (!link) throw new Error(`The API has no "${rel}" link. It offers: ${(await this.resources()).join(', ')}`);
-    const { zeroBasedPages, idProperty, ...rest } = options;
+    const { zeroBasedPages, idProperty, filterMap, filterVariables, ...rest } = options;
     const names = new Set(templateVariables(link.href));
     const store = new Store<T>({
       idProperty,
-      proxy: { type: 'hal', client: this, rel, href: link.href, zeroBasedPages, idProperty } as HalProxyConfig,
+      proxy: { type: 'hal', client: this, rel, href: link.href, zeroBasedPages, idProperty, filterMap, filterVariables } as HalProxyConfig,
       remoteSort: names.has('sort'),
-      remoteFilter: SEARCH_NAMES.some(n => names.has(n)),
+      // The server filters when the template has a search variable, a variable a `filterMap` points at, or a `filterVariables` function speaks for it
+      remoteFilter: SEARCH_NAMES.some(n => names.has(n)) || Object.values(filterMap ?? {}).some(n => names.has(n)) || !!filterVariables,
       ...rest
     });
     if (shared) this.stores.set(rel, store);

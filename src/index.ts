@@ -56,6 +56,8 @@ export { HalClient, HalResource, createHal, expandTemplate, templateVariables } 
 export type { HalLink } from '@/data/hal';
 export type { SessionChanges, SaveResult } from '@/data/session';
 export type { AssociationConfig, ModelClass, ModelConfig, ModelField, FieldType, ValidatorSpec, ValidationResult } from '@/data/model';
+export { parseApiError } from '@/data/errors';
+export type { ApiErrorInfo } from '@/data/errors';
 export { ajax, AjaxError, createProxy, HttpProxy, MemoryProxy, LocalStorageProxy, Proxy } from '@/data/proxy';
 export type { AjaxOptions } from '@/data/proxy';
 export { ViewModel, createViewModel, sameData } from '@/core/viewmodel';
