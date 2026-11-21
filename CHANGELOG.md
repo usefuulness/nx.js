@@ -2,6 +2,15 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## 0.16.1 - 2026-11-21
+
+### Fixed
+Found by running the OpenAPI client against the real Swagger Petstore (the document and the live server), after it had only run against mocks:
+- A document read from a URL whose `servers` address is root-relative (`/api/v3`, as the Petstore declares) now resolves it against the document's own site; before, every call went to a relative address and failed.
+- An operation whose success answer is a string (the Petstore's `loginUser`) is read as text, whether the server sends it bare, as a JSON string, or labels it JSON either way; before, a bare string raised "The answer is not valid JSON".
+- A query parameter given a list of plain values is sent as a repeated name (`tags=a&tags=b`, what OpenAPI's default `explode: true` means); before, it was sent as `tags=["a","b"]`. Lists of objects (the store's sorters and filters) are still JSON.
+- The Petstore's document is kept as a test fixture; a server's own 500 answer is reported with its status and message (checked against the live server).
+
 ## 0.16.0 - 2026-11-20
 
 ### Added

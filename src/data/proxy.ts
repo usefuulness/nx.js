@@ -76,6 +76,11 @@ export async function ajax<T = any>(url: string, options: AjaxOptions = {}): Pro
   const target = new URL(url, typeof location !== 'undefined' ? location.href : 'http://localhost');
   Object.entries(params ?? {}).forEach(([k, v]) => {
     if (v === undefined || v === null) return;
+    // A list of plain values is the name repeated (`tags=a&tags=b`: how servers and OpenAPI read it); anything else with structure is JSON
+    if (Array.isArray(v) && v.every(x => x === null || ['string', 'number', 'boolean'].includes(typeof x))) {
+      v.forEach(x => x !== null && target.searchParams.append(k, String(x)));
+      return;
+    }
     target.searchParams.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
   });
 

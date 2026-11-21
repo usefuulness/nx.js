@@ -255,6 +255,16 @@ describe('openApiClient', () => {
     expect((await openApiClient('http://docs.test/x/openapi.json', { baseUrl: 'http://other.test/api' })).config.baseUrl).toBe('http://other.test/api');
   });
 
+  it('a root-relative servers address (as the Swagger Petstore declares) is resolved against the document\'s own site', async () => {
+    const rooted = JSON.stringify({ openapi: '3.0.4', servers: [{ url: '/api/v3' }], paths: { '/pet': { get: { responses: { 200: { description: 'ok' } } } } } });
+    (fetch as any).mockImplementation(async () => ({ ok: true, status: 200, statusText: '', text: async () => rooted }) as Response);
+    expect((await openApiClient('https://petstore.test/api/v3/openapi.json')).config.baseUrl).toBe('https://petstore.test/api/v3');
+    // a protocol-relative or absolute address is left as it is
+    const proto = JSON.stringify({ openapi: '3.0.4', servers: [{ url: '//api.test/v3' }], paths: {} });
+    (fetch as any).mockImplementation(async () => ({ ok: true, status: 200, statusText: '', text: async () => proto }) as Response);
+    expect((await openApiClient('https://petstore.test/openapi.json')).config.baseUrl).toBe('//api.test/v3');
+  });
+
   it('says what is wrong', async () => {
     await expect(openApiClient('{not json')).rejects.toThrow('not valid JSON');
     await expect(openApiClient('openapi: 3.0.0\npaths: {}')).rejects.toThrow(/YAML is not read/);
