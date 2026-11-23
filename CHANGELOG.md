@@ -2,6 +2,13 @@
 
 All notable changes to nx.js. The format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [semver](https://semver.org/) once the package is published (first published as 0.2.0).
 
+## 0.17.1 - 2026-11-23
+
+### Fixed
+
+- Chat Markdown now renders tables and nested lists. Wide tables scroll within the message.
+- `readSSE` can preserve leading spaces in Spring's raw `message` events with `{ springRawMessage: true }`. Default SSE parsing is unchanged.
+
 ## 0.17.0 - 2026-11-21
 
 ### Added

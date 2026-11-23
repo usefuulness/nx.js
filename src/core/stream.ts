@@ -40,8 +40,9 @@ export interface ServerEvent {
 /**
  * Server-sent events (`text/event-stream`) from a response: the format most model APIs stream in.
  * Handles events split across chunks, CRLF, comments and multi-line data.
+ * Use `springRawMessage` for Spring streams that put raw text directly after `data:`.
  */
-export async function* readSSE(response: Response, signal?: AbortSignal): AsyncGenerator<ServerEvent> {
+export async function* readSSE(response: Response, signal?: AbortSignal, options: { springRawMessage?: boolean } = {}): AsyncGenerator<ServerEvent> {
   let buffer = '';
   const parse = (block: string): ServerEvent | null => {
     let event = 'message';
@@ -51,12 +52,15 @@ export async function* readSSE(response: Response, signal?: AbortSignal): AsyncG
       if (!line || line.startsWith(':')) continue;
       const colon = line.indexOf(':');
       const field = colon < 0 ? line : line.slice(0, colon);
-      const value = colon < 0 ? '' : line.slice(colon + 1).replace(/^ /, '');
+      const raw = colon < 0 ? '' : line.slice(colon + 1);
+      const value = raw.replace(/^ /, '');
       if (field === 'event') event = value;
-      else if (field === 'data') data.push(value);
+      else if (field === 'data') data.push(raw);
       else if (field === 'id') id = value;
     }
-    return data.length ? { event, data: data.join('\n'), id } : null;
+    if (!data.length) return null;
+    const lines = options.springRawMessage && event === 'message' ? data : data.map(line => line.replace(/^ /, ''));
+    return { event, data: lines.join('\n'), id };
   };
   for await (const chunk of readText(response, signal)) {
     buffer += chunk.replace(/\r\n?/g, '\n');

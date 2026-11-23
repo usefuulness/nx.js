@@ -525,6 +525,10 @@ export class NXChat extends BaseComponent {
       .body blockquote { margin: 0.5rem 0; padding-inline-start: 0.875rem; border-inline-start: 3px solid var(--color-border); color: var(--color-text-secondary); }
       .body hr { border: none; border-top: 1px solid var(--color-border); margin: 0.875rem 0; }
       .body code { padding: 0.125rem 0.3125rem; border-radius: var(--radius-sm); background: var(--color-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85em; }
+      .md-table { overflow-x: auto; margin-block: 0.75rem; }
+      .md-table table { border-collapse: collapse; font-size: 0.9em; }
+      .md-table :is(th, td) { border: 1px solid var(--color-border); padding: 0.4rem 0.65rem; }
+      .md-table th { background: var(--color-accent); }
       .md-code { margin: 0.625rem 0; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-muted); overflow: hidden; }
       .md-code-head { display: flex; align-items: center; justify-content: space-between; min-height: 1.75rem; padding: 0 0.5rem 0 0.75rem; border-bottom: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: 0.75rem; }
       .md-code pre { margin: 0; padding: 0.75rem; overflow-x: auto; }

@@ -25,6 +25,14 @@ function audit(root: Element): string[] {
 }
 
 describe('renderMarkdown: what it renders', () => {
+  it('renders table cells and nested lists using safe DOM nodes', () => {
+    const el = html('| **Name** | Value |\n| --- | --- |\n| item | `42` |\n\n- parent\n  - child\n- sibling');
+    expect(el.querySelector('thead th strong')?.textContent).toBe('Name');
+    expect(el.querySelector('tbody td code')?.textContent).toBe('42');
+    expect(el.querySelector('ul ul li')?.textContent).toBe('child');
+    expect(el.querySelector(':scope > ul > li:last-child')?.textContent).toBe('sibling');
+  });
+
   it('renders paragraphs, line breaks, emphasis, strike and inline code', () => {
     const el = html('Hello **bold** and *italic* and ~~gone~~ and `code`.\nSecond line');
     expect(el.innerHTML).toBe('<p>Hello <strong>bold</strong> and <em>italic</em> and <del>gone</del> and <code>code</code>.<br>Second line</p>');

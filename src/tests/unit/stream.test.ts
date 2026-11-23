@@ -48,6 +48,13 @@ describe('readText', () => {
 });
 
 describe('readSSE', () => {
+  it('can keep Spring message spaces without changing other events', async () => {
+    const wire = 'data: heading\nevent:message\n\nevent:tool\ndata: {}\n\n';
+    const events = await collect(readSSE(response(wire), undefined, { springRawMessage: true }));
+    expect(events.map(({ data }) => data)).toEqual([' heading', '{}']);
+    expect((await collect(readSSE(response(wire))))[0].data).toBe('heading');
+  });
+
   it('parses events: event name, id, and data', async () => {
     const events = await collect(readSSE(response('event: delta\nid: 7\ndata: {"t":"hi"}\n\ndata: second\n\n')));
     expect(events).toEqual([{ event: 'delta', data: '{"t":"hi"}', id: '7' }, { event: 'message', data: 'second', id: undefined }]);

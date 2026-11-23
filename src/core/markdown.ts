@@ -7,7 +7,7 @@
  *
  * Supported: paragraphs (a single line break is kept), headings, **bold**, *italic*, ~~strike~~,
  * `code`, fenced code blocks, bullet and numbered lists, block quotes, horizontal rules, and
- * [links](https://example.com). Images and tables are shown as plain text.
+ * [links](https://example.com). Tables and nested lists are supported. Images are shown as text.
  *
  * DOM-free at load; it needs `document` only when called.
  */
@@ -95,6 +95,11 @@ const ORDERED = /^\s{0,3}(\d{1,9})[.)]\s+(.*)$/;
 const QUOTE = /^\s{0,3}>\s?(.*)$/;
 const RULE = /^\s{0,3}([-*_])(\s*\1){2,}\s*$/;
 
+function tableCells(line: string): string[] {
+  return line.trim().replace(/^\|/, '').replace(/(?<!\\)\|$/, '')
+    .split(/(?<!\\)\|/).map(cell => cell.trim().replace(/\\\|/g, '|'));
+}
+
 /** Render Markdown to a fragment of safe DOM nodes. */
 export function renderMarkdown(source: string, options: MarkdownOptions = {}, depth = 0): DocumentFragment {
   const doc = options.doc ?? document;
@@ -155,6 +160,35 @@ export function renderMarkdown(source: string, options: MarkdownOptions = {}, de
       continue;
     }
 
+    if (line.includes('|') && all[i + 1]?.includes('|')) {
+      const headers = tableCells(line);
+      const separator = tableCells(all[i + 1]);
+      if (separator.length === headers.length && separator.every(cell => /^:?-{3,}:?$/.test(cell))) {
+        const wrapper = doc.createElement('div');
+        wrapper.className = 'md-table';
+        const table = doc.createElement('table');
+        const head = table.createTHead().insertRow();
+        for (const header of headers) {
+          const cell = doc.createElement('th');
+          cell.scope = 'col';
+          cell.append(...inline(header, doc));
+          head.append(cell);
+        }
+        const body = table.createTBody();
+        i += 2;
+        while (i < all.length && all[i].includes('|')) {
+          const values = tableCells(all[i++]);
+          const row = body.insertRow();
+          for (let column = 0; column < headers.length; column++) {
+            row.insertCell().append(...inline(values[column] ?? '', doc));
+          }
+        }
+        wrapper.append(table);
+        out.append(wrapper);
+        continue;
+      }
+    }
+
     if (BULLET.test(line) || ORDERED.test(line)) {
       const ordered = ORDERED.test(line);
       const list = doc.createElement(ordered ? 'ol' : 'ul');
@@ -162,13 +196,23 @@ export function renderMarkdown(source: string, options: MarkdownOptions = {}, de
         const start = Number(ORDERED.exec(line)![1]);
         if (start !== 1) list.setAttribute('start', String(start));
       }
+      const indent = line.length - line.trimStart().length;
       while (i < all.length) {
+        if (all[i].length - all[i].trimStart().length !== indent) break;
         const item = (ordered ? ORDERED : BULLET).exec(all[i]);
         if (!item) break;
         const li = doc.createElement('li');
         li.append(...inline(item[ordered ? 2 : 1], doc));
         list.append(li);
         i++;
+        const nestedIndent = all[i] ? all[i].length - all[i].trimStart().length : 0;
+        if (depth < MAX_QUOTE_DEPTH && nestedIndent > indent && (BULLET.test(all[i].trimStart()) || ORDERED.test(all[i].trimStart()))) {
+          const nested: string[] = [];
+          while (i < all.length && all[i].trim() && all[i].length - all[i].trimStart().length >= nestedIndent) {
+            nested.push(all[i++].slice(nestedIndent));
+          }
+          li.append(renderMarkdown(nested.join('\n'), options, depth + 1));
+        }
       }
       out.append(list);
       continue;
